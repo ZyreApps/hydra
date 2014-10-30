@@ -48,6 +48,10 @@
         type                string      Content type
         content             msg         Content body
 
+    GOODBYE - Close the connection politely
+
+    GOODBYE_OK - Handshake a connection close
+
     INVALID - Command was invalid at this time
 
     FAILED - Command failed for some specific reason
@@ -75,8 +79,10 @@ public class HydraMsg implements java.io.Closeable
     public static final int STATUS_OK             = 6;
     public static final int FETCH                 = 7;
     public static final int FETCH_OK              = 8;
-    public static final int INVALID               = 9;
-    public static final int FAILED                = 10;
+    public static final int GOODBYE               = 9;
+    public static final int GOODBYE_OK            = 10;
+    public static final int INVALID               = 11;
+    public static final int FAILED                = 12;
 
     //  Structure of our class
     private ZFrame routingId;           // Routing_id from ROUTER, if any
@@ -312,6 +318,12 @@ public class HydraMsg implements java.io.Closeable
                     self.content.add(ZFrame.recvFrame (input));
                 break;
 
+            case GOODBYE:
+                break;
+
+            case GOODBYE_OK:
+                break;
+
             case INVALID:
                 break;
 
@@ -414,6 +426,12 @@ public class HydraMsg implements java.io.Closeable
             frameSize += (type != null) ? type.length() : 0;
             break;
 
+        case GOODBYE:
+            break;
+
+        case GOODBYE_OK:
+            break;
+
         case INVALID:
             break;
 
@@ -502,6 +520,12 @@ public class HydraMsg implements java.io.Closeable
                 putString (type);
             else
                 putNumber1 ((byte) 0);      //  Empty string
+            break;
+
+        case GOODBYE:
+            break;
+
+        case GOODBYE_OK:
             break;
 
         case INVALID:
@@ -640,6 +664,26 @@ public class HydraMsg implements java.io.Closeable
     }
 
 //  --------------------------------------------------------------------------
+//  Send the GOODBYE to the socket in one step
+
+    public static void sendGoodbye (
+        Socket output)
+    {
+        HydraMsg self = new HydraMsg (HydraMsg.GOODBYE);
+        self.send (output);
+    }
+
+//  --------------------------------------------------------------------------
+//  Send the GOODBYE_OK to the socket in one step
+
+    public static void sendGoodbye_Ok (
+        Socket output)
+    {
+        HydraMsg self = new HydraMsg (HydraMsg.GOODBYE_OK);
+        self.send (output);
+    }
+
+//  --------------------------------------------------------------------------
 //  Send the INVALID to the socket in one step
 
     public static void sendInvalid (
@@ -696,6 +740,10 @@ public class HydraMsg implements java.io.Closeable
             copy.tags = new ArrayList <String> (this.tags);
             copy.timestamp = this.timestamp;
             copy.type = this.type;
+        break;
+        case GOODBYE:
+        break;
+        case GOODBYE_OK:
         break;
         case INVALID:
         break;
@@ -786,6 +834,14 @@ public class HydraMsg implements java.io.Closeable
                 System.out.printf ("    type='%s'\n", type);
             else
                 System.out.printf ("    type=\n");
+            break;
+
+        case GOODBYE:
+            System.out.println ("GOODBYE:");
+            break;
+
+        case GOODBYE_OK:
+            System.out.println ("GOODBYE_OK:");
             break;
 
         case INVALID:

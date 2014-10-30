@@ -7,7 +7,7 @@
     <include filename = "license.xml" />
 
     <grammar>
-    hydra = greeting 0* ( query / status / fetch )
+    hydra = greeting *( query / status / fetch ) [ goodbye ]
 
     greeting = c:hello ( s:hello-ok / s:invalid / s:failed )
     
@@ -16,6 +16,8 @@
     status = c:status ( s:status-ok / s:invalid / s:failed )
     
     fetch = c:fetch ( s:fetch-ok / s:invalid / s:failed )
+
+    goodbye = c:goodbye ( s:goodbye-ok / s:invalid / s:failed )
     </grammar>
 
     <message name = "hello">
@@ -59,6 +61,14 @@
         <field name = "timestamp" type = "number" size = "8">Post creation timestamp</field>
         <field name = "type" type = "string">Content type</field>
         <field name = "content" type = "msg">Content body</field>
+    </message>
+
+    <message name = "goodbye">
+        Close the connection politely
+    </message>
+
+    <message name = "goodbye ok">
+        Handshake a connection close
     </message>
 
     <message name = "invalid">

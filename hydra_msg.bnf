@@ -1,6 +1,6 @@
 The following ABNF grammar defines the The Hydra Protocol:
 
-    hydra = greeting 0* ( query / status / fetch )
+    hydra = greeting *( query / status / fetch ) [ goodbye ]
 
     greeting = c:hello ( s:hello-ok / s:invalid / s:failed )
     
@@ -9,6 +9,8 @@ The following ABNF grammar defines the The Hydra Protocol:
     status = c:status ( s:status-ok / s:invalid / s:failed )
     
     fetch = c:fetch ( s:fetch-ok / s:invalid / s:failed )
+
+    goodbye = c:goodbye ( s:goodbye-ok / s:invalid / s:failed )
 
     ;  Open new connection and ask for most recent post                      
 
@@ -54,13 +56,21 @@ The following ABNF grammar defines the The Hydra Protocol:
     type            = string                ; Content type
     content         = msg                   ; Content body
 
+    ;  Close the connection politely                                         
+
+    GOODBYE         = signature %d9
+
+    ;  Handshake a connection close                                          
+
+    GOODBYE-OK      = signature %d10
+
     ;  Command was invalid at this time                                      
 
-    INVALID         = signature %d9
+    INVALID         = signature %d11
 
     ;  Command failed for some specific reason                               
 
-    FAILED          = signature %d10 reason
+    FAILED          = signature %d12 reason
     reason          = string                ; Reason for failure
 
     ; A list of string values

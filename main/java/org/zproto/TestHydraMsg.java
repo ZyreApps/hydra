@@ -114,6 +114,20 @@ public class TestHydraMsg
         assertEquals (self.type (), "Life is short but Now lasts for ever");
         self.destroy ();
 
+        self = new HydraMsg (HydraMsg.GOODBYE);
+        self.send (output);
+
+        self = HydraMsg.recv (input);
+        assert (self != null);
+        self.destroy ();
+
+        self = new HydraMsg (HydraMsg.GOODBYE_OK);
+        self.send (output);
+
+        self = HydraMsg.recv (input);
+        assert (self != null);
+        self.destroy ();
+
         self = new HydraMsg (HydraMsg.INVALID);
         self.send (output);
 
