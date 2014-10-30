@@ -33,7 +33,8 @@ The following ABNF grammar defines the The Hydra Protocol:
 
     ;  Request last post for a given tag                                     
 
-    STATUS          = signature %d5
+    STATUS          = signature %d5 tag
+    tag             = string                ; Name of tag
 
     ;  Return last post for given tag                                        
 

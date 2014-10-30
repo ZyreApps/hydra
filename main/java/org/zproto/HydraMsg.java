@@ -32,6 +32,7 @@
         tags                strings     List of known tags
 
     STATUS - Request last post for a given tag
+        tag                 string      Name of tag
 
     STATUS_OK - Return last post for given tag
         post_id             string      Post identifier
@@ -91,6 +92,7 @@ public class HydraMsg implements java.io.Closeable
 
     private String post_id;
     private List <String> tags;
+    private String tag;
     private String reply_to;
     private String previous;
     private long timestamp;
@@ -291,6 +293,7 @@ public class HydraMsg implements java.io.Closeable
                 break;
 
             case STATUS:
+                self.tag = self.getString ();
                 break;
 
             case STATUS_OK:
@@ -387,6 +390,9 @@ public class HydraMsg implements java.io.Closeable
             break;
 
         case STATUS:
+            //  tag is a string with 1-byte length
+            frameSize ++;
+            frameSize += (tag != null) ? tag.length() : 0;
             break;
 
         case STATUS_OK:
@@ -478,6 +484,10 @@ public class HydraMsg implements java.io.Closeable
             break;
 
         case STATUS:
+            if (tag != null)
+                putString (tag);
+            else
+                putNumber1 ((byte) 0);      //  Empty string
             break;
 
         case STATUS_OK:
@@ -609,9 +619,11 @@ public class HydraMsg implements java.io.Closeable
 //  Send the STATUS to the socket in one step
 
     public static void sendStatus (
-        Socket output)
+        Socket output,
+        String tag)
     {
         HydraMsg self = new HydraMsg (HydraMsg.STATUS);
+        self.setTag (tag);
         self.send (output);
     }
 
@@ -726,6 +738,7 @@ public class HydraMsg implements java.io.Closeable
             copy.tags = new ArrayList <String> (this.tags);
         break;
         case STATUS:
+            copy.tag = this.tag;
         break;
         case STATUS_OK:
             copy.post_id = this.post_id;
@@ -790,6 +803,10 @@ public class HydraMsg implements java.io.Closeable
 
         case STATUS:
             System.out.println ("STATUS:");
+            if (tag != null)
+                System.out.printf ("    tag='%s'\n", tag);
+            else
+                System.out.printf ("    tag=\n");
             break;
 
         case STATUS_OK:
@@ -925,6 +942,20 @@ public class HydraMsg implements java.io.Closeable
     public void setTags (List <String> value)
     {
         tags = new ArrayList (value);
+    }
+
+    //  --------------------------------------------------------------------------
+    //  Get/set the tag field
+
+    public String tag ()
+    {
+        return tag;
+    }
+
+    public void setTag (String format, Object ... args)
+    {
+        //  Format into newly allocated string
+        tag = String.format (format, args);
     }
 
     //  --------------------------------------------------------------------------

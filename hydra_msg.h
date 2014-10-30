@@ -37,6 +37,7 @@
         tags                strings     List of known tags
 
     STATUS - Request last post for a given tag
+        tag                 string      Name of tag
 
     STATUS_OK - Return last post for given tag
         post_id             string      Post identifier
@@ -147,7 +148,7 @@ zmsg_t *
 //  Encode the STATUS 
 zmsg_t *
     hydra_msg_encode_status (
-);
+        const char *tag);
 
 //  Encode the STATUS_OK 
 zmsg_t *
@@ -216,7 +217,8 @@ int
 //  Send the STATUS to the output in one step
 //  WARNING, this call will fail if output is of type ZMQ_ROUTER.
 int
-    hydra_msg_send_status (void *output);
+    hydra_msg_send_status (void *output,
+        const char *tag);
     
 //  Send the STATUS_OK to the output in one step
 //  WARNING, this call will fail if output is of type ZMQ_ROUTER.
@@ -310,6 +312,12 @@ void
     hydra_msg_tags_append (hydra_msg_t *self, const char *format, ...);
 size_t
     hydra_msg_tags_size (hydra_msg_t *self);
+
+//  Get/set the tag field
+const char *
+    hydra_msg_tag (hydra_msg_t *self);
+void
+    hydra_msg_set_tag (hydra_msg_t *self, const char *format, ...);
 
 //  Get/set the reply_to field
 const char *

@@ -39,6 +39,7 @@ struct _hydra_msg_t {
     byte *ceiling;                      //  Valid upper limit for read pointer
     char *post_id;                      //  Post identifier
     zlist_t *tags;                      //  List of known tags
+    char *tag;                          //  Name of tag
     char *reply_to;                     //  Parent post, if any
     char *previous;                     //  Previous post, if any
     uint64_t timestamp;                 //  Post creation timestamp
@@ -210,6 +211,7 @@ hydra_msg_destroy (hydra_msg_t **self_p)
         free (self->post_id);
         if (self->tags)
             zlist_destroy (&self->tags);
+        free (self->tag);
         free (self->reply_to);
         free (self->previous);
         free (self->type);
@@ -280,6 +282,7 @@ hydra_msg_decode (zmsg_t **msg_p)
             break;
 
         case HYDRA_MSG_STATUS:
+            GET_STRING (self->tag);
             break;
 
         case HYDRA_MSG_STATUS_OK:
@@ -389,6 +392,10 @@ hydra_msg_encode (hydra_msg_t **self_p)
             break;
             
         case HYDRA_MSG_STATUS:
+            //  tag is a string with 1-byte length
+            frame_size++;       //  Size is one octet
+            if (self->tag)
+                frame_size += strlen (self->tag);
             break;
             
         case HYDRA_MSG_STATUS_OK:
@@ -492,6 +499,11 @@ hydra_msg_encode (hydra_msg_t **self_p)
             break;
 
         case HYDRA_MSG_STATUS:
+            if (self->tag) {
+                PUT_STRING (self->tag);
+            }
+            else
+                PUT_NUMBER1 (0);    //  Empty string
             break;
 
         case HYDRA_MSG_STATUS_OK:
@@ -745,9 +757,10 @@ hydra_msg_encode_query_ok (
 
 zmsg_t * 
 hydra_msg_encode_status (
-)
+    const char *tag)
 {
     hydra_msg_t *self = hydra_msg_new (HYDRA_MSG_STATUS);
+    hydra_msg_set_tag (self, tag);
     return hydra_msg_encode (&self);
 }
 
@@ -912,9 +925,11 @@ hydra_msg_send_query_ok (
 
 int
 hydra_msg_send_status (
-    void *output)
+    void *output,
+    const char *tag)
 {
     hydra_msg_t *self = hydra_msg_new (HYDRA_MSG_STATUS);
+    hydra_msg_set_tag (self, tag);
     return hydra_msg_send (&self, output);
 }
 
@@ -1053,6 +1068,7 @@ hydra_msg_dup (hydra_msg_t *self)
             break;
 
         case HYDRA_MSG_STATUS:
+            copy->tag = self->tag? strdup (self->tag): NULL;
             break;
 
         case HYDRA_MSG_STATUS_OK:
@@ -1129,6 +1145,10 @@ hydra_msg_print (hydra_msg_t *self)
             
         case HYDRA_MSG_STATUS:
             zsys_debug ("HYDRA_MSG_STATUS:");
+            if (self->tag)
+                zsys_debug ("    tag='%s'", self->tag);
+            else
+                zsys_debug ("    tag=");
             break;
             
         case HYDRA_MSG_STATUS_OK:
@@ -1394,6 +1414,29 @@ hydra_msg_tags_size (hydra_msg_t *self)
 
 
 //  --------------------------------------------------------------------------
+//  Get/set the tag field
+
+const char *
+hydra_msg_tag (hydra_msg_t *self)
+{
+    assert (self);
+    return self->tag;
+}
+
+void
+hydra_msg_set_tag (hydra_msg_t *self, const char *format, ...)
+{
+    //  Format tag from provided arguments
+    assert (self);
+    va_list argptr;
+    va_start (argptr, format);
+    free (self->tag);
+    self->tag = zsys_vprintf (format, argptr);
+    va_end (argptr);
+}
+
+
+//  --------------------------------------------------------------------------
 //  Get/set the reply_to field
 
 const char *
@@ -1649,6 +1692,7 @@ hydra_msg_test (bool verbose)
     assert (copy);
     hydra_msg_destroy (&copy);
 
+    hydra_msg_set_tag (self, "Life is short but Now lasts for ever");
     //  Send twice from same object
     hydra_msg_send_again (self, output);
     hydra_msg_send (&self, output);
@@ -1658,6 +1702,7 @@ hydra_msg_test (bool verbose)
         assert (self);
         assert (hydra_msg_routing_id (self));
         
+        assert (streq (hydra_msg_tag (self), "Life is short but Now lasts for ever"));
         hydra_msg_destroy (&self);
     }
     self = hydra_msg_new (HYDRA_MSG_STATUS_OK);

@@ -68,10 +68,12 @@ public class TestHydraMsg
         self.destroy ();
 
         self = new HydraMsg (HydraMsg.STATUS);
+        self.setTag ("Life is short but Now lasts for ever");
         self.send (output);
 
         self = HydraMsg.recv (input);
         assert (self != null);
+        assertEquals (self.tag (), "Life is short but Now lasts for ever");
         self.destroy ();
 
         self = new HydraMsg (HydraMsg.STATUS_OK);
