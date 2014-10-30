@@ -37,6 +37,7 @@
         tags                strings     List of known tags
 
     STATUS - Request last post for a given tag
+        tag                 string      Name of tag
 
     STATUS_OK - Return last post for given tag
         post_id             string      Post identifier
@@ -53,6 +54,10 @@
         type                string      Content type
         content             msg         Content body
 
+    GOODBYE - Close the connection politely
+
+    GOODBYE_OK - Handshake a connection close
+
     INVALID - Command was invalid at this time
 
     FAILED - Command failed for some specific reason
@@ -68,8 +73,10 @@
 #define HYDRA_MSG_STATUS_OK                 6
 #define HYDRA_MSG_FETCH                     7
 #define HYDRA_MSG_FETCH_OK                  8
-#define HYDRA_MSG_INVALID                   9
-#define HYDRA_MSG_FAILED                    10
+#define HYDRA_MSG_GOODBYE                   9
+#define HYDRA_MSG_GOODBYE_OK                10
+#define HYDRA_MSG_INVALID                   11
+#define HYDRA_MSG_FAILED                    12
 
 #include <czmq.h>
 
@@ -141,7 +148,7 @@ zmsg_t *
 //  Encode the STATUS 
 zmsg_t *
     hydra_msg_encode_status (
-);
+        const char *tag);
 
 //  Encode the STATUS_OK 
 zmsg_t *
@@ -163,6 +170,16 @@ zmsg_t *
         uint64_t timestamp,
         const char *type,
         zmsg_t *content);
+
+//  Encode the GOODBYE 
+zmsg_t *
+    hydra_msg_encode_goodbye (
+);
+
+//  Encode the GOODBYE_OK 
+zmsg_t *
+    hydra_msg_encode_goodbye_ok (
+);
 
 //  Encode the INVALID 
 zmsg_t *
@@ -200,7 +217,8 @@ int
 //  Send the STATUS to the output in one step
 //  WARNING, this call will fail if output is of type ZMQ_ROUTER.
 int
-    hydra_msg_send_status (void *output);
+    hydra_msg_send_status (void *output,
+        const char *tag);
     
 //  Send the STATUS_OK to the output in one step
 //  WARNING, this call will fail if output is of type ZMQ_ROUTER.
@@ -225,6 +243,16 @@ int
         uint64_t timestamp,
         const char *type,
         zmsg_t *content);
+    
+//  Send the GOODBYE to the output in one step
+//  WARNING, this call will fail if output is of type ZMQ_ROUTER.
+int
+    hydra_msg_send_goodbye (void *output);
+    
+//  Send the GOODBYE_OK to the output in one step
+//  WARNING, this call will fail if output is of type ZMQ_ROUTER.
+int
+    hydra_msg_send_goodbye_ok (void *output);
     
 //  Send the INVALID to the output in one step
 //  WARNING, this call will fail if output is of type ZMQ_ROUTER.
@@ -284,6 +312,12 @@ void
     hydra_msg_tags_append (hydra_msg_t *self, const char *format, ...);
 size_t
     hydra_msg_tags_size (hydra_msg_t *self);
+
+//  Get/set the tag field
+const char *
+    hydra_msg_tag (hydra_msg_t *self);
+void
+    hydra_msg_set_tag (hydra_msg_t *self, const char *format, ...);
 
 //  Get/set the reply_to field
 const char *
