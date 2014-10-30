@@ -1,0 +1,13 @@
+#! /bin/bash
+#
+#   Run selftests and check memory
+
+MAIN=hydra_selftest
+
+gcc -g -o $MAIN \
+    $MAIN.c \
+    hydra_msg.c hydra_client.c hydra_server.c \
+    -lczmq -lzmq
+test $? -ne 0 && exit
+./$MAIN
+
