@@ -1,8 +1,7 @@
 (ns hydra
   (:require [zeromq.zmq :as zmq])
   (:import [org.zproto HydraMsg]
-           [org.zeromq ZMsg]
-           [java.io StringWriter PrintWriter PrintStream OutputStreamWriter]))
+           [org.zeromq ZMsg]))
 
 
 (defprotocol HydraClient
