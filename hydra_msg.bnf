@@ -17,8 +17,8 @@ The following ABNF grammar defines the The Hydra Protocol:
 
     ;  Return last post known for peer                                       
 
-    HELLO-OK        = signature %d2 post id
-    post id         = string                ; Post identifier
+    HELLO-OK        = signature %d2 post-id
+    post-id         = string                ; Post identifier
 
     ;  Request list of tags known by peer                                    
 
@@ -35,19 +35,19 @@ The following ABNF grammar defines the The Hydra Protocol:
 
     ;  Return last post for given tag                                        
 
-    STATUS-OK       = signature %d6 post id
-    post id         = string                ; Post identifier
+    STATUS-OK       = signature %d6 post-id
+    post-id         = string                ; Post identifier
 
     ;  Fetch a given post                                                    
 
-    FETCH           = signature %d7 post id
-    post id         = string                ; Post identifier
+    FETCH           = signature %d7 post-id
+    post-id         = string                ; Post identifier
 
     ;  Return a post details                                                 
 
-    FETCH-OK        = signature %d8 post id reply to previous tags timestamp type content
-    post id         = string                ; Post identifier
-    reply to        = string                ; Parent post, if any
+    FETCH-OK        = signature %d8 post-id reply-to previous tags timestamp type content
+    post-id         = string                ; Post identifier
+    reply-to        = string                ; Parent post, if any
     previous        = string                ; Previous post, if any
     tags            = strings               ; Post tags
     timestamp       = number-8              ; Post creation timestamp
