@@ -1,0 +1,72 @@
+<class
+    name = "hydra_msg"
+    title = "The Hydra Protocol"
+    script = "zproto_codec_c"
+    package_dir = "."
+    >
+    <include filename = "license.xml" />
+
+    <grammar>
+    hydra = greeting 0* ( query / status / fetch )
+
+    greeting = c:hello ( s:hello-ok / s:invalid / s:failed )
+    
+    query = c:query ( s:query-ok / s:invalid / s:failed )
+    
+    status = c:status ( s:status-ok / s:invalid / s:failed )
+    
+    fetch = c:fetch ( s:fetch-ok / s:invalid / s:failed )
+    </grammar>
+
+    <message name = "hello">
+        Open new connection and ask for most recent post
+    </message>
+
+    <message name = "hello ok">
+        Return last post known for peer
+        <field name = "post id" type = "string">Post identifier</field>
+    </message>
+
+    <message name = "query">
+        Request list of tags known by peer
+    </message>
+
+    <message name = "query ok">
+        Return list of known tags
+        <field name = "tags" type = "strings">List of known tags</field>
+    </message>
+
+    <message name = "status">
+        Request last post for a given tag
+    </message>
+
+    <message name = "status ok">
+        Return last post for given tag
+        <field name = "post id" type = "string">Post identifier</field>
+    </message>
+
+    <message name = "fetch">
+        Fetch a given post
+        <field name = "post id" type = "string">Post identifier</field>
+    </message>
+
+    <message name = "fetch ok">
+        Return a post details
+        <field name = "post id" type = "string">Post identifier</field>
+        <field name = "reply to" type = "string">Parent post, if any</field>
+        <field name = "previous" type = "string">Previous post, if any</field>
+        <field name = "tags" type = "strings">Post tags</field>
+        <field name = "timestamp" type = "number" size = "8">Post creation timestamp</field>
+        <field name = "type" type = "string">Content type</field>
+        <field name = "content" type = "msg">Content body</field>
+    </message>
+
+    <message name = "invalid">
+        Command was invalid at this time
+    </message>
+
+    <message name = "failed">
+        Command failed for some specific reason
+        <field name = "reason" type = "string">Reason for failure</field>
+    </message>
+</class>

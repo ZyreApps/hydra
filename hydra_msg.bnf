@@ -1,0 +1,81 @@
+The following ABNF grammar defines the The Hydra Protocol:
+
+    hydra = greeting 0* ( query / status / fetch )
+
+    greeting = c:hello ( s:hello-ok / s:invalid / s:failed )
+    
+    query = c:query ( s:query-ok / s:invalid / s:failed )
+    
+    status = c:status ( s:status-ok / s:invalid / s:failed )
+    
+    fetch = c:fetch ( s:fetch-ok / s:invalid / s:failed )
+
+    ;  Open new connection and ask for most recent post                      
+
+    HELLO           = signature %d1
+    signature       = %xAA %xA0             ; two octets
+
+    ;  Return last post known for peer                                       
+
+    HELLO-OK        = signature %d2 post id
+    post id         = string                ; Post identifier
+
+    ;  Request list of tags known by peer                                    
+
+    QUERY           = signature %d3
+
+    ;  Return list of known tags                                             
+
+    QUERY-OK        = signature %d4 tags
+    tags            = strings               ; List of known tags
+
+    ;  Request last post for a given tag                                     
+
+    STATUS          = signature %d5
+
+    ;  Return last post for given tag                                        
+
+    STATUS-OK       = signature %d6 post id
+    post id         = string                ; Post identifier
+
+    ;  Fetch a given post                                                    
+
+    FETCH           = signature %d7 post id
+    post id         = string                ; Post identifier
+
+    ;  Return a post details                                                 
+
+    FETCH-OK        = signature %d8 post id reply to previous tags timestamp type content
+    post id         = string                ; Post identifier
+    reply to        = string                ; Parent post, if any
+    previous        = string                ; Previous post, if any
+    tags            = strings               ; Post tags
+    timestamp       = number-8              ; Post creation timestamp
+    type            = string                ; Content type
+    content         = msg                   ; Content body
+
+    ;  Command was invalid at this time                                      
+
+    INVALID         = signature %d9
+
+    ;  Command failed for some specific reason                               
+
+    FAILED          = signature %d10 reason
+    reason          = string                ; Reason for failure
+
+    ; A list of string values
+    strings         = strings-count *strings-value
+    strings-count   = number-4
+    strings-value   = longstr
+
+    ; A msg is zero or more distinct frames
+    msg             = *frame
+
+    ; Strings are always length + text contents
+    string          = number-1 *VCHAR
+    longstr         = number-4 *VCHAR
+
+    ; Numbers are unsigned integers in network byte order
+    number-1        = 1OCTET
+    number-4        = 4OCTET
+    number-8        = 8OCTET
