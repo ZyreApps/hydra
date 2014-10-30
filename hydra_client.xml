@@ -1,0 +1,151 @@
+<class
+    name = "hydra_client"
+    title = "Hydra Client"
+    script = "zproto_client_c"
+    protocol_class = "hydra_msg"
+    package_dir = "."
+    >
+    This is a client implementation of the Hydra Protocol
+    <include filename = "license.xml" />
+
+    <state name = "start">
+        <event name = "constructor" next = "connecting">
+            <action name = "connect to server endpoint" />
+            <action name = "use connect timeout" />
+            <action name = "send" message = "HELLO" />
+        </event>
+        <event name = "error">
+            <action name = "terminate" />
+        </event>
+    </state>
+
+    <state name = "connecting" inherit = "defaults">
+        <event name = "HELLO OK" next = "connected">
+            <action name = "signal success" />
+        </event>
+        <event name = "expired">
+            <action name = "signal server not present" />
+            <action name = "terminate" />
+        </event>
+    </state>
+
+    <state name = "connected" inherit = "defaults">
+        <event name = "get tags" next = "expect get tags ok">
+            <action name = "prepare to send get tags" />
+            <action name = "send" message = "GET TAGS" />
+        </event>
+        <event name = "get tag" next = "expect get tag ok">
+            <action name = "prepare to send get tag" />
+            <action name = "send" message = "GET TAG" />
+        </event>
+        <event name = "get post" next = "expect get post ok">
+            <action name = "prepare to send get post" />
+            <action name = "send" message = "GET POST" />
+        </event>
+        <event name = "destructor" next = "expect goodbye ok">
+            <action name = "send" message = "GOODBYE" />
+        </event>
+    </state>
+
+    <state name = "expect get tags ok" inherit = "defaults">
+        <event name = "GET TAGS OK" next = "connected">
+            <action name = "return tags to application" />
+        </event>
+    </state>
+
+    <state name = "expect get tag ok" inherit = "defaults">
+        <event name = "GET TAG OK" next = "connected">
+            <action name = "return tag to application" />
+        </event>
+    </state>
+
+    <state name = "expect get post ok" inherit = "defaults">
+        <event name = "GET POST OK" next = "connected">
+            <action name = "return post to application" />
+        </event>
+    </state>
+
+    <state name = "expect goodbye ok" inherit = "defaults">
+        <event name = "GOODBYE OK" next = "connected">
+            <action name = "signal success" />
+            <action name = "terminate" />
+        </event>
+        <event name = "expired">
+            <action name = "signal failure" />
+            <action name = "terminate" />
+        </event>
+    </state>
+
+    <state name = "defaults">
+        <event name = "INVALID" next = "connecting">
+            <action name = "use connect timeout" />
+            <action name = "send" message = "HELLO" />
+        </event>
+        <event name = "*">
+            <!-- Discard any other incoming events -->
+        </event>
+    </state>
+
+    <!-- API methods -->
+    <method name = "constructor" return = "status">
+    Connect to server endpoint, with specified timeout in msecs (zero means
+    wait forever). Constructor succeeds if connection is successful.
+        <field name = "endpoint" type = "string" />
+        <field name = "timeout" type = "number" size = "4" />
+        <accept reply = "SUCCESS" />
+        <accept reply = "FAILURE" />
+    </method>
+
+    <method name = "destructor" return = "status">
+    Disconnect from server. Waits for a short timeout for confirmation from
+    the server, then disconnects anyhow.
+        <accept reply = "SUCCESS" />
+        <accept reply = "FAILURE" />
+    </method>
+
+    <reply name = "SUCCESS">
+        <field name = "status" type = "number" size = "1" />
+    </reply>
+
+    <reply name = "FAILURE">
+        <field name = "status" type = "number" size = "1" />
+        <field name = "reason" type = "string" />
+    </reply>
+
+    <method name = "get tags" return = "status">
+    Get list of tags from peer
+        <accept reply = "TAGS" />
+    </method>
+
+    <reply name = "TAGS">
+        <field name = "tags" type = "string" />
+    </reply>
+
+    <method name = "get tag">
+    Fetch latest post for a given tag
+        <field name = "tag" type = "string" />
+        <accept reply = "TAG" />
+    </method>
+
+    <reply name = "TAGS">
+        <field name = "tag" type = "string" />
+        <field name = "post-id" type = "string">Latest post</field>
+    </reply>
+
+    <method name = "get post">
+    Fetch a specific post byt ID
+        <field name = "post-id" type = "string" />
+        <accept reply = "POST" />
+    </method>
+
+    <reply name = "POST">
+        <field name = "post-id" type = "string">Post identifier</field>
+        <field name = "reply-to" type = "string">Parent post, if any</field>
+        <field name = "previous" type = "string">Previous post, if any</field>
+        <field name = "tags" type = "string">Post tags</field>
+        <field name = "timestamp" type = "number" size = "8">Post creation timestamp</field>
+        <field name = "type" type = "string">Content type</field>
+<!--         <field name = "content" type = "msg">Content body</field> -->
+        <field name = "content" type = "string">Content body</field>
+    </reply>
+</class>
