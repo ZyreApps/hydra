@@ -26,21 +26,21 @@
     HELLO_OK - Return last post known for peer
         post_id             string      Post identifier
 
-    QUERY - Request list of tags known by peer
+    GET_TAGS - Request list of tags known by peer
 
-    QUERY_OK - Return list of known tags
+    GET_TAGS_OK - Return list of known tags
         tags                strings     List of known tags
 
-    STATUS - Request last post for a given tag
+    GET_TAG - Request last post for a given tag
         tag                 string      Name of tag
 
-    STATUS_OK - Return last post for given tag
+    GET_TAG_OK - Return last post for given tag
         post_id             string      Post identifier
 
-    FETCH - Fetch a given post
+    GET_POST - Fetch a given post
         post_id             string      Post identifier
 
-    FETCH_OK - Return a post details
+    GET_POST_OK - Return a post details
         post_id             string      Post identifier
         reply_to            string      Parent post, if any
         previous            string      Previous post, if any
@@ -74,12 +74,12 @@ public class HydraMsg implements java.io.Closeable
 
     public static final int HELLO                 = 1;
     public static final int HELLO_OK              = 2;
-    public static final int QUERY                 = 3;
-    public static final int QUERY_OK              = 4;
-    public static final int STATUS                = 5;
-    public static final int STATUS_OK             = 6;
-    public static final int FETCH                 = 7;
-    public static final int FETCH_OK              = 8;
+    public static final int GET_TAGS              = 3;
+    public static final int GET_TAGS_OK           = 4;
+    public static final int GET_TAG               = 5;
+    public static final int GET_TAG_OK            = 6;
+    public static final int GET_POST              = 7;
+    public static final int GET_POST_OK           = 8;
     public static final int GOODBYE               = 9;
     public static final int GOODBYE_OK            = 10;
     public static final int INVALID               = 11;
@@ -280,10 +280,10 @@ public class HydraMsg implements java.io.Closeable
                 self.post_id = self.getString ();
                 break;
 
-            case QUERY:
+            case GET_TAGS:
                 break;
 
-            case QUERY_OK:
+            case GET_TAGS_OK:
                 listSize = (int) self.getNumber4 ();
                 self.tags = new ArrayList<String> ();
                 while (listSize-- > 0) {
@@ -292,19 +292,19 @@ public class HydraMsg implements java.io.Closeable
                 }
                 break;
 
-            case STATUS:
+            case GET_TAG:
                 self.tag = self.getString ();
                 break;
 
-            case STATUS_OK:
+            case GET_TAG_OK:
                 self.post_id = self.getString ();
                 break;
 
-            case FETCH:
+            case GET_POST:
                 self.post_id = self.getString ();
                 break;
 
-            case FETCH_OK:
+            case GET_POST_OK:
                 self.post_id = self.getString ();
                 self.reply_to = self.getString ();
                 self.previous = self.getString ();
@@ -375,10 +375,10 @@ public class HydraMsg implements java.io.Closeable
             frameSize += (post_id != null) ? post_id.length() : 0;
             break;
 
-        case QUERY:
+        case GET_TAGS:
             break;
 
-        case QUERY_OK:
+        case GET_TAGS_OK:
             //  tags is an array of strings
             frameSize += 4;
             if (tags != null) {
@@ -389,25 +389,25 @@ public class HydraMsg implements java.io.Closeable
             }
             break;
 
-        case STATUS:
+        case GET_TAG:
             //  tag is a string with 1-byte length
             frameSize ++;
             frameSize += (tag != null) ? tag.length() : 0;
             break;
 
-        case STATUS_OK:
+        case GET_TAG_OK:
             //  post_id is a string with 1-byte length
             frameSize ++;
             frameSize += (post_id != null) ? post_id.length() : 0;
             break;
 
-        case FETCH:
+        case GET_POST:
             //  post_id is a string with 1-byte length
             frameSize ++;
             frameSize += (post_id != null) ? post_id.length() : 0;
             break;
 
-        case FETCH_OK:
+        case GET_POST_OK:
             //  post_id is a string with 1-byte length
             frameSize ++;
             frameSize += (post_id != null) ? post_id.length() : 0;
@@ -469,10 +469,10 @@ public class HydraMsg implements java.io.Closeable
                 putNumber1 ((byte) 0);      //  Empty string
             break;
 
-        case QUERY:
+        case GET_TAGS:
             break;
 
-        case QUERY_OK:
+        case GET_TAGS_OK:
             if (tags != null) {
                 putNumber4 (tags.size ());
                 for (String value : tags) {
@@ -483,28 +483,28 @@ public class HydraMsg implements java.io.Closeable
                 putNumber4 (0);      //  Empty string array
             break;
 
-        case STATUS:
+        case GET_TAG:
             if (tag != null)
                 putString (tag);
             else
                 putNumber1 ((byte) 0);      //  Empty string
             break;
 
-        case STATUS_OK:
+        case GET_TAG_OK:
             if (post_id != null)
                 putString (post_id);
             else
                 putNumber1 ((byte) 0);      //  Empty string
             break;
 
-        case FETCH:
+        case GET_POST:
             if (post_id != null)
                 putString (post_id);
             else
                 putNumber1 ((byte) 0);      //  Empty string
             break;
 
-        case FETCH_OK:
+        case GET_POST_OK:
             if (post_id != null)
                 putString (post_id);
             else
@@ -556,7 +556,7 @@ public class HydraMsg implements java.io.Closeable
         switch (id) {
         }
         switch (id) {
-        case FETCH_OK:
+        case GET_POST_OK:
             if( content == null )
                 content = new ZMsg();
             for (ZFrame contentPart : content) {
@@ -594,67 +594,67 @@ public class HydraMsg implements java.io.Closeable
     }
 
 //  --------------------------------------------------------------------------
-//  Send the QUERY to the socket in one step
+//  Send the GET_TAGS to the socket in one step
 
-    public static void sendQuery (
+    public static void sendGet_Tags (
         Socket output)
     {
-        HydraMsg self = new HydraMsg (HydraMsg.QUERY);
+        HydraMsg self = new HydraMsg (HydraMsg.GET_TAGS);
         self.send (output);
     }
 
 //  --------------------------------------------------------------------------
-//  Send the QUERY_OK to the socket in one step
+//  Send the GET_TAGS_OK to the socket in one step
 
-    public static void sendQuery_Ok (
+    public static void sendGet_Tags_Ok (
         Socket output,
         List <String> tags)
     {
-        HydraMsg self = new HydraMsg (HydraMsg.QUERY_OK);
+        HydraMsg self = new HydraMsg (HydraMsg.GET_TAGS_OK);
         self.setTags (new ArrayList <String> (tags));
         self.send (output);
     }
 
 //  --------------------------------------------------------------------------
-//  Send the STATUS to the socket in one step
+//  Send the GET_TAG to the socket in one step
 
-    public static void sendStatus (
+    public static void sendGet_Tag (
         Socket output,
         String tag)
     {
-        HydraMsg self = new HydraMsg (HydraMsg.STATUS);
+        HydraMsg self = new HydraMsg (HydraMsg.GET_TAG);
         self.setTag (tag);
         self.send (output);
     }
 
 //  --------------------------------------------------------------------------
-//  Send the STATUS_OK to the socket in one step
+//  Send the GET_TAG_OK to the socket in one step
 
-    public static void sendStatus_Ok (
+    public static void sendGet_Tag_Ok (
         Socket output,
         String post_id)
     {
-        HydraMsg self = new HydraMsg (HydraMsg.STATUS_OK);
+        HydraMsg self = new HydraMsg (HydraMsg.GET_TAG_OK);
         self.setPost_Id (post_id);
         self.send (output);
     }
 
 //  --------------------------------------------------------------------------
-//  Send the FETCH to the socket in one step
+//  Send the GET_POST to the socket in one step
 
-    public static void sendFetch (
+    public static void sendGet_Post (
         Socket output,
         String post_id)
     {
-        HydraMsg self = new HydraMsg (HydraMsg.FETCH);
+        HydraMsg self = new HydraMsg (HydraMsg.GET_POST);
         self.setPost_Id (post_id);
         self.send (output);
     }
 
 //  --------------------------------------------------------------------------
-//  Send the FETCH_OK to the socket in one step
+//  Send the GET_POST_OK to the socket in one step
 
-    public static void sendFetch_Ok (
+    public static void sendGet_Post_Ok (
         Socket output,
         String post_id,
         String reply_to,
@@ -664,7 +664,7 @@ public class HydraMsg implements java.io.Closeable
         String type,
         ZMsg content)
     {
-        HydraMsg self = new HydraMsg (HydraMsg.FETCH_OK);
+        HydraMsg self = new HydraMsg (HydraMsg.GET_POST_OK);
         self.setPost_Id (post_id);
         self.setReply_To (reply_to);
         self.setPrevious (previous);
@@ -732,21 +732,21 @@ public class HydraMsg implements java.io.Closeable
         case HELLO_OK:
             copy.post_id = this.post_id;
         break;
-        case QUERY:
+        case GET_TAGS:
         break;
-        case QUERY_OK:
+        case GET_TAGS_OK:
             copy.tags = new ArrayList <String> (this.tags);
         break;
-        case STATUS:
+        case GET_TAG:
             copy.tag = this.tag;
         break;
-        case STATUS_OK:
+        case GET_TAG_OK:
             copy.post_id = this.post_id;
         break;
-        case FETCH:
+        case GET_POST:
             copy.post_id = this.post_id;
         break;
-        case FETCH_OK:
+        case GET_POST_OK:
             copy.post_id = this.post_id;
             copy.reply_to = this.reply_to;
             copy.previous = this.previous;
@@ -786,12 +786,12 @@ public class HydraMsg implements java.io.Closeable
                 System.out.printf ("    post_id=\n");
             break;
 
-        case QUERY:
-            System.out.println ("QUERY:");
+        case GET_TAGS:
+            System.out.println ("GET_TAGS:");
             break;
 
-        case QUERY_OK:
-            System.out.println ("QUERY_OK:");
+        case GET_TAGS_OK:
+            System.out.println ("GET_TAGS_OK:");
             System.out.printf ("    tags={");
             if (tags != null) {
                 for (String value : tags) {
@@ -801,32 +801,32 @@ public class HydraMsg implements java.io.Closeable
             System.out.printf (" }\n");
             break;
 
-        case STATUS:
-            System.out.println ("STATUS:");
+        case GET_TAG:
+            System.out.println ("GET_TAG:");
             if (tag != null)
                 System.out.printf ("    tag='%s'\n", tag);
             else
                 System.out.printf ("    tag=\n");
             break;
 
-        case STATUS_OK:
-            System.out.println ("STATUS_OK:");
+        case GET_TAG_OK:
+            System.out.println ("GET_TAG_OK:");
             if (post_id != null)
                 System.out.printf ("    post_id='%s'\n", post_id);
             else
                 System.out.printf ("    post_id=\n");
             break;
 
-        case FETCH:
-            System.out.println ("FETCH:");
+        case GET_POST:
+            System.out.println ("GET_POST:");
             if (post_id != null)
                 System.out.printf ("    post_id='%s'\n", post_id);
             else
                 System.out.printf ("    post_id=\n");
             break;
 
-        case FETCH_OK:
-            System.out.println ("FETCH_OK:");
+        case GET_POST_OK:
+            System.out.println ("GET_POST_OK:");
             if (post_id != null)
                 System.out.printf ("    post_id='%s'\n", post_id);
             else

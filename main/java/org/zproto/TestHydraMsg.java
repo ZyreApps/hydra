@@ -48,14 +48,14 @@ public class TestHydraMsg
         assertEquals (self.post_id (), "Life is short but Now lasts for ever");
         self.destroy ();
 
-        self = new HydraMsg (HydraMsg.QUERY);
+        self = new HydraMsg (HydraMsg.GET_TAGS);
         self.send (output);
 
         self = HydraMsg.recv (input);
         assert (self != null);
         self.destroy ();
 
-        self = new HydraMsg (HydraMsg.QUERY_OK);
+        self = new HydraMsg (HydraMsg.GET_TAGS_OK);
         self.appendTags ("Name: %s", "Brutus");
         self.appendTags ("Age: %d", 43);
         self.send (output);
@@ -67,7 +67,7 @@ public class TestHydraMsg
         assertEquals (self.tags ().get (1), "Age: 43");
         self.destroy ();
 
-        self = new HydraMsg (HydraMsg.STATUS);
+        self = new HydraMsg (HydraMsg.GET_TAG);
         self.setTag ("Life is short but Now lasts for ever");
         self.send (output);
 
@@ -76,7 +76,7 @@ public class TestHydraMsg
         assertEquals (self.tag (), "Life is short but Now lasts for ever");
         self.destroy ();
 
-        self = new HydraMsg (HydraMsg.STATUS_OK);
+        self = new HydraMsg (HydraMsg.GET_TAG_OK);
         self.setPost_Id ("Life is short but Now lasts for ever");
         self.send (output);
 
@@ -85,7 +85,7 @@ public class TestHydraMsg
         assertEquals (self.post_id (), "Life is short but Now lasts for ever");
         self.destroy ();
 
-        self = new HydraMsg (HydraMsg.FETCH);
+        self = new HydraMsg (HydraMsg.GET_POST);
         self.setPost_Id ("Life is short but Now lasts for ever");
         self.send (output);
 
@@ -94,7 +94,7 @@ public class TestHydraMsg
         assertEquals (self.post_id (), "Life is short but Now lasts for ever");
         self.destroy ();
 
-        self = new HydraMsg (HydraMsg.FETCH_OK);
+        self = new HydraMsg (HydraMsg.GET_POST_OK);
         self.setPost_Id ("Life is short but Now lasts for ever");
         self.setReply_To ("Life is short but Now lasts for ever");
         self.setPrevious ("Life is short but Now lasts for ever");

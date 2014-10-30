@@ -1,14 +1,14 @@
 The following ABNF grammar defines the The Hydra Protocol:
 
-    hydra = greeting *( query / status / fetch ) [ goodbye ]
+    hydra = hello *( tags / tag / post ) [ goodbye ]
 
-    greeting = c:hello ( s:hello-ok / s:invalid / s:failed )
+    hello = c:hello ( s:hello-ok / s:invalid / s:failed )
     
-    query = c:query ( s:query-ok / s:invalid / s:failed )
+    get-tags = c:get-tags ( s:get-tags-ok / s:invalid / s:failed )
     
-    status = c:status ( s:status-ok / s:invalid / s:failed )
+    get-tag = c:get-tag ( s:get-tag-ok / s:invalid / s:failed )
     
-    fetch = c:fetch ( s:fetch-ok / s:invalid / s:failed )
+    get-post = c:get-post ( s:get-post-ok / s:invalid / s:failed )
 
     goodbye = c:goodbye ( s:goodbye-ok / s:invalid / s:failed )
 
@@ -24,31 +24,31 @@ The following ABNF grammar defines the The Hydra Protocol:
 
     ;  Request list of tags known by peer                                    
 
-    QUERY           = signature %d3
+    GET-TAGS        = signature %d3
 
     ;  Return list of known tags                                             
 
-    QUERY-OK        = signature %d4 tags
+    GET-TAGS-OK     = signature %d4 tags
     tags            = strings               ; List of known tags
 
     ;  Request last post for a given tag                                     
 
-    STATUS          = signature %d5 tag
+    GET-TAG         = signature %d5 tag
     tag             = string                ; Name of tag
 
     ;  Return last post for given tag                                        
 
-    STATUS-OK       = signature %d6 post-id
+    GET-TAG-OK      = signature %d6 post-id
     post-id         = string                ; Post identifier
 
     ;  Fetch a given post                                                    
 
-    FETCH           = signature %d7 post-id
+    GET-POST        = signature %d7 post-id
     post-id         = string                ; Post identifier
 
     ;  Return a post details                                                 
 
-    FETCH-OK        = signature %d8 post-id reply-to previous tags timestamp type content
+    GET-POST-OK     = signature %d8 post-id reply-to previous tags timestamp type content
     post-id         = string                ; Post identifier
     reply-to        = string                ; Parent post, if any
     previous        = string                ; Previous post, if any
