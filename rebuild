@@ -1,0 +1,9 @@
+#! /bin/bash
+#
+#   Regenerates models, needs imatix/gsl and zeromq/zproto
+
+gsl -script:zproto_codec_c.gsl hydra_msg.xml
+gsl -script:zproto_codec_java.gsl hydra_msg.xml
+gsl hydra_client.xml
+gsl hydra_server.xml
+
