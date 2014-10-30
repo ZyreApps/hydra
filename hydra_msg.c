@@ -263,10 +263,10 @@ hydra_msg_decode (zmsg_t **msg_p)
             GET_STRING (self->post_id);
             break;
 
-        case HYDRA_MSG_QUERY:
+        case HYDRA_MSG_GET_TAGS:
             break;
 
-        case HYDRA_MSG_QUERY_OK:
+        case HYDRA_MSG_GET_TAGS_OK:
             {
                 size_t list_size;
                 GET_NUMBER4 (list_size);
@@ -281,19 +281,19 @@ hydra_msg_decode (zmsg_t **msg_p)
             }
             break;
 
-        case HYDRA_MSG_STATUS:
+        case HYDRA_MSG_GET_TAG:
             GET_STRING (self->tag);
             break;
 
-        case HYDRA_MSG_STATUS_OK:
+        case HYDRA_MSG_GET_TAG_OK:
             GET_STRING (self->post_id);
             break;
 
-        case HYDRA_MSG_FETCH:
+        case HYDRA_MSG_GET_POST:
             GET_STRING (self->post_id);
             break;
 
-        case HYDRA_MSG_FETCH_OK:
+        case HYDRA_MSG_GET_POST_OK:
             GET_STRING (self->post_id);
             GET_STRING (self->reply_to);
             GET_STRING (self->previous);
@@ -375,10 +375,10 @@ hydra_msg_encode (hydra_msg_t **self_p)
                 frame_size += strlen (self->post_id);
             break;
             
-        case HYDRA_MSG_QUERY:
+        case HYDRA_MSG_GET_TAGS:
             break;
             
-        case HYDRA_MSG_QUERY_OK:
+        case HYDRA_MSG_GET_TAGS_OK:
             //  tags is an array of strings
             frame_size += 4;    //  Size is 4 octets
             if (self->tags) {
@@ -391,28 +391,28 @@ hydra_msg_encode (hydra_msg_t **self_p)
             }
             break;
             
-        case HYDRA_MSG_STATUS:
+        case HYDRA_MSG_GET_TAG:
             //  tag is a string with 1-byte length
             frame_size++;       //  Size is one octet
             if (self->tag)
                 frame_size += strlen (self->tag);
             break;
             
-        case HYDRA_MSG_STATUS_OK:
+        case HYDRA_MSG_GET_TAG_OK:
             //  post_id is a string with 1-byte length
             frame_size++;       //  Size is one octet
             if (self->post_id)
                 frame_size += strlen (self->post_id);
             break;
             
-        case HYDRA_MSG_FETCH:
+        case HYDRA_MSG_GET_POST:
             //  post_id is a string with 1-byte length
             frame_size++;       //  Size is one octet
             if (self->post_id)
                 frame_size += strlen (self->post_id);
             break;
             
-        case HYDRA_MSG_FETCH_OK:
+        case HYDRA_MSG_GET_POST_OK:
             //  post_id is a string with 1-byte length
             frame_size++;       //  Size is one octet
             if (self->post_id)
@@ -482,10 +482,10 @@ hydra_msg_encode (hydra_msg_t **self_p)
                 PUT_NUMBER1 (0);    //  Empty string
             break;
 
-        case HYDRA_MSG_QUERY:
+        case HYDRA_MSG_GET_TAGS:
             break;
 
-        case HYDRA_MSG_QUERY_OK:
+        case HYDRA_MSG_GET_TAGS_OK:
             if (self->tags) {
                 PUT_NUMBER4 (zlist_size (self->tags));
                 char *tags = (char *) zlist_first (self->tags);
@@ -498,7 +498,7 @@ hydra_msg_encode (hydra_msg_t **self_p)
                 PUT_NUMBER4 (0);    //  Empty string array
             break;
 
-        case HYDRA_MSG_STATUS:
+        case HYDRA_MSG_GET_TAG:
             if (self->tag) {
                 PUT_STRING (self->tag);
             }
@@ -506,7 +506,7 @@ hydra_msg_encode (hydra_msg_t **self_p)
                 PUT_NUMBER1 (0);    //  Empty string
             break;
 
-        case HYDRA_MSG_STATUS_OK:
+        case HYDRA_MSG_GET_TAG_OK:
             if (self->post_id) {
                 PUT_STRING (self->post_id);
             }
@@ -514,7 +514,7 @@ hydra_msg_encode (hydra_msg_t **self_p)
                 PUT_NUMBER1 (0);    //  Empty string
             break;
 
-        case HYDRA_MSG_FETCH:
+        case HYDRA_MSG_GET_POST:
             if (self->post_id) {
                 PUT_STRING (self->post_id);
             }
@@ -522,7 +522,7 @@ hydra_msg_encode (hydra_msg_t **self_p)
                 PUT_NUMBER1 (0);    //  Empty string
             break;
 
-        case HYDRA_MSG_FETCH_OK:
+        case HYDRA_MSG_GET_POST_OK:
             if (self->post_id) {
                 PUT_STRING (self->post_id);
             }
@@ -581,7 +581,7 @@ hydra_msg_encode (hydra_msg_t **self_p)
         return NULL;
     }
     //  Now send the message field if there is any
-    if (self->id == HYDRA_MSG_FETCH_OK) {
+    if (self->id == HYDRA_MSG_GET_POST_OK) {
         if (self->content) {
             zframe_t *frame = zmsg_pop (self->content);
             while (frame) {
@@ -727,25 +727,25 @@ hydra_msg_encode_hello_ok (
 
 
 //  --------------------------------------------------------------------------
-//  Encode QUERY message
+//  Encode GET_TAGS message
 
 zmsg_t * 
-hydra_msg_encode_query (
+hydra_msg_encode_get_tags (
 )
 {
-    hydra_msg_t *self = hydra_msg_new (HYDRA_MSG_QUERY);
+    hydra_msg_t *self = hydra_msg_new (HYDRA_MSG_GET_TAGS);
     return hydra_msg_encode (&self);
 }
 
 
 //  --------------------------------------------------------------------------
-//  Encode QUERY_OK message
+//  Encode GET_TAGS_OK message
 
 zmsg_t * 
-hydra_msg_encode_query_ok (
+hydra_msg_encode_get_tags_ok (
     zlist_t *tags)
 {
-    hydra_msg_t *self = hydra_msg_new (HYDRA_MSG_QUERY_OK);
+    hydra_msg_t *self = hydra_msg_new (HYDRA_MSG_GET_TAGS_OK);
     zlist_t *tags_copy = zlist_dup (tags);
     hydra_msg_set_tags (self, &tags_copy);
     return hydra_msg_encode (&self);
@@ -753,49 +753,49 @@ hydra_msg_encode_query_ok (
 
 
 //  --------------------------------------------------------------------------
-//  Encode STATUS message
+//  Encode GET_TAG message
 
 zmsg_t * 
-hydra_msg_encode_status (
+hydra_msg_encode_get_tag (
     const char *tag)
 {
-    hydra_msg_t *self = hydra_msg_new (HYDRA_MSG_STATUS);
+    hydra_msg_t *self = hydra_msg_new (HYDRA_MSG_GET_TAG);
     hydra_msg_set_tag (self, tag);
     return hydra_msg_encode (&self);
 }
 
 
 //  --------------------------------------------------------------------------
-//  Encode STATUS_OK message
+//  Encode GET_TAG_OK message
 
 zmsg_t * 
-hydra_msg_encode_status_ok (
+hydra_msg_encode_get_tag_ok (
     const char *post_id)
 {
-    hydra_msg_t *self = hydra_msg_new (HYDRA_MSG_STATUS_OK);
+    hydra_msg_t *self = hydra_msg_new (HYDRA_MSG_GET_TAG_OK);
     hydra_msg_set_post_id (self, post_id);
     return hydra_msg_encode (&self);
 }
 
 
 //  --------------------------------------------------------------------------
-//  Encode FETCH message
+//  Encode GET_POST message
 
 zmsg_t * 
-hydra_msg_encode_fetch (
+hydra_msg_encode_get_post (
     const char *post_id)
 {
-    hydra_msg_t *self = hydra_msg_new (HYDRA_MSG_FETCH);
+    hydra_msg_t *self = hydra_msg_new (HYDRA_MSG_GET_POST);
     hydra_msg_set_post_id (self, post_id);
     return hydra_msg_encode (&self);
 }
 
 
 //  --------------------------------------------------------------------------
-//  Encode FETCH_OK message
+//  Encode GET_POST_OK message
 
 zmsg_t * 
-hydra_msg_encode_fetch_ok (
+hydra_msg_encode_get_post_ok (
     const char *post_id,
     const char *reply_to,
     const char *previous,
@@ -804,7 +804,7 @@ hydra_msg_encode_fetch_ok (
     const char *type,
     zmsg_t *content)
 {
-    hydra_msg_t *self = hydra_msg_new (HYDRA_MSG_FETCH_OK);
+    hydra_msg_t *self = hydra_msg_new (HYDRA_MSG_GET_POST_OK);
     hydra_msg_set_post_id (self, post_id);
     hydra_msg_set_reply_to (self, reply_to);
     hydra_msg_set_previous (self, previous);
@@ -894,26 +894,26 @@ hydra_msg_send_hello_ok (
 
 
 //  --------------------------------------------------------------------------
-//  Send the QUERY to the socket in one step
+//  Send the GET_TAGS to the socket in one step
 
 int
-hydra_msg_send_query (
+hydra_msg_send_get_tags (
     void *output)
 {
-    hydra_msg_t *self = hydra_msg_new (HYDRA_MSG_QUERY);
+    hydra_msg_t *self = hydra_msg_new (HYDRA_MSG_GET_TAGS);
     return hydra_msg_send (&self, output);
 }
 
 
 //  --------------------------------------------------------------------------
-//  Send the QUERY_OK to the socket in one step
+//  Send the GET_TAGS_OK to the socket in one step
 
 int
-hydra_msg_send_query_ok (
+hydra_msg_send_get_tags_ok (
     void *output,
     zlist_t *tags)
 {
-    hydra_msg_t *self = hydra_msg_new (HYDRA_MSG_QUERY_OK);
+    hydra_msg_t *self = hydra_msg_new (HYDRA_MSG_GET_TAGS_OK);
     zlist_t *tags_copy = zlist_dup (tags);
     hydra_msg_set_tags (self, &tags_copy);
     return hydra_msg_send (&self, output);
@@ -921,52 +921,52 @@ hydra_msg_send_query_ok (
 
 
 //  --------------------------------------------------------------------------
-//  Send the STATUS to the socket in one step
+//  Send the GET_TAG to the socket in one step
 
 int
-hydra_msg_send_status (
+hydra_msg_send_get_tag (
     void *output,
     const char *tag)
 {
-    hydra_msg_t *self = hydra_msg_new (HYDRA_MSG_STATUS);
+    hydra_msg_t *self = hydra_msg_new (HYDRA_MSG_GET_TAG);
     hydra_msg_set_tag (self, tag);
     return hydra_msg_send (&self, output);
 }
 
 
 //  --------------------------------------------------------------------------
-//  Send the STATUS_OK to the socket in one step
+//  Send the GET_TAG_OK to the socket in one step
 
 int
-hydra_msg_send_status_ok (
+hydra_msg_send_get_tag_ok (
     void *output,
     const char *post_id)
 {
-    hydra_msg_t *self = hydra_msg_new (HYDRA_MSG_STATUS_OK);
+    hydra_msg_t *self = hydra_msg_new (HYDRA_MSG_GET_TAG_OK);
     hydra_msg_set_post_id (self, post_id);
     return hydra_msg_send (&self, output);
 }
 
 
 //  --------------------------------------------------------------------------
-//  Send the FETCH to the socket in one step
+//  Send the GET_POST to the socket in one step
 
 int
-hydra_msg_send_fetch (
+hydra_msg_send_get_post (
     void *output,
     const char *post_id)
 {
-    hydra_msg_t *self = hydra_msg_new (HYDRA_MSG_FETCH);
+    hydra_msg_t *self = hydra_msg_new (HYDRA_MSG_GET_POST);
     hydra_msg_set_post_id (self, post_id);
     return hydra_msg_send (&self, output);
 }
 
 
 //  --------------------------------------------------------------------------
-//  Send the FETCH_OK to the socket in one step
+//  Send the GET_POST_OK to the socket in one step
 
 int
-hydra_msg_send_fetch_ok (
+hydra_msg_send_get_post_ok (
     void *output,
     const char *post_id,
     const char *reply_to,
@@ -976,7 +976,7 @@ hydra_msg_send_fetch_ok (
     const char *type,
     zmsg_t *content)
 {
-    hydra_msg_t *self = hydra_msg_new (HYDRA_MSG_FETCH_OK);
+    hydra_msg_t *self = hydra_msg_new (HYDRA_MSG_GET_POST_OK);
     hydra_msg_set_post_id (self, post_id);
     hydra_msg_set_reply_to (self, reply_to);
     hydra_msg_set_previous (self, previous);
@@ -1060,26 +1060,26 @@ hydra_msg_dup (hydra_msg_t *self)
             copy->post_id = self->post_id? strdup (self->post_id): NULL;
             break;
 
-        case HYDRA_MSG_QUERY:
+        case HYDRA_MSG_GET_TAGS:
             break;
 
-        case HYDRA_MSG_QUERY_OK:
+        case HYDRA_MSG_GET_TAGS_OK:
             copy->tags = self->tags? zlist_dup (self->tags): NULL;
             break;
 
-        case HYDRA_MSG_STATUS:
+        case HYDRA_MSG_GET_TAG:
             copy->tag = self->tag? strdup (self->tag): NULL;
             break;
 
-        case HYDRA_MSG_STATUS_OK:
+        case HYDRA_MSG_GET_TAG_OK:
             copy->post_id = self->post_id? strdup (self->post_id): NULL;
             break;
 
-        case HYDRA_MSG_FETCH:
+        case HYDRA_MSG_GET_POST:
             copy->post_id = self->post_id? strdup (self->post_id): NULL;
             break;
 
-        case HYDRA_MSG_FETCH_OK:
+        case HYDRA_MSG_GET_POST_OK:
             copy->post_id = self->post_id? strdup (self->post_id): NULL;
             copy->reply_to = self->reply_to? strdup (self->reply_to): NULL;
             copy->previous = self->previous? strdup (self->previous): NULL;
@@ -1127,12 +1127,12 @@ hydra_msg_print (hydra_msg_t *self)
                 zsys_debug ("    post_id=");
             break;
             
-        case HYDRA_MSG_QUERY:
-            zsys_debug ("HYDRA_MSG_QUERY:");
+        case HYDRA_MSG_GET_TAGS:
+            zsys_debug ("HYDRA_MSG_GET_TAGS:");
             break;
             
-        case HYDRA_MSG_QUERY_OK:
-            zsys_debug ("HYDRA_MSG_QUERY_OK:");
+        case HYDRA_MSG_GET_TAGS_OK:
+            zsys_debug ("HYDRA_MSG_GET_TAGS_OK:");
             zsys_debug ("    tags=");
             if (self->tags) {
                 char *tags = (char *) zlist_first (self->tags);
@@ -1143,32 +1143,32 @@ hydra_msg_print (hydra_msg_t *self)
             }
             break;
             
-        case HYDRA_MSG_STATUS:
-            zsys_debug ("HYDRA_MSG_STATUS:");
+        case HYDRA_MSG_GET_TAG:
+            zsys_debug ("HYDRA_MSG_GET_TAG:");
             if (self->tag)
                 zsys_debug ("    tag='%s'", self->tag);
             else
                 zsys_debug ("    tag=");
             break;
             
-        case HYDRA_MSG_STATUS_OK:
-            zsys_debug ("HYDRA_MSG_STATUS_OK:");
+        case HYDRA_MSG_GET_TAG_OK:
+            zsys_debug ("HYDRA_MSG_GET_TAG_OK:");
             if (self->post_id)
                 zsys_debug ("    post_id='%s'", self->post_id);
             else
                 zsys_debug ("    post_id=");
             break;
             
-        case HYDRA_MSG_FETCH:
-            zsys_debug ("HYDRA_MSG_FETCH:");
+        case HYDRA_MSG_GET_POST:
+            zsys_debug ("HYDRA_MSG_GET_POST:");
             if (self->post_id)
                 zsys_debug ("    post_id='%s'", self->post_id);
             else
                 zsys_debug ("    post_id=");
             break;
             
-        case HYDRA_MSG_FETCH_OK:
-            zsys_debug ("HYDRA_MSG_FETCH_OK:");
+        case HYDRA_MSG_GET_POST_OK:
+            zsys_debug ("HYDRA_MSG_GET_POST_OK:");
             if (self->post_id)
                 zsys_debug ("    post_id='%s'", self->post_id);
             else
@@ -1274,23 +1274,23 @@ hydra_msg_command (hydra_msg_t *self)
         case HYDRA_MSG_HELLO_OK:
             return ("HELLO_OK");
             break;
-        case HYDRA_MSG_QUERY:
-            return ("QUERY");
+        case HYDRA_MSG_GET_TAGS:
+            return ("GET_TAGS");
             break;
-        case HYDRA_MSG_QUERY_OK:
-            return ("QUERY_OK");
+        case HYDRA_MSG_GET_TAGS_OK:
+            return ("GET_TAGS_OK");
             break;
-        case HYDRA_MSG_STATUS:
-            return ("STATUS");
+        case HYDRA_MSG_GET_TAG:
+            return ("GET_TAG");
             break;
-        case HYDRA_MSG_STATUS_OK:
-            return ("STATUS_OK");
+        case HYDRA_MSG_GET_TAG_OK:
+            return ("GET_TAG_OK");
             break;
-        case HYDRA_MSG_FETCH:
-            return ("FETCH");
+        case HYDRA_MSG_GET_POST:
+            return ("GET_POST");
             break;
-        case HYDRA_MSG_FETCH_OK:
-            return ("FETCH_OK");
+        case HYDRA_MSG_GET_POST_OK:
+            return ("GET_POST_OK");
             break;
         case HYDRA_MSG_GOODBYE:
             return ("GOODBYE");
@@ -1644,7 +1644,7 @@ hydra_msg_test (bool verbose)
         assert (streq (hydra_msg_post_id (self), "Life is short but Now lasts for ever"));
         hydra_msg_destroy (&self);
     }
-    self = hydra_msg_new (HYDRA_MSG_QUERY);
+    self = hydra_msg_new (HYDRA_MSG_GET_TAGS);
     
     //  Check that _dup works on empty message
     copy = hydra_msg_dup (self);
@@ -1662,7 +1662,7 @@ hydra_msg_test (bool verbose)
         
         hydra_msg_destroy (&self);
     }
-    self = hydra_msg_new (HYDRA_MSG_QUERY_OK);
+    self = hydra_msg_new (HYDRA_MSG_GET_TAGS_OK);
     
     //  Check that _dup works on empty message
     copy = hydra_msg_dup (self);
@@ -1685,7 +1685,7 @@ hydra_msg_test (bool verbose)
         assert (streq (hydra_msg_tags_next (self), "Age: 43"));
         hydra_msg_destroy (&self);
     }
-    self = hydra_msg_new (HYDRA_MSG_STATUS);
+    self = hydra_msg_new (HYDRA_MSG_GET_TAG);
     
     //  Check that _dup works on empty message
     copy = hydra_msg_dup (self);
@@ -1705,7 +1705,7 @@ hydra_msg_test (bool verbose)
         assert (streq (hydra_msg_tag (self), "Life is short but Now lasts for ever"));
         hydra_msg_destroy (&self);
     }
-    self = hydra_msg_new (HYDRA_MSG_STATUS_OK);
+    self = hydra_msg_new (HYDRA_MSG_GET_TAG_OK);
     
     //  Check that _dup works on empty message
     copy = hydra_msg_dup (self);
@@ -1725,7 +1725,7 @@ hydra_msg_test (bool verbose)
         assert (streq (hydra_msg_post_id (self), "Life is short but Now lasts for ever"));
         hydra_msg_destroy (&self);
     }
-    self = hydra_msg_new (HYDRA_MSG_FETCH);
+    self = hydra_msg_new (HYDRA_MSG_GET_POST);
     
     //  Check that _dup works on empty message
     copy = hydra_msg_dup (self);
@@ -1745,7 +1745,7 @@ hydra_msg_test (bool verbose)
         assert (streq (hydra_msg_post_id (self), "Life is short but Now lasts for ever"));
         hydra_msg_destroy (&self);
     }
-    self = hydra_msg_new (HYDRA_MSG_FETCH_OK);
+    self = hydra_msg_new (HYDRA_MSG_GET_POST_OK);
     
     //  Check that _dup works on empty message
     copy = hydra_msg_dup (self);
@@ -1759,8 +1759,8 @@ hydra_msg_test (bool verbose)
     hydra_msg_tags_append (self, "Age: %d", 43);
     hydra_msg_set_timestamp (self, 123);
     hydra_msg_set_type (self, "Life is short but Now lasts for ever");
-    zmsg_t *fetch_ok_content = zmsg_new ();
-    hydra_msg_set_content (self, &fetch_ok_content);
+    zmsg_t *get_post_ok_content = zmsg_new ();
+    hydra_msg_set_content (self, &get_post_ok_content);
     zmsg_addstr (hydra_msg_content (self), "Hello, World");
     //  Send twice from same object
     hydra_msg_send_again (self, output);

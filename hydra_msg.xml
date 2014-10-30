@@ -7,15 +7,15 @@
     <include filename = "license.xml" />
 
     <grammar>
-    hydra = greeting *( query / status / fetch ) [ goodbye ]
+    hydra = hello *( tags / tag / post ) [ goodbye ]
 
-    greeting = c:hello ( s:hello-ok / s:invalid / s:failed )
+    hello = c:hello ( s:hello-ok / s:invalid / s:failed )
     
-    query = c:query ( s:query-ok / s:invalid / s:failed )
+    get-tags = c:get-tags ( s:get-tags-ok / s:invalid / s:failed )
     
-    status = c:status ( s:status-ok / s:invalid / s:failed )
+    get-tag = c:get-tag ( s:get-tag-ok / s:invalid / s:failed )
     
-    fetch = c:fetch ( s:fetch-ok / s:invalid / s:failed )
+    get-post = c:get-post ( s:get-post-ok / s:invalid / s:failed )
 
     goodbye = c:goodbye ( s:goodbye-ok / s:invalid / s:failed )
     </grammar>
@@ -29,31 +29,31 @@
         <field name = "post-id" type = "string">Post identifier</field>
     </message>
 
-    <message name = "query">
+    <message name = "get tags">
         Request list of tags known by peer
     </message>
 
-    <message name = "query ok">
+    <message name = "get tags ok">
         Return list of known tags
         <field name = "tags" type = "strings">List of known tags</field>
     </message>
 
-    <message name = "status">
+    <message name = "get tag">
         Request last post for a given tag
         <field name = "tag" type = "string">Name of tag</field>
     </message>
 
-    <message name = "status ok">
+    <message name = "get tag ok">
         Return last post for given tag
         <field name = "post-id" type = "string">Post identifier</field>
     </message>
 
-    <message name = "fetch">
+    <message name = "get post">
         Fetch a given post
         <field name = "post-id" type = "string">Post identifier</field>
     </message>
 
-    <message name = "fetch ok">
+    <message name = "get post ok">
         Return a post details
         <field name = "post-id" type = "string">Post identifier</field>
         <field name = "reply-to" type = "string">Parent post, if any</field>

@@ -31,21 +31,21 @@
     HELLO_OK - Return last post known for peer
         post_id             string      Post identifier
 
-    QUERY - Request list of tags known by peer
+    GET_TAGS - Request list of tags known by peer
 
-    QUERY_OK - Return list of known tags
+    GET_TAGS_OK - Return list of known tags
         tags                strings     List of known tags
 
-    STATUS - Request last post for a given tag
+    GET_TAG - Request last post for a given tag
         tag                 string      Name of tag
 
-    STATUS_OK - Return last post for given tag
+    GET_TAG_OK - Return last post for given tag
         post_id             string      Post identifier
 
-    FETCH - Fetch a given post
+    GET_POST - Fetch a given post
         post_id             string      Post identifier
 
-    FETCH_OK - Return a post details
+    GET_POST_OK - Return a post details
         post_id             string      Post identifier
         reply_to            string      Parent post, if any
         previous            string      Previous post, if any
@@ -67,12 +67,12 @@
 
 #define HYDRA_MSG_HELLO                     1
 #define HYDRA_MSG_HELLO_OK                  2
-#define HYDRA_MSG_QUERY                     3
-#define HYDRA_MSG_QUERY_OK                  4
-#define HYDRA_MSG_STATUS                    5
-#define HYDRA_MSG_STATUS_OK                 6
-#define HYDRA_MSG_FETCH                     7
-#define HYDRA_MSG_FETCH_OK                  8
+#define HYDRA_MSG_GET_TAGS                  3
+#define HYDRA_MSG_GET_TAGS_OK               4
+#define HYDRA_MSG_GET_TAG                   5
+#define HYDRA_MSG_GET_TAG_OK                6
+#define HYDRA_MSG_GET_POST                  7
+#define HYDRA_MSG_GET_POST_OK               8
 #define HYDRA_MSG_GOODBYE                   9
 #define HYDRA_MSG_GOODBYE_OK                10
 #define HYDRA_MSG_INVALID                   11
@@ -135,34 +135,34 @@ zmsg_t *
     hydra_msg_encode_hello_ok (
         const char *post_id);
 
-//  Encode the QUERY 
+//  Encode the GET_TAGS 
 zmsg_t *
-    hydra_msg_encode_query (
+    hydra_msg_encode_get_tags (
 );
 
-//  Encode the QUERY_OK 
+//  Encode the GET_TAGS_OK 
 zmsg_t *
-    hydra_msg_encode_query_ok (
+    hydra_msg_encode_get_tags_ok (
         zlist_t *tags);
 
-//  Encode the STATUS 
+//  Encode the GET_TAG 
 zmsg_t *
-    hydra_msg_encode_status (
+    hydra_msg_encode_get_tag (
         const char *tag);
 
-//  Encode the STATUS_OK 
+//  Encode the GET_TAG_OK 
 zmsg_t *
-    hydra_msg_encode_status_ok (
+    hydra_msg_encode_get_tag_ok (
         const char *post_id);
 
-//  Encode the FETCH 
+//  Encode the GET_POST 
 zmsg_t *
-    hydra_msg_encode_fetch (
+    hydra_msg_encode_get_post (
         const char *post_id);
 
-//  Encode the FETCH_OK 
+//  Encode the GET_POST_OK 
 zmsg_t *
-    hydra_msg_encode_fetch_ok (
+    hydra_msg_encode_get_post_ok (
         const char *post_id,
         const char *reply_to,
         const char *previous,
@@ -203,39 +203,39 @@ int
     hydra_msg_send_hello_ok (void *output,
         const char *post_id);
     
-//  Send the QUERY to the output in one step
+//  Send the GET_TAGS to the output in one step
 //  WARNING, this call will fail if output is of type ZMQ_ROUTER.
 int
-    hydra_msg_send_query (void *output);
+    hydra_msg_send_get_tags (void *output);
     
-//  Send the QUERY_OK to the output in one step
+//  Send the GET_TAGS_OK to the output in one step
 //  WARNING, this call will fail if output is of type ZMQ_ROUTER.
 int
-    hydra_msg_send_query_ok (void *output,
+    hydra_msg_send_get_tags_ok (void *output,
         zlist_t *tags);
     
-//  Send the STATUS to the output in one step
+//  Send the GET_TAG to the output in one step
 //  WARNING, this call will fail if output is of type ZMQ_ROUTER.
 int
-    hydra_msg_send_status (void *output,
+    hydra_msg_send_get_tag (void *output,
         const char *tag);
     
-//  Send the STATUS_OK to the output in one step
+//  Send the GET_TAG_OK to the output in one step
 //  WARNING, this call will fail if output is of type ZMQ_ROUTER.
 int
-    hydra_msg_send_status_ok (void *output,
+    hydra_msg_send_get_tag_ok (void *output,
         const char *post_id);
     
-//  Send the FETCH to the output in one step
+//  Send the GET_POST to the output in one step
 //  WARNING, this call will fail if output is of type ZMQ_ROUTER.
 int
-    hydra_msg_send_fetch (void *output,
+    hydra_msg_send_get_post (void *output,
         const char *post_id);
     
-//  Send the FETCH_OK to the output in one step
+//  Send the GET_POST_OK to the output in one step
 //  WARNING, this call will fail if output is of type ZMQ_ROUTER.
 int
-    hydra_msg_send_fetch_ok (void *output,
+    hydra_msg_send_get_post_ok (void *output,
         const char *post_id,
         const char *reply_to,
         const char *previous,
