@@ -2,8 +2,16 @@
 #
 #   Regenerates models, needs imatix/gsl and zeromq/zproto
 
-gsl -script:zproto_codec_c.gsl hydra_msg.xml
-gsl -script:zproto_codec_java.gsl hydra_msg.xml
-gsl hydra_client.xml
-gsl hydra_server.xml
+gsl -quiet -trace:1 -script:zproto_codec_c.gsl hydra_msg.xml
+gsl -quiet -script:zproto_codec_java.gsl hydra_msg.xml
+gsl -quiet hydra_client.xml
+gsl -quiet hydra_server.xml
+
+MAIN=hydrad
+
+gcc -g -o $MAIN \
+    $MAIN.c \
+    hydra_msg.c hydra_client.c hydra_server.c \
+    -lczmq -lzmq
+test $? -ne 0 && exit
 
