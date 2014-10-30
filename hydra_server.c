@@ -18,8 +18,7 @@
 @end
 */
 
-#include "./hydra_msg.h"
-#include "./hydra_server.h"
+#include "hydra_classes.h"
 
 //  ---------------------------------------------------------------------------
 //  Forward declarations for the two main classes we use here

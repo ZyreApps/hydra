@@ -4,6 +4,7 @@
     script = "zproto_server_c"
     protocol_class = "hydra_msg"
     package_dir = "."
+    project_header = "hydra_classes.h"
     >
     This is a server implementation of the Hydra Protocol
     <include filename = "license.xml" />
@@ -18,15 +19,15 @@
     <state name = "connected" inherit = "external">
         <event name = "GET TAGS">
             <action name = "get all tags" />
-            <action name = "send" message = "QUERY OK" />
+            <action name = "send" message = "GET TAGS OK" />
         </event>
         <event name = "GET TAG">
             <action name = "get single tag" />
-            <action name = "send" message = "STATUS OK" />
+            <action name = "send" message = "GET TAG OK" />
         </event>
         <event name = "GET POST">
             <action name = "get single post" />
-            <action name = "send" message = "FETCH OK" />
+            <action name = "send" message = "GET POST OK" />
         </event>
     </state>
 

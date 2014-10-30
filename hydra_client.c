@@ -19,8 +19,7 @@
 @end
 */
 
-#include "./hydra_msg.h"
-#include "./hydra_client.h"
+#include "hydra_classes.h"
 
 //  Forward reference to method arguments structure
 typedef struct _client_args_t client_args_t;

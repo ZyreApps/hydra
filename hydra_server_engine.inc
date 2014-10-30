@@ -494,11 +494,11 @@ s_client_execute (s_client_t *self, event_t event)
                         get_all_tags (&self->client);
                     }
                     if (!self->exception) {
-                        //  send QUERY_OK
+                        //  send GET_TAGS_OK
                         if (self->server->verbose)
-                            zsys_debug ("%s:         $ send QUERY_OK",
+                            zsys_debug ("%s:         $ send GET_TAGS_OK",
                                 self->log_prefix);
-                        hydra_msg_set_id (self->client.reply, HYDRA_MSG_QUERY_OK);
+                        hydra_msg_set_id (self->client.reply, HYDRA_MSG_GET_TAGS_OK);
                         hydra_msg_send (&self->client.reply, self->server->router);
                         self->client.reply = hydra_msg_new (0);
                         hydra_msg_set_routing_id (self->client.reply, self->routing_id);
@@ -513,11 +513,11 @@ s_client_execute (s_client_t *self, event_t event)
                         get_single_tag (&self->client);
                     }
                     if (!self->exception) {
-                        //  send STATUS_OK
+                        //  send GET_TAG_OK
                         if (self->server->verbose)
-                            zsys_debug ("%s:         $ send STATUS_OK",
+                            zsys_debug ("%s:         $ send GET_TAG_OK",
                                 self->log_prefix);
-                        hydra_msg_set_id (self->client.reply, HYDRA_MSG_STATUS_OK);
+                        hydra_msg_set_id (self->client.reply, HYDRA_MSG_GET_TAG_OK);
                         hydra_msg_send (&self->client.reply, self->server->router);
                         self->client.reply = hydra_msg_new (0);
                         hydra_msg_set_routing_id (self->client.reply, self->routing_id);
@@ -532,11 +532,11 @@ s_client_execute (s_client_t *self, event_t event)
                         get_single_post (&self->client);
                     }
                     if (!self->exception) {
-                        //  send FETCH_OK
+                        //  send GET_POST_OK
                         if (self->server->verbose)
-                            zsys_debug ("%s:         $ send FETCH_OK",
+                            zsys_debug ("%s:         $ send GET_POST_OK",
                                 self->log_prefix);
-                        hydra_msg_set_id (self->client.reply, HYDRA_MSG_FETCH_OK);
+                        hydra_msg_set_id (self->client.reply, HYDRA_MSG_GET_POST_OK);
                         hydra_msg_send (&self->client.reply, self->server->router);
                         self->client.reply = hydra_msg_new (0);
                         hydra_msg_set_routing_id (self->client.reply, self->routing_id);
