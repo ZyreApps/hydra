@@ -18,6 +18,21 @@
 "This Software is provided under the MPLv2 License on an \"as is\" basis,\n" \
 "without warranty of any kind, either expressed, implied, or statutory.\n"
 
+//  Beacon frame has this format:
+//
+//  HYDRA       5 bytes
+//  version     1 byte, %x01
+//  port        2 bytes in network order
+
+#define BEACON_VERSION 0x01
+
+typedef struct {
+    byte protocol [5];
+    byte version;
+    uint16_t port;
+} beacon_t;
+
+
 int main (int argc, char *argv [])
 {
     puts (PRODUCT);
@@ -66,9 +81,32 @@ int main (int argc, char *argv [])
         zsys_error ("cannot load config file '%s'\n", config_file);
         return 1;
     }
+    //  Set up a zbeacon for UDP broadcasting and get our own hostname
+    zactor_t *beacon = zactor_new (zbeacon, NULL);
+    assert (beacon);
+    zsock_send (beacon, "si", "CONFIGURE", 5670);
+    char *hostname = zstr_recv (beacon);
+
     zactor_t *server = zactor_new (hydra_server, NULL);
     zstr_sendx (server, "CONFIGURE", config_file, NULL);
 
+    //  Bind Hydra service to ephemeral port and get that port number
+    zstr_sendm (server, "BIND");
+    zstr_sendf (server, "tcp://%s:*", hostname);
+    
+    char *command;
+    int port_nbr;
+    zsock_send (server, "s", "PORT");
+    zsock_recv (server, "si", &command, &port_nbr);
+    assert (streq (command, "PORT"));
+    
+    //  We broadcast HYDRA%d01 + our endpoint
+    beacon_t announce;
+    memcpy (announce.protocol, "HYDRA", 5);
+    announce.version = 1;
+    announce.port = htons (port_nbr);
+    zsock_send (beacon, "sbi", "PUBLISH", &announce, 8, 1000);
+    
     //  Accept and print any message back from server
     while (true) {
         char *message = zstr_recv (server);
@@ -83,5 +121,6 @@ int main (int argc, char *argv [])
     }
     //  Shutdown all services
     zactor_destroy (&server);
+    zactor_destroy (&beacon);
     return 0;
 }
