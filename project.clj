@@ -1,4 +1,17 @@
-(defproject hydra-clj "0.1.0-SNAPSHOT"
+;;  =========================================================================
+;;    The Hydra Protocol
+;;
+;;    ** WARNING *************************************************************
+;;    THIS SOURCE FILE IS 100% GENERATED. If you edit this file, you will lose
+;;    your changes at the next build cycle. This is great for temporary printf
+;;    statements. DO NOT MAKE ANY CHANGES YOU WISH TO KEEP. The correct places
+;;    for commits are:
+;;
+;;    * The XML model used for this code generation: hydra_msg.xml
+;;    * The code generation script that built this file: zproto_codec_clj
+;;    ************************************************************************
+;;    =========================================================================
+(defproject hydra-msg "0.1.0-SNAPSHOT"
   :description "FIXME: write description"
   :url "http://example.com/FIXME"
   :license {:name "Eclipse Public License"
