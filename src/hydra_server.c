@@ -34,8 +34,6 @@ struct _server_t {
     //  and are set by the generated engine; do not modify them!
     zsock_t *pipe;              //  Actor pipe back to caller
     zconfig_t *config;          //  Current loaded configuration
-    
-    //  TODO: Add any properties you need here
 };
 
 //  ---------------------------------------------------------------------------
@@ -48,8 +46,6 @@ struct _client_t {
     server_t *server;           //  Reference to parent server
     hydra_msg_t *request;       //  Last received request
     hydra_msg_t *reply;         //  Reply to send out, if any
-
-    //  TODO: Add specific properties for your application
 };
 
 //  Include the generated server engine

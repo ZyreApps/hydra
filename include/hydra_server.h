@@ -1,5 +1,5 @@
 /*  =========================================================================
-    hydra_server - Hydra Server (in C)
+    hydra_server - hydra_server
 
     ** WARNING *************************************************************
     THIS SOURCE FILE IS 100% GENERATED. If you edit this file, you will lose
@@ -29,47 +29,47 @@ extern "C" {
 //  @interface
 //  To work with hydra_server, use the CZMQ zactor API:
 //
-//  Create new hydra server (in c) instance, passing logging prefix:
+//  Create new hydra_server instance, passing logging prefix:
 //
-//      zactor_t *hydra_server__in_c_ = zactor_new (hydra_server, "myname");
+//      zactor_t *hydra_server = zactor_new (hydra_server, "myname");
 //  
-//  Destroy hydra server (in c) instance
+//  Destroy hydra_server instance
 //
-//      zactor_destroy (&hydra_server__in_c_);
+//      zactor_destroy (&hydra_server);
 //  
 //  Enable verbose logging of commands and activity:
 //
-//      zstr_send (hydra_server__in_c_, "VERBOSE");
+//      zstr_send (hydra_server, "VERBOSE");
 //
-//  Bind hydra server (in c) to specified endpoint. TCP endpoints may specify
+//  Bind hydra_server to specified endpoint. TCP endpoints may specify
 //  the port number as "*" to aquire an ephemeral port:
 //
-//      zstr_sendx (hydra_server__in_c_, "BIND", endpoint, NULL);
+//      zstr_sendx (hydra_server, "BIND", endpoint, NULL);
 //
 //  Return assigned port number, specifically when BIND was done using an
 //  an ephemeral port:
 //
-//      zstr_sendx (hydra_server__in_c_, "PORT", NULL);
+//      zstr_sendx (hydra_server, "PORT", NULL);
 //      char *command, *port_str;
-//      zstr_recvx (hydra_server__in_c_, &command, &port_str, NULL);
+//      zstr_recvx (hydra_server, &command, &port_str, NULL);
 //      assert (streq (command, "PORT"));
 //
 //  Specify configuration file to load, overwriting any previous loaded
 //  configuration file or options:
 //
-//      zstr_sendx (hydra_server__in_c_, "CONFIGURE", filename, NULL);
+//      zstr_sendx (hydra_server, "CONFIGURE", filename, NULL);
 //
 //  Set configuration path value:
 //
-//      zstr_sendx (hydra_server__in_c_, "SET", path, value, NULL);
+//      zstr_sendx (hydra_server, "SET", path, value, NULL);
 //    
-//  Send zmsg_t instance to hydra server (in c):
+//  Send zmsg_t instance to hydra_server:
 //
-//      zactor_send (hydra_server__in_c_, &msg);
+//      zactor_send (hydra_server, &msg);
 //
-//  Receive zmsg_t instance from hydra server (in c):
+//  Receive zmsg_t instance from hydra_server:
 //
-//      zmsg_t *msg = zactor_recv (hydra_server__in_c_);
+//      zmsg_t *msg = zactor_recv (hydra_server);
 //
 //  This is the hydra_server constructor as a zactor_fn:
 //

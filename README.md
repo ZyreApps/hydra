@@ -31,3 +31,7 @@ This is an exercise not a formal proposal. :-)
 The contributors are listed in AUTHORS. This project uses the MPL v2 license, see LICENSE.
 
 The contribution policy is the standard ZeroMQ [C4.1 process](http://rfc.zeromq.org/spec:22). Please read this RFC if you have never contributed to a ZeroMQ project.
+
+## Areas for Research
+
+* How to deal with maliciously low quality content (spam, fakes, altered data, etc.)

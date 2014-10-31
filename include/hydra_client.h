@@ -27,7 +27,10 @@ extern "C" {
 #endif
 
 //  Opaque class structure
+#ifndef HYDRA_CLIENT_T_DEFINED
 typedef struct _hydra_client_t hydra_client_t;
+#define HYDRA_CLIENT_T_DEFINED
+#endif
 
 //  @interface
 //  Create a new hydra_client

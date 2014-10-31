@@ -85,7 +85,10 @@ extern "C" {
 #endif
 
 //  Opaque class structure
+#ifndef HYDRA_MSG_T_DEFINED
 typedef struct _hydra_msg_t hydra_msg_t;
+#define HYDRA_MSG_T_DEFINED
+#endif
 
 //  @interface
 //  Create a new hydra_msg

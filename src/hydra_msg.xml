@@ -2,7 +2,7 @@
     name = "hydra_msg"
     title = "The Hydra Protocol"
     script = "zproto_codec_c"
-    package_dir = "."
+    package_dir = "../include"
     >
     <include filename = "license.xml" />
 

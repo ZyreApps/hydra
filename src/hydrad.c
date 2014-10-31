@@ -84,6 +84,7 @@ int main (int argc, char *argv [])
     //  Set up a zbeacon for UDP broadcasting and get our own hostname
     zactor_t *beacon = zactor_new (zbeacon, NULL);
     assert (beacon);
+    zsock_send (beacon, "s", "VERBOSE");
     zsock_send (beacon, "si", "CONFIGURE", 5670);
     char *hostname = zstr_recv (beacon);
 

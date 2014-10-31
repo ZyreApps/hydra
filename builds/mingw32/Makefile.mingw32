@@ -1,0 +1,32 @@
+#################################################################
+#   GENERATED SOURCE CODE, DO NOT EDIT EXCEPT EXPERIMENTALLY    #
+#   Please read the README.txt file in the model directory.     #
+#################################################################
+
+CC=gcc
+# replace the following with wherever you have installed libzmq
+PREFIX=c:/mingw/msys/1.0/local
+INCDIR=-I$(PREFIX)/include -I.
+LIBDIR=-L$(PREFIX)/lib
+CFLAGS=-Wall -Os -g -DLIBHYDRA_EXPORTS $(INCDIR)
+
+OBJS = hydra_msg.o hydra_server.o hydra_client.o
+%.o: ../../src/%.c
+	$(CC) -c -o $@ $< $(CFLAGS)
+
+all: libhydra.dll hydra_selftest.exe
+
+libhydra.dll: $(OBJS)
+	$(CC) -shared -o $@ $(OBJS) -Wl,--out-implib,$@.a $(LIBDIR) -lzmq -lws2_32 -liphlpapi -lrpcrt4
+
+# the test functions are not exported into the DLL
+hydra_selftest.exe: hydra_selftest.o $(OBJS)
+	$(CC) -o $@ $^ $(LIBDIR) -lzmq -lws2_32 -liphlpapi -lrpcrt4
+
+clean:
+	del *.o *.a *.dll *.exe
+
+#################################################################
+#   GENERATED SOURCE CODE, DO NOT EDIT EXCEPT EXPERIMENTALLY    #
+#   Please read the README.txt file in the model directory.     #
+#################################################################

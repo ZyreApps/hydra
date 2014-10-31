@@ -1,9 +1,9 @@
 /*  =========================================================================
-    hydra_selftest - run self tests
+    hydra_classes - all classes in proper order for building
 
     -------------------------------------------------------------------------
     Copyright (c) the Contributors as noted in the AUTHORS file.
-    This file is part of the Hydra Project
+    This file is part of the Malamute Project
 
     This Source Code Form is subject to the terms of the Mozilla Public
     License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -11,20 +11,12 @@
     =========================================================================
 */
 
-#include "hydra_classes.h"
+#ifndef __HYDRA_CLASSES_H_INCLUDED__
+#define __HYDRA_CLASSES_H_INCLUDED__
 
-int main (int argc, char *argv [])
-{
-    bool verbose;
-    if (argc == 2 && streq (argv [1], "-v"))
-        verbose = true;
-    else
-        verbose = false;
+//  External API
+#include "../include/hydra.h"
 
-    printf ("Running self tests...\n");
-    hydra_msg_test (verbose);
-    hydra_server_test (verbose);
-    hydra_client_test (verbose);
-    printf ("Tests passed OK\n");
-    return 0;
-}
+//  Internal API
+
+#endif
