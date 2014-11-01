@@ -20,7 +20,6 @@ src_libhydra_la_SOURCES = \
 src_libhydra_la_CPPFLAGS = \
     ${AM_CPPFLAGS}
 
-
 src_libhydra_la_LDFLAGS = \
     -version-info @LTVER@ \
     $(LIBTOOL_EXTRA_LDFLAGS)

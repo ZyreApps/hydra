@@ -7,7 +7,7 @@
     project_header = "hydra_classes.h"
     >
     This is a client implementation of the Hydra Protocol
-    <include filename = "license.xml" />
+    <include filename = "../license.xml" />
 
     <state name = "start">
         <event name = "constructor" next = "connecting">

@@ -4,11 +4,10 @@
     script = "project.gsl"
     email = "zeromq-dev@lists.zeromq.org"
     >
-    <include filename = "src/license.xml" />
+    <include filename = "license.xml" />
     <version major = "0" minor = "1" patch = "0" />
 
-    <dependency name = "zmq" header = "zmq.h" test = "zmq_init" />
-    <dependency name = "czmq" header = "czmq.h" test = "zctx_test" />
+    <use project = "czmq" />
     
     <class name = "hydra_msg" />
     <class name = "hydra_server" />
