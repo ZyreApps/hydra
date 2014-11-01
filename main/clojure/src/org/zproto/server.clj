@@ -15,7 +15,9 @@
   ;;
   ;; Fill in the blanks
   ;;
-  (println more))
+  (println more)
+  "dummy-id")
+
 (defn get-all-tags
   [& more]
   ;;
@@ -31,7 +33,7 @@
 
 
 (defprotocol HydraServer
-  (hello    [this])
+  (hello    [this routing-id])
   (get-tags [this])
   (get-tag  [this tag])
   (get-post [this post-id])
@@ -60,13 +62,10 @@
 
 (defrecord Server [socket state]
   HydraServer
-  (hello [this]
+  (hello [this routing-id]
     ;; (next-state state :start :connected)
-    (let [response (HydraMsg. HydraMsg/HELLO_OK)]
-      (get-latest-post response)
-      (.send response socket)
-      (.destroy response)
-      ))
+    (let [post-id (get-latest-post)]
+      (msg/hello-ok socket routing-id post-id)))
 
   (get-tags [this]
     (ensure-state state :connected)
@@ -94,10 +93,11 @@
 
 (defn match-msg
   [server ^HydraMsg msg]
-  (let [id (.id msg)]
+  (let [id (.id msg)
+        routing-id (.routingId msg)]
     (println (= id HydraMsg/HELLO))
     (cond
-     (= id HydraMsg/HELLO)    (hello    server)
+     (= id HydraMsg/HELLO)    (hello    server routing-id)
      (= id HydraMsg/GET_TAGS) (get-tags server)
      (= id HydraMsg/GET_TAG)  (get-tag  server (.tag msg))
 

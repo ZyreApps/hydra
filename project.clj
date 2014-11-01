@@ -8,8 +8,14 @@
 ;;    for commits are:
 ;;
 ;;    * The XML model used for this code generation: hydra_msg.xml
-;;    * The code generation script that built this file: zproto_codec_clj
+;;    * The code generation script that built this file: zproto_codec_c
 ;;    ************************************************************************
+;;    Copyright (c) the Contributors as noted in the AUTHORS file.       
+;;    This file is part of zbroker, the ZeroMQ broker project.           
+;;                                                                       
+;;    This Source Code Form is subject to the terms of the Mozilla Public
+;;    License, v. 2.0. If a copy of the MPL was not distributed with this
+;;    file, You can obtain one at http://mozilla.org/MPL/2.0/.           
 ;;    =========================================================================
 (defproject hydra-msg "0.1.0-SNAPSHOT"
   :description "FIXME: write description"

@@ -556,7 +556,23 @@ public class HydraMsg implements java.io.Closeable
     public static void sendHello (
         Socket output)
     {
+	sendHello (
+		    output,
+		    null);
+    }
+
+//  --------------------------------------------------------------------------
+//  Send the HELLO to a router socket in one step
+
+    public static void sendHello (
+        Socket output,
+	ZFrame routingId)
+    {
         HydraMsg self = new HydraMsg (HydraMsg.HELLO);
+        if (routingId != null)
+        {
+	        self.setRoutingId (routingId);
+        }
         self.send (output);
     }
 
@@ -567,7 +583,25 @@ public class HydraMsg implements java.io.Closeable
         Socket output,
         String post_id)
     {
+	sendHello_Ok (
+		    output,
+		    null,
+		    post_id);
+    }
+
+//  --------------------------------------------------------------------------
+//  Send the HELLO_OK to a router socket in one step
+
+    public static void sendHello_Ok (
+        Socket output,
+	ZFrame routingId,
+        String post_id)
+    {
         HydraMsg self = new HydraMsg (HydraMsg.HELLO_OK);
+        if (routingId != null)
+        {
+	        self.setRoutingId (routingId);
+        }
         self.setPost_Id (post_id);
         self.send (output);
     }
@@ -578,7 +612,23 @@ public class HydraMsg implements java.io.Closeable
     public static void sendGet_Tags (
         Socket output)
     {
+	sendGet_Tags (
+		    output,
+		    null);
+    }
+
+//  --------------------------------------------------------------------------
+//  Send the GET_TAGS to a router socket in one step
+
+    public static void sendGet_Tags (
+        Socket output,
+	ZFrame routingId)
+    {
         HydraMsg self = new HydraMsg (HydraMsg.GET_TAGS);
+        if (routingId != null)
+        {
+	        self.setRoutingId (routingId);
+        }
         self.send (output);
     }
 
@@ -589,7 +639,25 @@ public class HydraMsg implements java.io.Closeable
         Socket output,
         String tags)
     {
+	sendGet_Tags_Ok (
+		    output,
+		    null,
+		    tags);
+    }
+
+//  --------------------------------------------------------------------------
+//  Send the GET_TAGS_OK to a router socket in one step
+
+    public static void sendGet_Tags_Ok (
+        Socket output,
+	ZFrame routingId,
+        String tags)
+    {
         HydraMsg self = new HydraMsg (HydraMsg.GET_TAGS_OK);
+        if (routingId != null)
+        {
+	        self.setRoutingId (routingId);
+        }
         self.setTags (tags);
         self.send (output);
     }
@@ -601,7 +669,25 @@ public class HydraMsg implements java.io.Closeable
         Socket output,
         String tag)
     {
+	sendGet_Tag (
+		    output,
+		    null,
+		    tag);
+    }
+
+//  --------------------------------------------------------------------------
+//  Send the GET_TAG to a router socket in one step
+
+    public static void sendGet_Tag (
+        Socket output,
+	ZFrame routingId,
+        String tag)
+    {
         HydraMsg self = new HydraMsg (HydraMsg.GET_TAG);
+        if (routingId != null)
+        {
+	        self.setRoutingId (routingId);
+        }
         self.setTag (tag);
         self.send (output);
     }
@@ -614,7 +700,27 @@ public class HydraMsg implements java.io.Closeable
         String tag,
         String post_id)
     {
+	sendGet_Tag_Ok (
+		    output,
+		    null,
+		    tag,
+		    post_id);
+    }
+
+//  --------------------------------------------------------------------------
+//  Send the GET_TAG_OK to a router socket in one step
+
+    public static void sendGet_Tag_Ok (
+        Socket output,
+	ZFrame routingId,
+        String tag,
+        String post_id)
+    {
         HydraMsg self = new HydraMsg (HydraMsg.GET_TAG_OK);
+        if (routingId != null)
+        {
+	        self.setRoutingId (routingId);
+        }
         self.setTag (tag);
         self.setPost_Id (post_id);
         self.send (output);
@@ -627,7 +733,25 @@ public class HydraMsg implements java.io.Closeable
         Socket output,
         String post_id)
     {
+	sendGet_Post (
+		    output,
+		    null,
+		    post_id);
+    }
+
+//  --------------------------------------------------------------------------
+//  Send the GET_POST to a router socket in one step
+
+    public static void sendGet_Post (
+        Socket output,
+	ZFrame routingId,
+        String post_id)
+    {
         HydraMsg self = new HydraMsg (HydraMsg.GET_POST);
+        if (routingId != null)
+        {
+	        self.setRoutingId (routingId);
+        }
         self.setPost_Id (post_id);
         self.send (output);
     }
@@ -645,7 +769,37 @@ public class HydraMsg implements java.io.Closeable
         String type,
         String content)
     {
+	sendGet_Post_Ok (
+		    output,
+		    null,
+		    post_id,
+		    reply_to,
+		    previous,
+		    tags,
+		    timestamp,
+		    type,
+		    content);
+    }
+
+//  --------------------------------------------------------------------------
+//  Send the GET_POST_OK to a router socket in one step
+
+    public static void sendGet_Post_Ok (
+        Socket output,
+	ZFrame routingId,
+        String post_id,
+        String reply_to,
+        String previous,
+        String tags,
+        long timestamp,
+        String type,
+        String content)
+    {
         HydraMsg self = new HydraMsg (HydraMsg.GET_POST_OK);
+        if (routingId != null)
+        {
+	        self.setRoutingId (routingId);
+        }
         self.setPost_Id (post_id);
         self.setReply_To (reply_to);
         self.setPrevious (previous);
@@ -662,7 +816,23 @@ public class HydraMsg implements java.io.Closeable
     public static void sendGoodbye (
         Socket output)
     {
+	sendGoodbye (
+		    output,
+		    null);
+    }
+
+//  --------------------------------------------------------------------------
+//  Send the GOODBYE to a router socket in one step
+
+    public static void sendGoodbye (
+        Socket output,
+	ZFrame routingId)
+    {
         HydraMsg self = new HydraMsg (HydraMsg.GOODBYE);
+        if (routingId != null)
+        {
+	        self.setRoutingId (routingId);
+        }
         self.send (output);
     }
 
@@ -672,7 +842,23 @@ public class HydraMsg implements java.io.Closeable
     public static void sendGoodbye_Ok (
         Socket output)
     {
+	sendGoodbye_Ok (
+		    output,
+		    null);
+    }
+
+//  --------------------------------------------------------------------------
+//  Send the GOODBYE_OK to a router socket in one step
+
+    public static void sendGoodbye_Ok (
+        Socket output,
+	ZFrame routingId)
+    {
         HydraMsg self = new HydraMsg (HydraMsg.GOODBYE_OK);
+        if (routingId != null)
+        {
+	        self.setRoutingId (routingId);
+        }
         self.send (output);
     }
 
@@ -682,7 +868,23 @@ public class HydraMsg implements java.io.Closeable
     public static void sendInvalid (
         Socket output)
     {
+	sendInvalid (
+		    output,
+		    null);
+    }
+
+//  --------------------------------------------------------------------------
+//  Send the INVALID to a router socket in one step
+
+    public static void sendInvalid (
+        Socket output,
+	ZFrame routingId)
+    {
         HydraMsg self = new HydraMsg (HydraMsg.INVALID);
+        if (routingId != null)
+        {
+	        self.setRoutingId (routingId);
+        }
         self.send (output);
     }
 
@@ -693,7 +895,25 @@ public class HydraMsg implements java.io.Closeable
         Socket output,
         String reason)
     {
+	sendFailed (
+		    output,
+		    null,
+		    reason);
+    }
+
+//  --------------------------------------------------------------------------
+//  Send the FAILED to a router socket in one step
+
+    public static void sendFailed (
+        Socket output,
+	ZFrame routingId,
+        String reason)
+    {
         HydraMsg self = new HydraMsg (HydraMsg.FAILED);
+        if (routingId != null)
+        {
+	        self.setRoutingId (routingId);
+        }
         self.setReason (reason);
         self.send (output);
     }
