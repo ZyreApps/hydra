@@ -7,7 +7,7 @@
     project_header = "hydra_classes.h"
     >
     This is a client implementation of the Hydra Protocol
-    <include filename = "license.xml" />
+    <include filename = "../license.xml" />
 
     <state name = "start">
         <event name = "constructor" next = "connecting">
@@ -32,7 +32,6 @@
 
     <state name = "connected" inherit = "defaults">
         <event name = "get tags" next = "expect get tags ok">
-            <action name = "prepare to send get tags" />
             <action name = "send" message = "GET TAGS" />
         </event>
         <event name = "get tag" next = "expect get tag ok">
@@ -128,7 +127,7 @@
         <accept reply = "TAG" />
     </method>
 
-    <reply name = "TAGS">
+    <reply name = "TAG">
         <field name = "tag" type = "string" />
         <field name = "post-id" type = "string">Latest post</field>
     </reply>
@@ -146,7 +145,6 @@
         <field name = "tags" type = "string">Post tags</field>
         <field name = "timestamp" type = "number" size = "8">Post creation timestamp</field>
         <field name = "type" type = "string">Content type</field>
-<!--         <field name = "content" type = "msg">Content body</field> -->
         <field name = "content" type = "string">Content body</field>
     </reply>
 </class>

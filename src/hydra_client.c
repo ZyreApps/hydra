@@ -82,6 +82,71 @@ use_connect_timeout (client_t *self)
 
 
 //  ---------------------------------------------------------------------------
+//  prepare_to_send_get_tag
+//
+
+static void
+prepare_to_send_get_tag (client_t *self)
+{
+    hydra_msg_set_tag (self->msgout, self->args->tag);
+}
+
+
+//  ---------------------------------------------------------------------------
+//  prepare_to_send_get_post
+//
+
+static void
+prepare_to_send_get_post (client_t *self)
+{
+    hydra_msg_set_post_id (self->msgout, self->args->post_id);
+}
+
+
+//  ---------------------------------------------------------------------------
+//  return_tags_to_application
+//
+
+static void
+return_tags_to_application (client_t *self)
+{
+    zsock_send (self->pipe, "ss", "TAGS",
+                 hydra_msg_tags (self->msgin));
+}
+
+
+//  ---------------------------------------------------------------------------
+//  return_tag_to_application
+//
+
+static void
+return_tag_to_application (client_t *self)
+{
+    zsock_send (self->pipe, "ss", "TAG",
+                 hydra_msg_tag (self->msgin),
+                 hydra_msg_post_id (self->msgin));
+}
+
+
+//  ---------------------------------------------------------------------------
+//  return_post_to_application
+//
+
+static void
+return_post_to_application (client_t *self)
+{
+    zsock_send (self->pipe, "ssssiss", "POST",
+                 hydra_msg_post_id (self->msgin),
+                 hydra_msg_reply_to (self->msgin),
+                 hydra_msg_previous (self->msgin),
+                 hydra_msg_tags (self->msgin),
+                 (int) hydra_msg_timestamp (self->msgin),
+                 hydra_msg_type (self->msgin),
+                 hydra_msg_content (self->msgin));
+}
+
+
+//  ---------------------------------------------------------------------------
 //  signal_success
 //
 
@@ -100,72 +165,6 @@ static void
 signal_server_not_present (client_t *self)
 {
     zsock_send (self->pipe, "sis", "FAILURE", -1, "Server is not reachable");
-}
-
-
-//  ---------------------------------------------------------------------------
-//  return_tags_to_application
-//
-
-static void
-return_tags_to_application (client_t *self)
-{
-
-}
-
-
-//  ---------------------------------------------------------------------------
-//  prepare_to_send_get_tags
-//
-
-static void
-prepare_to_send_get_tags (client_t *self)
-{
-
-}
-
-
-//  ---------------------------------------------------------------------------
-//  prepare_to_send_get_tag
-//
-
-static void
-prepare_to_send_get_tag (client_t *self)
-{
-
-}
-
-
-//  ---------------------------------------------------------------------------
-//  prepare_to_send_get_post
-//
-
-static void
-prepare_to_send_get_post (client_t *self)
-{
-
-}
-
-
-//  ---------------------------------------------------------------------------
-//  return_post_to_application
-//
-
-static void
-return_post_to_application (client_t *self)
-{
-
-}
-
-
-//  ---------------------------------------------------------------------------
-//  return_tag_to_application
-//
-
-static void
-return_tag_to_application (client_t *self)
-{
-
 }
 
 
@@ -197,10 +196,13 @@ hydra_client_test (bool verbose)
         zstr_send (server, "VERBOSE");
     zstr_sendx (server, "BIND", "ipc://@/hydra", NULL);
     
-//       *client = hydra_client_new ("ipc://@/hydra", 500);
+    hydra_client_t *client = hydra_client_new ("ipc://@/hydra", 500);
+    if (verbose)
+        hydra_client_verbose (client);
+    hydra_client_get_tags (client);
+    hydra_client_destroy (&client);
     
-    
-//     zactor_destroy (&client);
+    zactor_destroy (&server);
     //  @end
     printf ("OK\n");
 }

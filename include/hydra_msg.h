@@ -34,12 +34,13 @@
     GET_TAGS - Request list of tags known by peer
 
     GET_TAGS_OK - Return list of known tags
-        tags                strings     List of known tags
+        tags                string      List of known tags
 
     GET_TAG - Request last post for a given tag
         tag                 string      Name of tag
 
     GET_TAG_OK - Return last post for given tag
+        tag                 string      Name of tag
         post_id             string      Post identifier
 
     GET_POST - Fetch a given post
@@ -49,10 +50,10 @@
         post_id             string      Post identifier
         reply_to            string      Parent post, if any
         previous            string      Previous post, if any
-        tags                strings     Post tags
+        tags                string      Post tags
         timestamp           number 8    Post creation timestamp
         type                string      Content type
-        content             msg         Content body
+        content             string      Content body
 
     GOODBYE - Close the connection politely
 
@@ -146,7 +147,7 @@ zmsg_t *
 //  Encode the GET_TAGS_OK 
 zmsg_t *
     hydra_msg_encode_get_tags_ok (
-        zlist_t *tags);
+        const char *tags);
 
 //  Encode the GET_TAG 
 zmsg_t *
@@ -156,6 +157,7 @@ zmsg_t *
 //  Encode the GET_TAG_OK 
 zmsg_t *
     hydra_msg_encode_get_tag_ok (
+        const char *tag,
         const char *post_id);
 
 //  Encode the GET_POST 
@@ -169,10 +171,10 @@ zmsg_t *
         const char *post_id,
         const char *reply_to,
         const char *previous,
-        zlist_t *tags,
+        const char *tags,
         uint64_t timestamp,
         const char *type,
-        zmsg_t *content);
+        const char *content);
 
 //  Encode the GOODBYE 
 zmsg_t *
@@ -215,7 +217,7 @@ int
 //  WARNING, this call will fail if output is of type ZMQ_ROUTER.
 int
     hydra_msg_send_get_tags_ok (void *output,
-        zlist_t *tags);
+        const char *tags);
     
 //  Send the GET_TAG to the output in one step
 //  WARNING, this call will fail if output is of type ZMQ_ROUTER.
@@ -227,6 +229,7 @@ int
 //  WARNING, this call will fail if output is of type ZMQ_ROUTER.
 int
     hydra_msg_send_get_tag_ok (void *output,
+        const char *tag,
         const char *post_id);
     
 //  Send the GET_POST to the output in one step
@@ -242,10 +245,10 @@ int
         const char *post_id,
         const char *reply_to,
         const char *previous,
-        zlist_t *tags,
+        const char *tags,
         uint64_t timestamp,
         const char *type,
-        zmsg_t *content);
+        const char *content);
     
 //  Send the GOODBYE to the output in one step
 //  WARNING, this call will fail if output is of type ZMQ_ROUTER.
@@ -297,24 +300,10 @@ void
     hydra_msg_set_post_id (hydra_msg_t *self, const char *format, ...);
 
 //  Get/set the tags field
-zlist_t *
+const char *
     hydra_msg_tags (hydra_msg_t *self);
-//  Get the tags field and transfer ownership to caller
-zlist_t *
-    hydra_msg_get_tags (hydra_msg_t *self);
-//  Set the tags field, transferring ownership from caller
 void
-    hydra_msg_set_tags (hydra_msg_t *self, zlist_t **tags_p);
-
-//  Iterate through the tags field, and append a tags value
-const char *
-    hydra_msg_tags_first (hydra_msg_t *self);
-const char *
-    hydra_msg_tags_next (hydra_msg_t *self);
-void
-    hydra_msg_tags_append (hydra_msg_t *self, const char *format, ...);
-size_t
-    hydra_msg_tags_size (hydra_msg_t *self);
+    hydra_msg_set_tags (hydra_msg_t *self, const char *format, ...);
 
 //  Get/set the tag field
 const char *
@@ -346,15 +335,11 @@ const char *
 void
     hydra_msg_set_type (hydra_msg_t *self, const char *format, ...);
 
-//  Get a copy of the content field
-zmsg_t *
+//  Get/set the content field
+const char *
     hydra_msg_content (hydra_msg_t *self);
-//  Get the content field and transfer ownership to caller
-zmsg_t *
-    hydra_msg_get_content (hydra_msg_t *self);
-//  Set the content field, transferring ownership from caller
 void
-    hydra_msg_set_content (hydra_msg_t *self, zmsg_t **msg_p);
+    hydra_msg_set_content (hydra_msg_t *self, const char *format, ...);
 
 //  Get/set the reason field
 const char *

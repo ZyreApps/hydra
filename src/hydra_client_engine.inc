@@ -138,8 +138,6 @@ static void
 static void
     signal_server_not_present (client_t *self);
 static void
-    prepare_to_send_get_tags (client_t *self);
-static void
     prepare_to_send_get_tag (client_t *self);
 static void
     prepare_to_send_get_post (client_t *self);
@@ -457,12 +455,6 @@ s_client_execute (s_client_t *self, event_t event)
 
             case connected_state:
                 if (self->event == get_tags_event) {
-                    if (!self->exception) {
-                        //  prepare to send get tags
-                        if (self->verbose)
-                            zsys_debug ("hydra_client:          $ prepare to send get tags");
-                        prepare_to_send_get_tags (&self->client);
-                    }
                     if (!self->exception) {
                         //  send GET_TAGS
                         if (self->verbose)
@@ -1006,7 +998,7 @@ s_accept_reply (hydra_client_t *self, ...)
                     zsock_recv (self->actor, "s", &self->tags);
                 }
                 else
-                if (streq (reply, "TAGS")) {
+                if (streq (reply, "TAG")) {
                     zstr_free (&self->tag);
                     zstr_free (&self->post_id);
                     zsock_recv (self->actor, "ss", &self->tag, &self->post_id);

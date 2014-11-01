@@ -1,6 +1,29 @@
-# Hydra
+# The Hydra Protocol
 
-The Hydra Protocol and Stack
+Hydra is a simple protocol for opportunistic sharing of events and content.
+
+The goal of the Hydra project is to explore and learn how to share knowledge and information across short-lived wireless networks between mobile users. Hydra exploits "proximity networks", that is the physical closeness of individuals. The Hydra project is part of the edgenet campaign to design and build decentralized networks, with no dependency on broadband Internet nor centralized services.
+
+Plausibly, Hydra could evolve into a fully decentralized social network, closely mapping and amplifying existing human protocols for knowledge and information sharing. However at this stage, Hydra is simply a model for exchanging chat and perhaps cat photos.
+
+Hydra does make some core assumptions about technology and platform. It assumes that:
+
+* The platform is a mobile smartphone or tablet, probably running Android;
+* Connectivity is wireless, over WiFi or Bluetooth Low Energy (BLE);
+* Peers discover and talk to each other opportunistically, as individuals move around.
+
+Not that Hydra is not a mesh network, nor an end-user application. It is a model for representing data, a protocol for exchanging it, and in this project, a simple implementation written in C and Java and Clojure that tests the concept over ZeroMQ.
+
+## The Hydra Data Model
+
+
+
+
+
+
+
+
+
 
 ## Prerequisite github projects
 
