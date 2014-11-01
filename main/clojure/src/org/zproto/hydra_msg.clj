@@ -28,7 +28,7 @@
   (get-tags [this])
   (get-tags-ok [this tags])
   (get-tag [this tag])
-  (get-tag-ok [this post-id])
+  (get-tag-ok [this tag post-id])
   (get-post [this post-id])
   (get-post-ok [this post-id reply-to previous tags timestamp type content])
   (goodbye [this])
@@ -48,8 +48,8 @@
     (HydraMsg/sendGet_Tags_Ok socket tags))
   (get-tag [this tag]
     (HydraMsg/sendGet_Tag socket tag))
-  (get-tag-ok [this post-id]
-    (HydraMsg/sendGet_Tag_Ok socket post-id))
+  (get-tag-ok [this tag post-id]
+    (HydraMsg/sendGet_Tag_Ok socket tag post-id))
   (get-post [this post-id]
     (HydraMsg/sendGet_Post socket post-id))
   (get-post-ok [this post-id reply-to previous tags timestamp type content]

@@ -6,9 +6,7 @@
     >
     <include filename = "license.xml" />
     <version major = "0" minor = "1" patch = "0" />
-
     <use project = "czmq" />
-    
     <class name = "hydra_msg" />
     <class name = "hydra_server" />
     <class name = "hydra_client" />

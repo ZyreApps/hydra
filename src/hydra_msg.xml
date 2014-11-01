@@ -35,7 +35,7 @@
 
     <message name = "get tags ok">
         Return list of known tags
-        <field name = "tags" type = "strings">List of known tags</field>
+        <field name = "tags" type = "string">List of known tags</field>
     </message>
 
     <message name = "get tag">
@@ -45,6 +45,7 @@
 
     <message name = "get tag ok">
         Return last post for given tag
+        <field name = "tag" type = "string">Name of tag</field>
         <field name = "post-id" type = "string">Post identifier</field>
     </message>
 
@@ -58,10 +59,10 @@
         <field name = "post-id" type = "string">Post identifier</field>
         <field name = "reply-to" type = "string">Parent post, if any</field>
         <field name = "previous" type = "string">Previous post, if any</field>
-        <field name = "tags" type = "strings">Post tags</field>
+        <field name = "tags" type = "string">Post tags</field>
         <field name = "timestamp" type = "number" size = "8">Post creation timestamp</field>
         <field name = "type" type = "string">Content type</field>
-        <field name = "content" type = "msg">Content body</field>
+        <field name = "content" type = "string">Content body</field>
     </message>
 
     <message name = "goodbye">
