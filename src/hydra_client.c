@@ -33,8 +33,6 @@ typedef struct {
     hydra_msg_t *msgout;        //  Message to send to server
     hydra_msg_t *msgin;         //  Message received from server
     client_args_t *args;        //  Arguments from methods
-    
-    //  TODO: Add specific properties for your application
 } client_t;
 
 //  Include the generated client engine
@@ -193,10 +191,16 @@ hydra_client_test (bool verbose)
         printf ("\n");
     
     //  @selftest
-    zactor_t *client = zactor_new (hydra_client, "client");
+    //  Start a server to test against, and bind to endpoint
+    zactor_t *server = zactor_new (hydra_server, "hydra_client_test");
     if (verbose)
-        zstr_send (client, "VERBOSE");
-    zactor_destroy (&client);
+        zstr_send (server, "VERBOSE");
+    zstr_sendx (server, "BIND", "ipc://@/hydra", NULL);
+    
+//       *client = hydra_client_new ("ipc://@/hydra", 500);
+    
+    
+//     zactor_destroy (&client);
     //  @end
     printf ("OK\n");
 }

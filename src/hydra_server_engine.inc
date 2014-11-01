@@ -1,5 +1,5 @@
 /*  =========================================================================
-    hydra_server_engine - Hydra Server (in C) engine
+    hydra_server_engine - hydra_server engine
 
     ** WARNING *************************************************************
     THIS SOURCE FILE IS 100% GENERATED. If you edit this file, you will lose

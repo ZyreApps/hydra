@@ -3,7 +3,7 @@
     title = "Hydra Server (in C)"
     script = "zproto_server_c"
     protocol_class = "hydra_msg"
-    package_dir = "."
+    package_dir = "../include"
     project_header = "hydra_classes.h"
     >
     This is a server implementation of the Hydra Protocol

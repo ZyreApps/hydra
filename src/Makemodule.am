@@ -1,0 +1,54 @@
+#################################################################
+#   GENERATED SOURCE CODE, DO NOT EDIT EXCEPT EXPERIMENTALLY    #
+#   Please read the README.txt file in the model directory.     #
+#################################################################
+lib_LTLIBRARIES += src/libhydra.la
+
+pkgconfig_DATA = src/libhydra.pc
+
+include_HEADERS = \
+    include/hydra_msg.h \
+    include/hydra_server.h \
+    include/hydra_client.h
+
+src_libhydra_la_SOURCES = \
+    src/platform.h \
+    src/hydra_msg.c \
+    src/hydra_server.c \
+    src/hydra_client.c
+
+src_libhydra_la_CPPFLAGS = \
+    ${AM_CPPFLAGS}
+
+
+src_libhydra_la_LDFLAGS = \
+    -version-info @LTVER@ \
+    $(LIBTOOL_EXTRA_LDFLAGS)
+
+if ON_MINGW
+src_libhydra_la_LDFLAGS += \
+    -no-undefined \
+    -avoid-version
+endif
+
+bin_PROGRAMS += src/hydra_selftest
+
+src_hydra_selftest_CPPFLAGS = \
+    ${src_libhydra_la_CFLAGS}
+
+src_hydra_selftest_LDADD = \
+    src/libhydra.la
+
+src_hydra_selftest_SOURCES = \
+    src/hydra_selftest.c
+
+TESTS = src/hydra_selftest
+
+
+# define custom target for all products of /src
+src: src/libhydra.la src/hydra_selftest
+
+#################################################################
+#   GENERATED SOURCE CODE, DO NOT EDIT EXCEPT EXPERIMENTALLY    #
+#   Please read the README.txt file in the model directory.     #
+#################################################################

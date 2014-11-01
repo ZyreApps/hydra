@@ -28,7 +28,7 @@
 @end
 */
 
-#include "./hydra_msg.h"
+#include "../include/hydra_msg.h"
 
 //  Structure of our class
 
