@@ -17,7 +17,6 @@ src/.dirstamp
 src/.libs/
 src/libhydra.la
 src/libhydra.pc
-src/main/
 src/platform.h
 src/platform.h.in
 src/src_libhydra_la-hydra_client.lo

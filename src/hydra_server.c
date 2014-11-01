@@ -115,7 +115,7 @@ get_latest_post (client_t *self)
 static void
 get_all_tags (client_t *self)
 {
-
+    hydra_msg_set_tags (self->reply, "photos people");
 }
 
 
@@ -126,7 +126,8 @@ get_all_tags (client_t *self)
 static void
 get_single_tag (client_t *self)
 {
-
+    hydra_msg_set_tag     (self->reply, "photos");
+    hydra_msg_set_post_id (self->reply, "51a5578aa5398ebe8a92b3cf554fdb8113921010");
 }
 
 
@@ -137,7 +138,10 @@ get_single_tag (client_t *self)
 static void
 get_single_post (client_t *self)
 {
-
+    hydra_msg_set_tags    (self->reply, "photos");
+    hydra_msg_set_post_id (self->reply, "51a5578aa5398ebe8a92b3cf554fdb8113921010");
+    hydra_msg_set_type    (self->reply, "text/plain");
+    hydra_msg_set_content (self->reply, "Hello, World");
 }
 
 

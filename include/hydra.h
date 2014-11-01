@@ -19,7 +19,6 @@
 #define __HYDRA_H_INCLUDED__
 
 //  External dependencies
-#include <zmq.h>
 #include <czmq.h>
 
 //  HYDRA version macros for compile-time API detection

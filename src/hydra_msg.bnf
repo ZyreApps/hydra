@@ -29,7 +29,7 @@ The following ABNF grammar defines the The Hydra Protocol:
     ;  Return list of known tags                                             
 
     GET-TAGS-OK     = signature %d4 tags
-    tags            = strings               ; List of known tags
+    tags            = string                ; List of known tags
 
     ;  Request last post for a given tag                                     
 
@@ -38,7 +38,8 @@ The following ABNF grammar defines the The Hydra Protocol:
 
     ;  Return last post for given tag                                        
 
-    GET-TAG-OK      = signature %d6 post-id
+    GET-TAG-OK      = signature %d6 tag post-id
+    tag             = string                ; Name of tag
     post-id         = string                ; Post identifier
 
     ;  Fetch a given post                                                    
@@ -52,10 +53,10 @@ The following ABNF grammar defines the The Hydra Protocol:
     post-id         = string                ; Post identifier
     reply-to        = string                ; Parent post, if any
     previous        = string                ; Previous post, if any
-    tags            = strings               ; Post tags
+    tags            = string                ; Post tags
     timestamp       = number-8              ; Post creation timestamp
     type            = string                ; Content type
-    content         = msg                   ; Content body
+    content         = string                ; Content body
 
     ;  Close the connection politely                                         
 
@@ -74,19 +75,9 @@ The following ABNF grammar defines the The Hydra Protocol:
     FAILED          = signature %d12 reason
     reason          = string                ; Reason for failure
 
-    ; A list of string values
-    strings         = strings-count *strings-value
-    strings-count   = number-4
-    strings-value   = longstr
-
-    ; A msg is zero or more distinct frames
-    msg             = *frame
-
     ; Strings are always length + text contents
     string          = number-1 *VCHAR
-    longstr         = number-4 *VCHAR
 
     ; Numbers are unsigned integers in network byte order
     number-1        = 1OCTET
-    number-4        = 4OCTET
     number-8        = 8OCTET

@@ -56,15 +56,12 @@ public class TestHydraMsg
         self.destroy ();
 
         self = new HydraMsg (HydraMsg.GET_TAGS_OK);
-        self.appendTags ("Name: %s", "Brutus");
-        self.appendTags ("Age: %d", 43);
+        self.setTags ("Life is short but Now lasts for ever");
         self.send (output);
 
         self = HydraMsg.recv (input);
         assert (self != null);
-        assertEquals (self.tags ().size (), 2);
-        assertEquals (self.tags ().get (0), "Name: Brutus");
-        assertEquals (self.tags ().get (1), "Age: 43");
+        assertEquals (self.tags (), "Life is short but Now lasts for ever");
         self.destroy ();
 
         self = new HydraMsg (HydraMsg.GET_TAG);
@@ -77,11 +74,13 @@ public class TestHydraMsg
         self.destroy ();
 
         self = new HydraMsg (HydraMsg.GET_TAG_OK);
+        self.setTag ("Life is short but Now lasts for ever");
         self.setPost_Id ("Life is short but Now lasts for ever");
         self.send (output);
 
         self = HydraMsg.recv (input);
         assert (self != null);
+        assertEquals (self.tag (), "Life is short but Now lasts for ever");
         assertEquals (self.post_id (), "Life is short but Now lasts for ever");
         self.destroy ();
 
@@ -98,10 +97,10 @@ public class TestHydraMsg
         self.setPost_Id ("Life is short but Now lasts for ever");
         self.setReply_To ("Life is short but Now lasts for ever");
         self.setPrevious ("Life is short but Now lasts for ever");
-        self.appendTags ("Name: %s", "Brutus");
-        self.appendTags ("Age: %d", 43);
+        self.setTags ("Life is short but Now lasts for ever");
         self.setTimestamp ((byte) 123);
         self.setType ("Life is short but Now lasts for ever");
+        self.setContent ("Life is short but Now lasts for ever");
         self.send (output);
 
         self = HydraMsg.recv (input);
@@ -109,11 +108,10 @@ public class TestHydraMsg
         assertEquals (self.post_id (), "Life is short but Now lasts for ever");
         assertEquals (self.reply_to (), "Life is short but Now lasts for ever");
         assertEquals (self.previous (), "Life is short but Now lasts for ever");
-        assertEquals (self.tags ().size (), 2);
-        assertEquals (self.tags ().get (0), "Name: Brutus");
-        assertEquals (self.tags ().get (1), "Age: 43");
+        assertEquals (self.tags (), "Life is short but Now lasts for ever");
         assertEquals (self.timestamp (), 123);
         assertEquals (self.type (), "Life is short but Now lasts for ever");
+        assertEquals (self.content (), "Life is short but Now lasts for ever");
         self.destroy ();
 
         self = new HydraMsg (HydraMsg.GOODBYE);

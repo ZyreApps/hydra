@@ -33,8 +33,8 @@
     [this routing-id tags])
   (get-tag [this tag]
     [this routing-id tag])
-  (get-tag-ok [this post-id]
-    [this routing-id post-id])
+  (get-tag-ok [this tag post-id]
+    [this routing-id tag post-id])
   (get-post [this post-id]
     [this routing-id post-id])
   (get-post-ok [this post-id reply-to previous tags timestamp type content]
@@ -70,10 +70,10 @@
     (HydraMsg/sendGet_Tag socket tag))
   (get-tag [this routing-id tag]
     (HydraMsg/sendGet_Tag socket routing-id tag))
-  (get-tag-ok [this post-id]
-    (HydraMsg/sendGet_Tag_Ok socket post-id))
-  (get-tag-ok [this routing-id post-id]
-    (HydraMsg/sendGet_Tag_Ok socket routing-id post-id))
+  (get-tag-ok [this tag post-id]
+    (HydraMsg/sendGet_Tag_Ok socket tag post-id))
+  (get-tag-ok [this routing-id tag post-id]
+    (HydraMsg/sendGet_Tag_Ok socket routing-id tag post-id))
   (get-post [this post-id]
     (HydraMsg/sendGet_Post socket post-id))
   (get-post [this routing-id post-id]

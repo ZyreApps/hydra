@@ -29,12 +29,13 @@
     GET_TAGS - Request list of tags known by peer
 
     GET_TAGS_OK - Return list of known tags
-        tags                strings     List of known tags
+        tags                string      List of known tags
 
     GET_TAG - Request last post for a given tag
         tag                 string      Name of tag
 
     GET_TAG_OK - Return last post for given tag
+        tag                 string      Name of tag
         post_id             string      Post identifier
 
     GET_POST - Fetch a given post
@@ -44,10 +45,10 @@
         post_id             string      Post identifier
         reply_to            string      Parent post, if any
         previous            string      Previous post, if any
-        tags                strings     Post tags
+        tags                string      Post tags
         timestamp           number 8    Post creation timestamp
         type                string      Content type
-        content             msg         Content body
+        content             string      Content body
 
     GOODBYE - Close the connection politely
 
@@ -91,13 +92,13 @@ public class HydraMsg implements java.io.Closeable
     private ByteBuffer needle;          //  Read/write pointer for serialization
 
     private String post_id;
-    private List <String> tags;
+    private String tags;
     private String tag;
     private String reply_to;
     private String previous;
     private long timestamp;
     private String type;
-    private ZMsg content;
+    private String content;
     private String reason;
 
     public HydraMsg( int id )
@@ -284,12 +285,7 @@ public class HydraMsg implements java.io.Closeable
                 break;
 
             case GET_TAGS_OK:
-                listSize = (int) self.getNumber4 ();
-                self.tags = new ArrayList<String> ();
-                while (listSize-- > 0) {
-                    String string = self.getLongString ();
-                    self.tags.add (string);
-                }
+                self.tags = self.getString ();
                 break;
 
             case GET_TAG:
@@ -297,6 +293,7 @@ public class HydraMsg implements java.io.Closeable
                 break;
 
             case GET_TAG_OK:
+                self.tag = self.getString ();
                 self.post_id = self.getString ();
                 break;
 
@@ -308,17 +305,10 @@ public class HydraMsg implements java.io.Closeable
                 self.post_id = self.getString ();
                 self.reply_to = self.getString ();
                 self.previous = self.getString ();
-                listSize = (int) self.getNumber4 ();
-                self.tags = new ArrayList<String> ();
-                while (listSize-- > 0) {
-                    String string = self.getLongString ();
-                    self.tags.add (string);
-                }
+                self.tags = self.getString ();
                 self.timestamp = self.getNumber8 ();
                 self.type = self.getString ();
-                self.content = new ZMsg();
-                if (input.hasReceiveMore ())
-                    self.content.add(ZFrame.recvFrame (input));
+                self.content = self.getString ();
                 break;
 
             case GOODBYE:
@@ -379,14 +369,9 @@ public class HydraMsg implements java.io.Closeable
             break;
 
         case GET_TAGS_OK:
-            //  tags is an array of strings
-            frameSize += 4;
-            if (tags != null) {
-                for (String value : tags) {
-                    frameSize += 4;
-                    frameSize += value.length ();
-                }
-            }
+            //  tags is a string with 1-byte length
+            frameSize ++;
+            frameSize += (tags != null) ? tags.length() : 0;
             break;
 
         case GET_TAG:
@@ -396,6 +381,9 @@ public class HydraMsg implements java.io.Closeable
             break;
 
         case GET_TAG_OK:
+            //  tag is a string with 1-byte length
+            frameSize ++;
+            frameSize += (tag != null) ? tag.length() : 0;
             //  post_id is a string with 1-byte length
             frameSize ++;
             frameSize += (post_id != null) ? post_id.length() : 0;
@@ -417,19 +405,17 @@ public class HydraMsg implements java.io.Closeable
             //  previous is a string with 1-byte length
             frameSize ++;
             frameSize += (previous != null) ? previous.length() : 0;
-            //  tags is an array of strings
-            frameSize += 4;
-            if (tags != null) {
-                for (String value : tags) {
-                    frameSize += 4;
-                    frameSize += value.length ();
-                }
-            }
+            //  tags is a string with 1-byte length
+            frameSize ++;
+            frameSize += (tags != null) ? tags.length() : 0;
             //  timestamp is a 8-byte integer
             frameSize += 8;
             //  type is a string with 1-byte length
             frameSize ++;
             frameSize += (type != null) ? type.length() : 0;
+            //  content is a string with 1-byte length
+            frameSize ++;
+            frameSize += (content != null) ? content.length() : 0;
             break;
 
         case GOODBYE:
@@ -473,14 +459,10 @@ public class HydraMsg implements java.io.Closeable
             break;
 
         case GET_TAGS_OK:
-            if (tags != null) {
-                putNumber4 (tags.size ());
-                for (String value : tags) {
-                    putLongString (value);
-                }
-            }
+            if (tags != null)
+                putString (tags);
             else
-                putNumber4 (0);      //  Empty string array
+                putNumber1 ((byte) 0);      //  Empty string
             break;
 
         case GET_TAG:
@@ -491,6 +473,10 @@ public class HydraMsg implements java.io.Closeable
             break;
 
         case GET_TAG_OK:
+            if (tag != null)
+                putString (tag);
+            else
+                putNumber1 ((byte) 0);      //  Empty string
             if (post_id != null)
                 putString (post_id);
             else
@@ -517,17 +503,17 @@ public class HydraMsg implements java.io.Closeable
                 putString (previous);
             else
                 putNumber1 ((byte) 0);      //  Empty string
-            if (tags != null) {
-                putNumber4 (tags.size ());
-                for (String value : tags) {
-                    putLongString (value);
-                }
-            }
+            if (tags != null)
+                putString (tags);
             else
-                putNumber4 (0);      //  Empty string array
+                putNumber1 ((byte) 0);      //  Empty string
             putNumber8 (timestamp);
             if (type != null)
                 putString (type);
+            else
+                putNumber1 ((byte) 0);      //  Empty string
+            if (content != null)
+                putString (content);
             else
                 putNumber1 ((byte) 0);      //  Empty string
             break;
@@ -556,13 +542,6 @@ public class HydraMsg implements java.io.Closeable
         switch (id) {
         }
         switch (id) {
-        case GET_POST_OK:
-            if( content == null )
-                content = new ZMsg();
-            for (ZFrame contentPart : content) {
-                msg.add(contentPart);
-            }
-            break;
         }
         //  Destroy HydraMsg object
         msg.send(socket);
@@ -658,7 +637,7 @@ public class HydraMsg implements java.io.Closeable
 
     public static void sendGet_Tags_Ok (
         Socket output,
-        List <String> tags)
+        String tags)
     {
 	sendGet_Tags_Ok (
 		    output,
@@ -672,14 +651,14 @@ public class HydraMsg implements java.io.Closeable
     public static void sendGet_Tags_Ok (
         Socket output,
 	ZFrame routingId,
-        List <String> tags)
+        String tags)
     {
         HydraMsg self = new HydraMsg (HydraMsg.GET_TAGS_OK);
         if (routingId != null)
         {
 	        self.setRoutingId (routingId);
         }
-        self.setTags (new ArrayList <String> (tags));
+        self.setTags (tags);
         self.send (output);
     }
 
@@ -718,11 +697,13 @@ public class HydraMsg implements java.io.Closeable
 
     public static void sendGet_Tag_Ok (
         Socket output,
+        String tag,
         String post_id)
     {
 	sendGet_Tag_Ok (
 		    output,
 		    null,
+		    tag,
 		    post_id);
     }
 
@@ -732,6 +713,7 @@ public class HydraMsg implements java.io.Closeable
     public static void sendGet_Tag_Ok (
         Socket output,
 	ZFrame routingId,
+        String tag,
         String post_id)
     {
         HydraMsg self = new HydraMsg (HydraMsg.GET_TAG_OK);
@@ -739,6 +721,7 @@ public class HydraMsg implements java.io.Closeable
         {
 	        self.setRoutingId (routingId);
         }
+        self.setTag (tag);
         self.setPost_Id (post_id);
         self.send (output);
     }
@@ -781,10 +764,10 @@ public class HydraMsg implements java.io.Closeable
         String post_id,
         String reply_to,
         String previous,
-        List <String> tags,
+        String tags,
         long timestamp,
         String type,
-        ZMsg content)
+        String content)
     {
 	sendGet_Post_Ok (
 		    output,
@@ -807,10 +790,10 @@ public class HydraMsg implements java.io.Closeable
         String post_id,
         String reply_to,
         String previous,
-        List <String> tags,
+        String tags,
         long timestamp,
         String type,
-        ZMsg content)
+        String content)
     {
         HydraMsg self = new HydraMsg (HydraMsg.GET_POST_OK);
         if (routingId != null)
@@ -820,10 +803,10 @@ public class HydraMsg implements java.io.Closeable
         self.setPost_Id (post_id);
         self.setReply_To (reply_to);
         self.setPrevious (previous);
-        self.setTags (new ArrayList <String> (tags));
+        self.setTags (tags);
         self.setTimestamp (timestamp);
         self.setType (type);
-        self.setContent (content.duplicate ());
+        self.setContent (content);
         self.send (output);
     }
 
@@ -953,12 +936,13 @@ public class HydraMsg implements java.io.Closeable
         case GET_TAGS:
         break;
         case GET_TAGS_OK:
-            copy.tags = new ArrayList <String> (this.tags);
+            copy.tags = this.tags;
         break;
         case GET_TAG:
             copy.tag = this.tag;
         break;
         case GET_TAG_OK:
+            copy.tag = this.tag;
             copy.post_id = this.post_id;
         break;
         case GET_POST:
@@ -968,9 +952,10 @@ public class HydraMsg implements java.io.Closeable
             copy.post_id = this.post_id;
             copy.reply_to = this.reply_to;
             copy.previous = this.previous;
-            copy.tags = new ArrayList <String> (this.tags);
+            copy.tags = this.tags;
             copy.timestamp = this.timestamp;
             copy.type = this.type;
+            copy.content = this.content;
         break;
         case GOODBYE:
         break;
@@ -1010,13 +995,10 @@ public class HydraMsg implements java.io.Closeable
 
         case GET_TAGS_OK:
             System.out.println ("GET_TAGS_OK:");
-            System.out.printf ("    tags={");
-            if (tags != null) {
-                for (String value : tags) {
-                    System.out.printf (" '%s'", value);
-                }
-            }
-            System.out.printf (" }\n");
+            if (tags != null)
+                System.out.printf ("    tags='%s'\n", tags);
+            else
+                System.out.printf ("    tags=\n");
             break;
 
         case GET_TAG:
@@ -1029,6 +1011,10 @@ public class HydraMsg implements java.io.Closeable
 
         case GET_TAG_OK:
             System.out.println ("GET_TAG_OK:");
+            if (tag != null)
+                System.out.printf ("    tag='%s'\n", tag);
+            else
+                System.out.printf ("    tag=\n");
             if (post_id != null)
                 System.out.printf ("    post_id='%s'\n", post_id);
             else
@@ -1057,18 +1043,19 @@ public class HydraMsg implements java.io.Closeable
                 System.out.printf ("    previous='%s'\n", previous);
             else
                 System.out.printf ("    previous=\n");
-            System.out.printf ("    tags={");
-            if (tags != null) {
-                for (String value : tags) {
-                    System.out.printf (" '%s'", value);
-                }
-            }
-            System.out.printf (" }\n");
+            if (tags != null)
+                System.out.printf ("    tags='%s'\n", tags);
+            else
+                System.out.printf ("    tags=\n");
             System.out.printf ("    timestamp=%d\n", (long)timestamp);
             if (type != null)
                 System.out.printf ("    type='%s'\n", type);
             else
                 System.out.printf ("    type=\n");
+            if (content != null)
+                System.out.printf ("    content='%s'\n", content);
+            else
+                System.out.printf ("    content=\n");
             break;
 
         case GOODBYE:
@@ -1139,27 +1126,17 @@ public class HydraMsg implements java.io.Closeable
     }
 
     //  --------------------------------------------------------------------------
-    //  Iterate through the tags field, and append a tags value
+    //  Get/set the tags field
 
-    public List <String> tags ()
+    public String tags ()
     {
         return tags;
     }
 
-    public void appendTags (String format, Object ... args)
+    public void setTags (String format, Object ... args)
     {
         //  Format into newly allocated string
-
-        String string = String.format (format, args);
-        //  Attach string to list
-        if (tags == null)
-            tags = new ArrayList <String> ();
-        tags.add (string);
-    }
-
-    public void setTags (List <String> value)
-    {
-        tags = new ArrayList (value);
+        tags = String.format (format, args);
     }
 
     //  --------------------------------------------------------------------------
@@ -1234,18 +1211,17 @@ public class HydraMsg implements java.io.Closeable
     //  --------------------------------------------------------------------------
     //  Get/set the content field
 
-    public ZMsg content ()
+    public String content ()
     {
         return content;
     }
 
-    //  Takes ownership of supplied frame
-    public void setContent (ZMsg frame)
+    public void setContent (String format, Object ... args)
     {
-        if (content != null)
-            content.destroy ();
-        content = frame;
+        //  Format into newly allocated string
+        content = String.format (format, args);
     }
+
     //  --------------------------------------------------------------------------
     //  Get/set the reason field
 
