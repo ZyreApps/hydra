@@ -7,11 +7,11 @@
 
 (defprotocol HydraServer
   (hello    [this routing-id])
-  (get-tags [this])
-  (get-tag  [this tag])
-  (get-post [this post-id])
-  (goodbye  [this])
-  (invalid  [this]))
+  (get-tags [this routing-id])
+  (get-tag  [this routing-id tag])
+  (get-post [this routing-id post-id])
+  (goodbye  [this routing-id])
+  (invalid  [this routing-id]))
 
 (defprotocol HydraServerBackend
   (get-latest-post [this])
@@ -46,25 +46,29 @@
     (let [post-id (get-latest-post backend)]
       (msg/hello-ok socket routing-id post-id)))
 
-  (get-tags [this]
+  (get-tags [this routing-id]
     (ensure-state state :connected)
-    (let [response (HydraMsg. HydraMsg/GET_TAGS_OK)]
-      (get-all-tags response)
-      (.send response socket)
-      (.destroy response)))
+    (let [tags (get-all-tags backend)]
+      (msg/get-tags-ok socket routing-id tags)))
 
-  (get-tag [this tag-id]
+  (get-tag [this routing-id tag]
     (ensure-state state :connected)
-    (let [response (HydraMsg. HydraMsg/GET_TAG_OK)]
-      (get-single-tag response tag-id)
-      (.send response socket)
-      (.destroy response)))
+    (if-let [post-id (get-single-tag backend tag)]
+      (msg/get-tag-ok socket routing-id tag post-id)
+      (msg/failed socket routing-id (format "no post for tag %s" tag))))
 
-  (invalid [this]
-    (.send (HydraMsg. HydraMsg/INVALID) socket)))
+  (get-post [this routing-id post-id]
+    (ensure-state state :connected)
+    (if-let [post-data (get-single-post backend post-id)]
+      (apply msg/get-post-ok socket routing-id post-data)
+      (msg/failed socket routing-id (format "post not found: %s" post-id))))
 
+  (invalid [this routing-id]
+    (msg/invalid socket routing-id))
 
-
+  (goodbye [this routing-id]
+    (ensure-state state :connected)
+    (msg/goodbye-ok socket routing-id)))
 
 
 (defn match-msg
@@ -73,10 +77,12 @@
         routing-id (.routingId msg)]
     (cond
      (= id HydraMsg/HELLO)    (hello    server routing-id)
-     (= id HydraMsg/GET_TAGS) (get-tags server)
-     (= id HydraMsg/GET_TAG)  (get-tag  server (.tag msg))
+     (= id HydraMsg/GET_TAGS) (get-tags server routing-id)
+     (= id HydraMsg/GET_TAG)  (get-tag  server routing-id (.tag msg))
+     (= id HydraMsg/GET_POST) (get-post server routing-id (.post_id msg))
+     (= id HydraMsg/GOODBYE)  (goodbye  server routing-id)
 
-     :default                 (invalid  server))))
+     :default                 (invalid  server routing-id))))
 
 (defn server-loop
   [socket backend]

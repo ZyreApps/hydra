@@ -6,29 +6,120 @@
 
 (def test-endpoint "ipc://hydra-server-test")
 
-(def test-server-backend
+(def dummy-backend
   (reify server/HydraServerBackend
     (get-latest-post [this]
       "dummy-post-id")
     (get-single-post [this post-id]
-      "dummy-post-id")
+      (when (= "dummy-post-id" post-id)
+        ["dummy-post-id" "none" "none" "tag_2" 123123123 "dummy" "dummy-post"]))
     (get-all-tags [this]
-      ["tag 1" "tag 2" "tag 3"])
+      "tag_1 tag_2 tag_3 tag_4")
     (get-single-tag [this tag-id]
-      "tag 1")))
+      (when (= tag-id "tag_1")
+        "dummy-post-id-2"))))
 
-(deftest test-hello-ok
+(defn setup [& [state]]
   (let [srv-sock (msg/server-socket test-endpoint)
         cl-sock (msg/client-socket test-endpoint)
-        srv (server/->Server srv-sock (atom :start) test-server-backend)]
+        srv (server/->Server srv-sock (atom (or state :start)) dummy-backend)]
+    [cl-sock srv-sock srv]))
+
+(defn teardown [cl-sock srv-sock]
+  (.close (:socket srv-sock))
+  (.close (:socket cl-sock)))
+
+(defn server-client-comm [cl-sock srv srv-sock cl-msg & args]
+  (apply cl-msg cl-sock args)
+  (server/match-msg srv (msg/recv srv-sock))
+  (msg/recv cl-sock))
+
+(deftest test-hello-ok
+  (let [[cl-sock srv-sock srv] (setup)]
     (try
-      (msg/hello cl-sock)
-      (server/match-msg srv (msg/recv srv-sock))
-      (let [response (msg/recv cl-sock)]
+      (let [response (server-client-comm cl-sock srv srv-sock msg/hello)]
         (is (= HydraMsg/HELLO_OK
                (.id response)))
-        (is (= "dummy-post-id"
+        (is (= (server/get-latest-post dummy-backend)
                (.post_id response))))
       (finally
-        (.close (:socket srv-sock))
-        (.close (:socket cl-sock))))))
+        (teardown cl-sock srv-sock)))))
+
+(deftest test-get-tags-ok
+  (let [[cl-sock srv-sock srv] (setup :connected)]
+    (try
+      (let [response (server-client-comm cl-sock srv srv-sock msg/get-tags)]
+        (is (= HydraMsg/GET_TAGS_OK
+               (.id response)))
+        (is (= (server/get-all-tags dummy-backend)
+               (.tags response))))
+      (finally
+        (teardown cl-sock srv-sock)))))
+
+(deftest test-get-tag-ok
+  (let [[cl-sock srv-sock srv] (setup :connected)]
+    (try
+      (let [response (server-client-comm cl-sock srv srv-sock msg/get-tag "tag_1")]
+        (is (= HydraMsg/GET_TAG_OK
+               (.id response)))
+        (is (= (server/get-single-tag dummy-backend "tag_1")
+               (.post_id response))))
+      (finally
+        (teardown cl-sock srv-sock)))))
+
+(deftest test-get-tag-failed
+  (let [[cl-sock srv-sock srv] (setup :connected)]
+    (try
+      (let [response (server-client-comm cl-sock srv srv-sock msg/get-tag "tag_2")]
+        (is (= HydraMsg/FAILED
+               (.id response)))
+        (is (= "no post for tag tag_2"
+               (.reason response))))
+      (finally
+        (teardown cl-sock srv-sock)))))
+
+(deftest test-get-post-ok
+  (let [[cl-sock srv-sock srv] (setup :connected)]
+    (try
+      (let [response (server-client-comm cl-sock srv srv-sock msg/get-post "dummy-post-id")]
+        (is (= HydraMsg/GET_POST_OK
+               (.id response)))
+        (is (= (server/get-single-post dummy-backend "dummy-post-id")
+               [(.post_id response)
+                (.reply_to response)
+                (.previous response)
+                (.tags response)
+                (.timestamp response)
+                (.type response)
+                (.content response)])))
+      (finally
+        (teardown cl-sock srv-sock)))))
+
+(deftest test-get-post-failed
+  (let [[cl-sock srv-sock srv] (setup :connected)]
+    (try
+      (let [response (server-client-comm cl-sock srv srv-sock msg/get-post "unknown-post-id")]
+        (is (= HydraMsg/FAILED
+               (.id response)))
+        (is (= "post not found: unknown-post-id"
+               (.reason response))))
+      (finally
+        (teardown cl-sock srv-sock)))))
+
+(deftest test-invalid
+  (let [[cl-sock srv-sock srv] (setup)]
+    (try
+      (let [response (server-client-comm cl-sock srv srv-sock msg/invalid)]
+        (is (= HydraMsg/INVALID
+               (.id response))))
+      (finally
+        (teardown cl-sock srv-sock)))))
+
+(deftest test-goodbye
+  (let [[cl-sock srv-sock srv] (setup :connected)]
+    (try
+      (let [response (server-client-comm cl-sock srv srv-sock msg/goodbye)]
+        (is (= HydraMsg/GOODBYE_OK
+               (.id response))))
+      (finally
+        (teardown cl-sock srv-sock)))))
