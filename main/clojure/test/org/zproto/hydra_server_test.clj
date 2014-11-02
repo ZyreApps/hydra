@@ -19,10 +19,14 @@
       (when (= tag-id "tag_1")
         "dummy-post-id-2"))))
 
-(defn setup [& [state]]
+(defn setup [& [connect?]]
   (let [srv-sock (msg/server-socket test-endpoint)
         cl-sock (msg/client-socket test-endpoint)
-        srv (server/->Server srv-sock (atom (or state :start)) dummy-backend)]
+        srv (server/->Server srv-sock (atom {}) dummy-backend)]
+    (when connect?
+      (msg/hello cl-sock)
+      (server/match-msg srv (msg/recv srv-sock))
+      (msg/recv cl-sock))
     [cl-sock srv-sock srv]))
 
 (defn teardown [cl-sock srv-sock]
@@ -41,7 +45,9 @@
         (is (= HydraMsg/HELLO_OK
                (.id response)))
         (is (= (server/get-latest-post dummy-backend)
-               (.post_id response))))
+               (.post_id response)))
+        (is (= :connected
+               (-> @(:state srv) vals first))))
       (finally
         (teardown cl-sock srv-sock)))))
 
@@ -52,7 +58,9 @@
         (is (= HydraMsg/GET_TAGS_OK
                (.id response)))
         (is (= (server/get-all-tags dummy-backend)
-               (.tags response))))
+               (.tags response)))
+        (is (= :connected
+               (-> @(:state srv) vals first))))
       (finally
         (teardown cl-sock srv-sock)))))
 
@@ -63,7 +71,9 @@
         (is (= HydraMsg/GET_TAG_OK
                (.id response)))
         (is (= (server/get-single-tag dummy-backend "tag_1")
-               (.post_id response))))
+               (.post_id response)))
+        (is (= :connected
+               (-> @(:state srv) vals first))))
       (finally
         (teardown cl-sock srv-sock)))))
 
@@ -74,7 +84,9 @@
         (is (= HydraMsg/FAILED
                (.id response)))
         (is (= "no post for tag tag_2"
-               (.reason response))))
+               (.reason response)))
+        (is (= :connected
+               (-> @(:state srv) vals first))))
       (finally
         (teardown cl-sock srv-sock)))))
 
@@ -91,7 +103,9 @@
                 (.tags response)
                 (.timestamp response)
                 (.type response)
-                (.content response)])))
+                (.content response)]))
+        (is (= :connected
+               (-> @(:state srv) vals first))))
       (finally
         (teardown cl-sock srv-sock)))))
 
@@ -102,7 +116,9 @@
         (is (= HydraMsg/FAILED
                (.id response)))
         (is (= "post not found: unknown-post-id"
-               (.reason response))))
+               (.reason response)))
+        (is (= :connected
+               (-> @(:state srv) vals first))))
       (finally
         (teardown cl-sock srv-sock)))))
 
@@ -111,7 +127,9 @@
     (try
       (let [response (server-client-comm cl-sock srv srv-sock msg/invalid)]
         (is (= HydraMsg/INVALID
-               (.id response))))
+               (.id response)))
+        (is (= :start
+               (-> @(:state srv) vals first))))
       (finally
         (teardown cl-sock srv-sock)))))
 
@@ -120,6 +138,27 @@
     (try
       (let [response (server-client-comm cl-sock srv srv-sock msg/goodbye)]
         (is (= HydraMsg/GOODBYE_OK
-               (.id response))))
+               (.id response)))
+        (is (= :connected
+               (-> @(:state srv) vals first))))
       (finally
         (teardown cl-sock srv-sock)))))
+
+
+(deftest multiple-clients
+  (let [srv-sock (msg/server-socket test-endpoint)
+        srv (server/->Server srv-sock (atom {}) dummy-backend)
+        client-1 (msg/client-socket test-endpoint)
+        client-2 (msg/client-socket test-endpoint)]
+    (try
+      (let [r1 (server-client-comm client-1 srv srv-sock msg/goodbye)
+            r2 (server-client-comm client-2 srv srv-sock msg/get-tags)]
+        (is (= 2 (count @(:state srv))))
+        (is (= [:start :start]
+               (-> @(:state srv) vals)))
+        (server-client-comm client-1 srv srv-sock msg/hello)
+        (is (= {:start 1 :connected 1}
+               (frequencies (vals @(:state srv))))))
+      (finally
+        (teardown client-1 srv-sock)
+        (.close (:socket client-2))))))

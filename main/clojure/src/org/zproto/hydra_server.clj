@@ -20,61 +20,71 @@
   (get-single-tag [this tag-id]))
 
 (defn next-state
-  [atom expected-state next-state]
+  [atom routing-id expected-state next-state]
   (swap! atom
-         (fn [st]
-           (if (= st expected-state)
-             next-state
-             (throw (RuntimeException. (str "Expected to have "
-                                            expected-state
-                                            " state, but had "
-                                            next-state)))))))
+         (fn [states]
+           (let [current-state (get states routing-id)]
+             (if (= current-state expected-state)
+               (assoc states routing-id next-state)
+               (throw (RuntimeException. (str "Expected to have "
+                                              expected-state
+                                              " state, but had "
+                                              current-state))))))))
 
 (defn ensure-state
-  [atom expected-state]
-  (when (not (= @atom expected-state))
-    (throw (RuntimeException.
-            (str "Expected to have "
-                 expected-state
-                 " state, but had "
-                 next-state)))))
+  [atom routing-id expected-state]
+  (when (= (get @atom routing-id)
+              expected-state)
+    expected-state))
+
+(defn maybe-setup-session [state routing-id]
+  (if (get state routing-id)
+    state
+    (assoc state routing-id :start)))
 
 (defrecord Server [socket state backend]
   HydraServer
   (hello [this routing-id]
-    ;; (next-state state :start :connected)
-    (let [post-id (get-latest-post backend)]
-      (msg/hello-ok socket routing-id post-id)))
+    (if (ensure-state state routing-id :start)
+      (do (next-state state routing-id :start :connected)
+          (let [post-id (get-latest-post backend)]
+            (msg/hello-ok socket routing-id post-id)))
+      (invalid this routing-id)))
 
   (get-tags [this routing-id]
-    (ensure-state state :connected)
-    (let [tags (get-all-tags backend)]
-      (msg/get-tags-ok socket routing-id tags)))
+    (if (ensure-state state routing-id :connected)
+      (let [tags (get-all-tags backend)]
+        (msg/get-tags-ok socket routing-id tags))
+      (invalid this routing-id)))
 
   (get-tag [this routing-id tag]
-    (ensure-state state :connected)
-    (if-let [post-id (get-single-tag backend tag)]
-      (msg/get-tag-ok socket routing-id tag post-id)
-      (msg/failed socket routing-id (format "no post for tag %s" tag))))
+    (if (ensure-state state routing-id :connected)
+      (if-let [post-id (get-single-tag backend tag)]
+        (msg/get-tag-ok socket routing-id tag post-id)
+        (msg/failed socket routing-id (format "no post for tag %s" tag)))
+      (invalid this routing-id)))
 
   (get-post [this routing-id post-id]
-    (ensure-state state :connected)
-    (if-let [post-data (get-single-post backend post-id)]
-      (apply msg/get-post-ok socket routing-id post-data)
-      (msg/failed socket routing-id (format "post not found: %s" post-id))))
+    (if (ensure-state state routing-id :connected)
+      (if-let [post-data (get-single-post backend post-id)]
+        (apply msg/get-post-ok socket routing-id post-data)
+        (msg/failed socket routing-id (format "post not found: %s" post-id)))
+      (invalid this routing-id)))
 
   (invalid [this routing-id]
     (msg/invalid socket routing-id))
 
   (goodbye [this routing-id]
-    (ensure-state state :connected)
-    (msg/goodbye-ok socket routing-id)))
+    (if (ensure-state state routing-id :connected)
+      (msg/goodbye-ok socket routing-id)
+      (invalid this routing-id))))
 
 
 (defn match-msg
-  [server ^HydraMsg msg]
+  [{:keys [state] :as server} ^HydraMsg msg]
   (let [id (.id msg)
         routing-id (.routingId msg)]
+    (swap! state maybe-setup-session routing-id)
     (cond
      (= id HydraMsg/HELLO)    (hello    server routing-id)
      (= id HydraMsg/GET_TAGS) (get-tags server routing-id)
@@ -86,7 +96,7 @@
 
 (defn server-loop
   [socket backend]
-  (let [server (Server. socket (atom :start) backend)]
+  (let [server (Server. socket (atom {}) backend)]
     (loop []
       (when-let [received (msg/recv socket)]
         (try
