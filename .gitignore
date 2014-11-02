@@ -23,4 +23,7 @@ src/src_libhydra_la-hydra_client.lo
 src/src_libhydra_la-hydra_msg.lo
 src/src_libhydra_la-hydra_server.lo
 src/stamp-h1
-
+target
+.nrepl-port
+.lein-failures
+*~
