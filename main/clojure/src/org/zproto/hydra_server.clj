@@ -1,4 +1,4 @@
-(ns server
+(ns org.zproto.hydra-server
   (:require [zeromq.zmq           :as zmq]
             [org.zproto.hydra-msg :as msg])
   (:import [org.zproto HydraMsg]))
