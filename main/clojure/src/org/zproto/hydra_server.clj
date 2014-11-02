@@ -5,33 +5,6 @@
 
 (alter-var-root #'*out* (constantly *out*))
 
-(declare get-latest-post)
-(declare get-all-tags)
-(declare get-single-tag)
-
-
-(defn get-latest-post
-  [& more]
-  ;;
-  ;; Fill in the blanks
-  ;;
-  (println more)
-  "dummy-id")
-
-(defn get-all-tags
-  [& more]
-  ;;
-  ;; Fill in the blanks
-  ;;
-  (println more))
-(defn get-single-tag
-  [& more]
-  ;;
-  ;; Fill in the blanks
-  ;;
-  (println more))
-
-
 (defprotocol HydraServer
   (hello    [this routing-id])
   (get-tags [this])
@@ -39,6 +12,12 @@
   (get-post [this post-id])
   (goodbye  [this])
   (invalid  [this]))
+
+(defprotocol HydraServerBackend
+  (get-latest-post [this])
+  (get-single-post [this post-id])
+  (get-all-tags [this])
+  (get-single-tag [this tag-id]))
 
 (defn next-state
   [atom expected-state next-state]
@@ -60,11 +39,11 @@
                  " state, but had "
                  next-state)))))
 
-(defrecord Server [socket state]
+(defrecord Server [socket state backend]
   HydraServer
   (hello [this routing-id]
     ;; (next-state state :start :connected)
-    (let [post-id (get-latest-post)]
+    (let [post-id (get-latest-post backend)]
       (msg/hello-ok socket routing-id post-id)))
 
   (get-tags [this]
@@ -72,20 +51,17 @@
     (let [response (HydraMsg. HydraMsg/GET_TAGS_OK)]
       (get-all-tags response)
       (.send response socket)
-      (.destroy response)
-      ))
+      (.destroy response)))
 
   (get-tag [this tag-id]
     (ensure-state state :connected)
     (let [response (HydraMsg. HydraMsg/GET_TAG_OK)]
       (get-single-tag response tag-id)
       (.send response socket)
-      (.destroy response)
-      ))
+      (.destroy response)))
 
   (invalid [this]
-    (.send (HydraMsg. HydraMsg/INVALID) socket))
-  )
+    (.send (HydraMsg. HydraMsg/INVALID) socket)))
 
 
 
@@ -95,37 +71,25 @@
   [server ^HydraMsg msg]
   (let [id (.id msg)
         routing-id (.routingId msg)]
-    (println (= id HydraMsg/HELLO))
     (cond
      (= id HydraMsg/HELLO)    (hello    server routing-id)
      (= id HydraMsg/GET_TAGS) (get-tags server)
      (= id HydraMsg/GET_TAG)  (get-tag  server (.tag msg))
 
-     :default                 (invalid  server)
-
-     ;; HydraMsg/GET_POST
-     ;; HydraMsg/GET_POST_OK
-     ;; HydraMsg/GOODBYE
-     ;; HydraMsg/GOODBYE_OK
-     ;; HydraMsg/INVALID
-     ;; HydraMsg/FAILED
-     ))
-  )
+     :default                 (invalid  server))))
 
 (defn server-loop
-  [socket]
-  (let [server (Server. socket (atom :start))]
+  [socket backend]
+  (let [server (Server. socket (atom :start) backend)]
     (loop []
       (when-let [received (msg/recv socket)]
         (try
           (match-msg server received)
           (catch Exception e
-            (.printStackTrace e))
-          ))
+            (.printStackTrace e))))
       (if (not (.isInterrupted (Thread/currentThread)))
         (recur)
-        (println "Server shutdown")
-        ))))
+        (println "Server shutdown")))))
 
 
 (comment
