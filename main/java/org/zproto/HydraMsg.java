@@ -246,6 +246,8 @@ public class HydraMsg implements java.io.Closeable
                     self.routingId = ZFrame.recvFrame (input);
                     if (self.routingId == null)
                         return null;         //  Interrupted
+                    if (!self.routingId.hasData())
+                        return null;         //  Empty Frame (eg recv-timeout)
                     if (!input.hasReceiveMore ())
                         throw new IllegalArgumentException ();
                 }
