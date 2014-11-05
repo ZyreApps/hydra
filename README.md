@@ -1,5 +1,7 @@
 # The Hydra Protocol
 
+[![Build Status](https://travis-ci.org/edgenet/hydra.png)](https://travis-ci.org/edgenet/hydra)
+
 Hydra is a simple protocol for opportunistic sharing of events and content.
 
 The goal of the Hydra project is to explore and learn how to share knowledge and information across short-lived wireless networks between mobile users. Hydra exploits "proximity networks", that is the physical closeness of individuals. The Hydra project is part of the edgenet campaign to design and build decentralized networks, with no dependency on broadband Internet nor centralized services.

@@ -20,8 +20,9 @@
         "dummy-post-id-2"))))
 
 (defn setup [& [connect?]]
-  (let [srv-sock (msg/server-socket test-endpoint)
-        cl-sock (msg/client-socket test-endpoint)
+  (let [random-endpoint (str test-endpoint "/" (rand-int 100000))
+        srv-sock (msg/server-socket random-endpoint)
+        cl-sock (msg/client-socket random-endpoint)
         srv (server/->Server srv-sock (atom {}) dummy-backend)]
     (when connect?
       (msg/hello cl-sock)
