@@ -30,12 +30,12 @@ typedef enum {
 } state_t;
 
 typedef enum {
-    terminate_event = -1,
     NULL_event = 0,
-    hello_event = 1,
-    get_tags_event = 2,
-    get_tag_event = 3,
-    get_post_event = 4
+    terminate_event = 1,
+    hello_event = 2,
+    get_tags_event = 3,
+    get_tag_event = 4,
+    get_post_event = 5
 } event_t;
 
 //  Names for state machine logging and error reporting
@@ -50,6 +50,7 @@ s_state_name [] = {
 static char *
 s_event_name [] = {
     "(NONE)",
+    "terminate",
     "HELLO",
     "GET_TAGS",
     "GET_TAG",
@@ -88,7 +89,6 @@ typedef struct {
     char *hashkey;              //  Key into server->clients hash
     zframe_t *routing_id;       //  Routing_id back to client
     uint unique_id;             //  Client identifier in server
-    zlist_t *mailbox;           //  Incoming messages
     state_t state;              //  Current state
     event_t event;              //  Current event
     event_t next_event;         //  The next event
@@ -110,7 +110,7 @@ static int
 static void
     client_terminate (client_t *self);
 static void
-    s_client_execute (s_client_t *client, int event);
+    s_client_execute (s_client_t *client, event_t event);
 static int
     s_client_handle_wakeup (zloop_t *loop, int timer_id, void *argument);
 static void
@@ -331,7 +331,6 @@ s_client_new (s_server_t *server, zframe_t *routing_id)
     self->server = server;
     self->hashkey = zframe_strhex (routing_id);
     self->routing_id = zframe_dup (routing_id);
-    self->mailbox = zlist_new ();
     self->unique_id = server->client_id++;
     engine_set_log_prefix (&self->client, server->log_prefix);
 
@@ -359,14 +358,6 @@ s_client_destroy (s_client_t **self_p)
             zloop_timer_end (self->server->loop, self->wakeup_timer);
         if (self->expiry_timer)
             zloop_timer_end (self->server->loop, self->expiry_timer);
-            
-        //  Empty and destroy mailbox
-        hydra_msg_t *request = (hydra_msg_t *) zlist_first (self->mailbox);
-        while (request) {
-            hydra_msg_destroy (&request);
-            request = (hydra_msg_t *) zlist_next (self->mailbox);
-        }
-        zlist_destroy (&self->mailbox);
         zframe_destroy (&self->routing_id);
         client_terminate (&self->client);
         free (self->hashkey);
@@ -383,44 +374,6 @@ s_client_free (void *argument)
     s_client_destroy (&client);
 }
 
-//  Do we accept a request off the mailbox? If so, return the event for
-//  the message, and load the message into the current client request.
-//  If not, return NULL_event;
-
-static event_t
-s_client_filter_mailbox (s_client_t *self)
-{
-    assert (self);
-    
-    hydra_msg_t *request = (hydra_msg_t *) zlist_first (self->mailbox);
-    while (request) {
-        //  Check whether current state can process event
-        //  This should be changed to a pre-built lookup table
-        event_t event = s_protocol_event (request);
-        bool event_is_valid;
-        if (self->state == start_state)
-            event_is_valid = true;
-        else
-        if (self->state == connected_state)
-            event_is_valid = true;
-        else
-        if (self->state == external_state)
-            event_is_valid = true;
-        else
-            event_is_valid = false;
-            
-        if (event_is_valid) {
-            zlist_remove (self->mailbox, request);
-            hydra_msg_destroy (&self->client.request);
-            self->client.request = request;
-            return event;
-        }
-        request = (hydra_msg_t *) zlist_next (self->mailbox);
-    }
-    return NULL_event;
-}
-
-
 //  Execute state machine as long as we have events
 
 static void
@@ -432,7 +385,7 @@ s_client_execute (s_client_t *self, event_t event)
         zloop_timer_end (self->server->loop, self->wakeup_timer);
         self->wakeup_timer = 0;
     }
-    while (self->next_event != NULL_event) {
+    while (self->next_event > 0) {
         self->event = self->next_event;
         self->next_event = NULL_event;
         self->exception = NULL_event;
@@ -598,15 +551,10 @@ s_client_execute (s_client_t *self, event_t event)
             zhash_delete (self->server->clients, self->hashkey);
             break;
         }
-        else {
-            if (self->server->verbose)
-                zsys_debug ("%s:         > %s",
-                    self->log_prefix, s_state_name [self->state]);
-
-            if (self->next_event == NULL_event)
-                //  Get next valid message from mailbox, if any
-                self->next_event = s_client_filter_mailbox (self);
-        }
+        else
+        if (self->server->verbose)
+            zsys_debug ("%s:         > %s",
+                self->log_prefix, s_state_name [self->state]);
     }
 }
 
@@ -722,7 +670,7 @@ s_server_apply_config (s_server_t *self)
 //  Process message from pipe
 
 static int
-s_server_api_message (zloop_t *loop, zsock_t *reader, void *argument)
+s_server_handle_pipe (zloop_t *loop, zsock_t *reader, void *argument)
 {
     s_server_t *self = (s_server_t *) argument;
     zmsg_t *msg = zmsg_recv (self->pipe);
@@ -731,7 +679,7 @@ s_server_api_message (zloop_t *loop, zsock_t *reader, void *argument)
     char *method = zmsg_popstr (msg);
     if (self->verbose)
         zsys_debug ("%s:     API command=%s", self->log_prefix, method);
-    
+
     if (streq (method, "VERBOSE"))
         self->verbose = true;
     else
@@ -795,10 +743,10 @@ s_server_api_message (zloop_t *loop, zsock_t *reader, void *argument)
     return 0;
 }
 
-//  Handle a message (a protocol request) from the client
+//  Handle a protocol message from the client
 
 static int
-s_server_client_message (zloop_t *loop, zsock_t *reader, void *argument)
+s_server_handle_protocol (zloop_t *loop, zsock_t *reader, void *argument)
 {
     s_server_t *self = (s_server_t *) argument;
     hydra_msg_t *msg = hydra_msg_recv (self->router);
@@ -814,12 +762,10 @@ s_server_client_message (zloop_t *loop, zsock_t *reader, void *argument)
     }
     free (hashkey);
 
-    //  Queue request and possibly pass it to client state machine
-    zlist_append (client->mailbox, msg);
-    event_t event = s_client_filter_mailbox (client);
-    if (event != NULL_event)
-        s_client_execute (client, event);
-        
+    //  Pass to client state machine
+    hydra_msg_destroy (&client->client.request);
+    client->client.request = msg;
+    s_client_execute (client, s_protocol_event (client->client.request));
     return 0;
 }
 
@@ -857,8 +803,8 @@ hydra_server (zsock_t *pipe, void *args)
     //  Set-up server monitor to watch for config file changes
     engine_set_monitor ((server_t *) self, 1000, s_watch_server_config);
     //  Set up handler for the two main sockets the server uses
-    engine_handle_socket ((server_t *) self, self->pipe, s_server_api_message);
-    engine_handle_socket ((server_t *) self, self->router, s_server_client_message);
+    engine_handle_socket ((server_t *) self, self->pipe, s_server_handle_pipe);
+    engine_handle_socket ((server_t *) self, self->router, s_server_handle_protocol);
 
     //  Run reactor until there's a termination signal
     zloop_start (self->loop);
