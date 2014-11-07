@@ -1,8 +1,7 @@
 (ns org.zproto.hydra-server-test
   (:require [clojure.test :refer :all]
             [org.zproto.hydra-server :as server]
-            [org.zproto.hydra-msg :as msg]
-            [zeromq.zmq :as zmq])
+            [org.zproto.hydra-msg :as msg])
   (:import [org.zproto HydraMsg]))
 
 (def test-endpoint "inproc://hydra-server-test")
@@ -21,9 +20,8 @@
         "dummy-post-id-2"))))
 
 (defn setup [& [connect?]]
-  (let [context (zmq/context)
-        srv-sock (msg/server-socket test-endpoint context)
-        cl-sock (msg/client-socket test-endpoint context)
+  (let [srv-sock (msg/server-socket test-endpoint)
+        cl-sock (msg/client-socket test-endpoint)
         srv (server/->Server srv-sock (atom {}) dummy-backend)]
     (when connect?
       (msg/hello cl-sock)
@@ -148,11 +146,10 @@
 
 
 (deftest multiple-clients
-  (let [context (zmq/context)
-        srv-sock (msg/server-socket test-endpoint context)
+  (let [srv-sock (msg/server-socket test-endpoint)
         srv (server/->Server srv-sock (atom {}) dummy-backend)
-        client-1 (msg/client-socket test-endpoint context)
-        client-2 (msg/client-socket test-endpoint context)]
+        client-1 (msg/client-socket test-endpoint)
+        client-2 (msg/client-socket test-endpoint)]
     (try
       (let [r1 (server-client-comm client-1 srv srv-sock msg/goodbye)
             r2 (server-client-comm client-2 srv srv-sock msg/get-tags)]
