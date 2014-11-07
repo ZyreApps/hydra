@@ -1,0 +1,101 @@
+hydra_server(3)
+===============
+
+NAME
+----
+hydra_server - Hydra Server (in C)
+
+SYNOPSIS
+--------
+----
+//  To work with hydra_server, use the CZMQ zactor API:
+//
+//  Create new hydra_server instance, passing logging prefix:
+//
+//      zactor_t *hydra_server = zactor_new (hydra_server, "myname");
+//  
+//  Destroy hydra_server instance
+//
+//      zactor_destroy (&hydra_server);
+//  
+//  Enable verbose logging of commands and activity:
+//
+//      zstr_send (hydra_server, "VERBOSE");
+//
+//  Bind hydra_server to specified endpoint. TCP endpoints may specify
+//  the port number as "*" to aquire an ephemeral port:
+//
+//      zstr_sendx (hydra_server, "BIND", endpoint, NULL);
+//
+//  Return assigned port number, specifically when BIND was done using an
+//  an ephemeral port:
+//
+//      zstr_sendx (hydra_server, "PORT", NULL);
+//      char *command, *port_str;
+//      zstr_recvx (hydra_server, &command, &port_str, NULL);
+//      assert (streq (command, "PORT"));
+//
+//  Specify configuration file to load, overwriting any previous loaded
+//  configuration file or options:
+//
+//      zstr_sendx (hydra_server, "CONFIGURE", filename, NULL);
+//
+//  Set configuration path value:
+//
+//      zstr_sendx (hydra_server, "SET", path, value, NULL);
+//    
+//  Send zmsg_t instance to hydra_server:
+//
+//      zactor_send (hydra_server, &msg);
+//
+//  Receive zmsg_t instance from hydra_server:
+//
+//      zmsg_t *msg = zactor_recv (hydra_server);
+//
+//  This is the hydra_server constructor as a zactor_fn:
+//
+void
+    hydra_server (zsock_t *pipe, void *args);
+
+//  Self test of this class
+void
+    hydra_server_test (bool verbose);
+----
+
+DESCRIPTION
+-----------
+
+This is a simple client API for the Hydra protocol.
+
+Detailed discussion of the class, if any.
+
+EXAMPLE
+-------
+.From hydra_server_test method
+----
+zactor_t *server = zactor_new (hydra_server, "server");
+if (verbose)
+    zstr_send (server, "VERBOSE");
+zstr_sendx (server, "BIND", "ipc://@/hydra_server", NULL);
+
+zsock_t *client = zsock_new (ZMQ_DEALER);
+assert (client);
+zsock_set_rcvtimeo (client, 2000);
+zsock_connect (client, "ipc://@/hydra_server");
+
+hydra_msg_t *request, *reply;
+request = hydra_msg_new (HYDRA_MSG_HELLO);
+hydra_msg_send (&request, client);
+
+reply = hydra_msg_recv (client);
+assert (reply);
+assert (hydra_msg_id (reply) == HYDRA_MSG_HELLO_OK);
+hydra_msg_destroy (&reply);
+
+zsock_destroy (&client);
+zactor_destroy (&server);
+----
+
+SEE ALSO
+--------
+linkczmq:czmq[7]
