@@ -18,7 +18,7 @@
     =========================================================================
 */
 
-#include "../include/hydra.h"
+#include "hydra_classes.h"
 
 int
 main (int argc, char *argv [])

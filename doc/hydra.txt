@@ -1,0 +1,25 @@
+Name(7)
+=======
+
+
+NAME
+----
+hydra - A protocol for sharing stuff
+
+
+SYNOPSIS
+--------
+----
+#include <hydra.h>
+
+cc ['flags'] 'files' -lzmq -lhydra ['libraries']
+----
+
+
+DESCRIPTION
+-----------
+
+Classes
+~~~~~~~
+
+Something.

@@ -1,7 +1,7 @@
 <project 
     name = "hydra"
     description = "A protocol for sharing stuff"
-    script = "project.gsl"
+    script = "zproject.gsl"
     email = "zeromq-dev@lists.zeromq.org"
     >
     <include filename = "license.xml" />

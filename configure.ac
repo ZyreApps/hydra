@@ -56,16 +56,6 @@ AC_PROG_SED
 AC_PROG_AWK
 PKG_PROG_PKG_CONFIG
 
-# 
-AC_ARG_ENABLE([labs],
-    [AS_HELP_STRING([--disable-labs], [Enable Labs support @<:@check@:>@])],
-    [:],
-    [enable_labs=check])
-
-# Checks for libraries
-AC_CHECK_LIB([pthread], [pthread_create])
-AC_CHECK_LIB([uuid], [uuid_generate])
-
 # Code coverage
 AC_ARG_WITH(gcov, [AS_HELP_STRING([--with-gcov=yes/no],
                   [With GCC Code Coverage reporting.])],
@@ -220,7 +210,9 @@ esac
 
 # Checks for header files.
 AC_HEADER_STDC
-AC_CHECK_HEADERS(errno.h arpa/inet.h netinet/tcp.h netinet/in.h stddef.h   stdlib.h string.h sys/socket.h sys/time.h unistd.h   limits.h ifaddrs.h)
+AC_CHECK_HEADERS(errno.h arpa/inet.h netinet/tcp.h netinet/in.h stddef.h \
+                 stdlib.h string.h sys/socket.h sys/time.h unistd.h \
+                 limits.h ifaddrs.h)
 AC_CHECK_HEADERS([net/if.h net/if_media.h linux/wireless.h], [], [],
 [
 #ifdef HAVE_SYS_SOCKET_H

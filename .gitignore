@@ -27,3 +27,6 @@ target
 .nrepl-port
 .lein-failures
 *~
+doc/*.3
+doc/*.7
+
