@@ -99,19 +99,23 @@
   (failed [this routing-id reason]
     (HydraMsg/sendFailed socket routing-id reason)))
 
-(defn client-socket [endpoint]
-  (let [context (zmq/context)
-        socket (doto (zmq/socket context :dealer)
-                 (zmq/set-receive-timeout 1000)
-                 (zmq/connect endpoint))]
-    (->HydraMsgSocket socket)))
+(defn client-socket
+  ([endpoint context]
+    (let [socket (doto (zmq/socket context :dealer)
+                   (zmq/set-receive-timeout 1000)
+                   (zmq/connect endpoint))]
+      (->HydraMsgSocket socket)))
+  ([endpoint]
+    (client-socket endpoint (zmq/context))))
 
-(defn server-socket [endpoint]
-  (let [context (zmq/context)
-        socket (doto (zmq/socket context :router)
-                 (zmq/set-receive-timeout 1000)
-                 (zmq/bind endpoint))]
-    (->HydraMsgSocket socket)))
+(defn server-socket
+  ([endpoint context]
+    (let [socket (doto (zmq/socket context :router)
+                   (zmq/set-receive-timeout 1000)
+                   (zmq/bind endpoint))]
+       (->HydraMsgSocket socket)))
+  ([endpoint]
+    (server-socket endpoint (zmq/context))))
 
 (defn recv [{:keys [socket]}]
   (HydraMsg/recv socket))
