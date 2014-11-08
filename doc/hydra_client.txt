@@ -112,7 +112,3 @@ hydra_client_destroy (&client);
 
 zactor_destroy (&server);
 ----
-
-SEE ALSO
---------
-linkczmq:czmq[7]
