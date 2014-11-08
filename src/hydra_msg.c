@@ -37,15 +37,15 @@ struct _hydra_msg_t {
     int id;                             //  hydra_msg message ID
     byte *needle;                       //  Read/write pointer for serialization
     byte *ceiling;                      //  Valid upper limit for read pointer
-    char *post_id;                      //  Post identifier
-    char *tags;                         //  List of known tags
-    char *tag;                          //  Name of tag
-    char *reply_to;                     //  Parent post, if any
-    char *previous;                     //  Previous post, if any
+    char post_id [256];                 //  Post identifier
+    char tags [256];                    //  List of known tags
+    char tag [256];                     //  Name of tag
+    char reply_to [256];                //  Parent post, if any
+    char previous [256];                //  Previous post, if any
     uint64_t timestamp;                 //  Post creation timestamp
-    char *type;                         //  Content type
-    char *content;                      //  Content body
-    char *reason;                       //  Reason for failure
+    char type [256];                    //  Content type
+    char content [256];                 //  Content body
+    char reason [256];                  //  Reason for failure
 };
 
 //  --------------------------------------------------------------------------
@@ -59,8 +59,10 @@ struct _hydra_msg_t {
 
 //  Get a block of octets from the frame
 #define GET_OCTETS(host,size) { \
-    if (self->needle + size > self->ceiling) \
+    if (self->needle + size > self->ceiling) { \
+        zsys_warning ("hydra_msg: GET_OCTETS failed"); \
         goto malformed; \
+    } \
     memcpy ((host), self->needle, size); \
     self->needle += size; \
 }
@@ -102,16 +104,20 @@ struct _hydra_msg_t {
 
 //  Get a 1-byte number from the frame
 #define GET_NUMBER1(host) { \
-    if (self->needle + 1 > self->ceiling) \
+    if (self->needle + 1 > self->ceiling) { \
+        zsys_warning ("hydra_msg: GET_NUMBER1 failed"); \
         goto malformed; \
+    } \
     (host) = *(byte *) self->needle; \
     self->needle++; \
 }
 
 //  Get a 2-byte number from the frame
 #define GET_NUMBER2(host) { \
-    if (self->needle + 2 > self->ceiling) \
+    if (self->needle + 2 > self->ceiling) { \
+        zsys_warning ("hydra_msg: GET_NUMBER2 failed"); \
         goto malformed; \
+    } \
     (host) = ((uint16_t) (self->needle [0]) << 8) \
            +  (uint16_t) (self->needle [1]); \
     self->needle += 2; \
@@ -119,8 +125,10 @@ struct _hydra_msg_t {
 
 //  Get a 4-byte number from the frame
 #define GET_NUMBER4(host) { \
-    if (self->needle + 4 > self->ceiling) \
+    if (self->needle + 4 > self->ceiling) { \
+        zsys_warning ("hydra_msg: GET_NUMBER4 failed"); \
         goto malformed; \
+    } \
     (host) = ((uint32_t) (self->needle [0]) << 24) \
            + ((uint32_t) (self->needle [1]) << 16) \
            + ((uint32_t) (self->needle [2]) << 8) \
@@ -130,8 +138,10 @@ struct _hydra_msg_t {
 
 //  Get a 8-byte number from the frame
 #define GET_NUMBER8(host) { \
-    if (self->needle + 8 > self->ceiling) \
+    if (self->needle + 8 > self->ceiling) { \
+        zsys_warning ("hydra_msg: GET_NUMBER8 failed"); \
         goto malformed; \
+    } \
     (host) = ((uint64_t) (self->needle [0]) << 56) \
            + ((uint64_t) (self->needle [1]) << 48) \
            + ((uint64_t) (self->needle [2]) << 40) \
@@ -155,9 +165,10 @@ struct _hydra_msg_t {
 #define GET_STRING(host) { \
     size_t string_size; \
     GET_NUMBER1 (string_size); \
-    if (self->needle + string_size > (self->ceiling)) \
+    if (self->needle + string_size > (self->ceiling)) { \
+        zsys_warning ("hydra_msg: GET_STRING failed"); \
         goto malformed; \
-    (host) = (char *) malloc (string_size + 1); \
+    } \
     memcpy ((host), self->needle, string_size); \
     (host) [string_size] = 0; \
     self->needle += string_size; \
@@ -175,8 +186,10 @@ struct _hydra_msg_t {
 #define GET_LONGSTR(host) { \
     size_t string_size; \
     GET_NUMBER4 (string_size); \
-    if (self->needle + string_size > (self->ceiling)) \
+    if (self->needle + string_size > (self->ceiling)) { \
+        zsys_warning ("hydra_msg: GET_LONGSTR failed"); \
         goto malformed; \
+    } \
     (host) = (char *) malloc (string_size + 1); \
     memcpy ((host), self->needle, string_size); \
     (host) [string_size] = 0; \
@@ -188,10 +201,9 @@ struct _hydra_msg_t {
 //  Create a new hydra_msg
 
 hydra_msg_t *
-hydra_msg_new (int id)
+hydra_msg_new (void)
 {
     hydra_msg_t *self = (hydra_msg_t *) zmalloc (sizeof (hydra_msg_t));
-    self->id = id;
     return self;
 }
 
@@ -208,14 +220,6 @@ hydra_msg_destroy (hydra_msg_t **self_p)
 
         //  Free class properties
         zframe_destroy (&self->routing_id);
-        free (self->post_id);
-        free (self->tags);
-        free (self->tag);
-        free (self->reply_to);
-        free (self->previous);
-        free (self->type);
-        free (self->content);
-        free (self->reason);
 
         //  Free object itself
         free (self);
@@ -225,32 +229,41 @@ hydra_msg_destroy (hydra_msg_t **self_p)
 
 
 //  --------------------------------------------------------------------------
-//  Parse a hydra_msg from zmsg_t. Returns a new object, or NULL if
-//  the message could not be parsed, or was NULL. Destroys msg and 
-//  nullifies the msg reference.
+//  Receive a hydra_msg from the socket. Returns 0 if OK, -1 if
+//  there was an error. Blocks if there is no message waiting.
 
-hydra_msg_t *
-hydra_msg_decode (zmsg_t **msg_p)
+int
+hydra_msg_recv (hydra_msg_t *self, zsock_t *input)
 {
-    assert (msg_p);
-    zmsg_t *msg = *msg_p;
-    if (msg == NULL)
-        return NULL;
-        
-    hydra_msg_t *self = hydra_msg_new (0);
-    //  Read and parse command in frame
-    zframe_t *frame = zmsg_pop (msg);
-    if (!frame) 
-        goto empty;             //  Malformed or empty
-
+    assert (input);
+    
+    if (zsock_type (input) == ZMQ_ROUTER) {
+        zframe_destroy (&self->routing_id);
+        self->routing_id = zframe_recv (input);
+        if (!self->routing_id || !zsock_rcvmore (input)) {
+            zsys_warning ("hydra_msg: no routing ID");
+            return -1;          //  Interrupted or malformed
+        }
+    }
+    zmq_msg_t frame;
+    zmq_msg_init (&frame);
+    int size = zmq_msg_recv (&frame, zsock_resolve (input), 0);
+    if (size == -1) {
+        zsys_warning ("hydra_msg: interrupted");
+        goto malformed;         //  Interrupted
+    }
     //  Get and check protocol signature
-    self->needle = zframe_data (frame);
-    self->ceiling = self->needle + zframe_size (frame);
+    self->needle = (byte *) zmq_msg_data (&frame);
+    self->ceiling = self->needle + zmq_msg_size (&frame);
+    
     uint16_t signature;
     GET_NUMBER2 (signature);
-    if (signature != (0xAAA0 | 0))
-        goto empty;             //  Invalid signature
-
+    if (signature != (0xAAA0 | 0)) {
+        zsys_warning ("hydra_msg: invalid signature");
+        //  TODO: discard invalid messages and loop, and return
+        //  -1 only on interrupt
+        goto malformed;         //  Interrupted
+    }
     //  Get message id and parse per message type
     GET_NUMBER1 (self->id);
 
@@ -306,759 +319,114 @@ hydra_msg_decode (zmsg_t **msg_p)
             break;
 
         default:
+            zsys_warning ("hydra_msg: bad message ID");
             goto malformed;
     }
     //  Successful return
-    zframe_destroy (&frame);
-    zmsg_destroy (msg_p);
-    return self;
+    zmq_msg_close (&frame);
+    return 0;
 
     //  Error returns
     malformed:
-        zsys_error ("malformed message '%d'\n", self->id);
-    empty:
-        zframe_destroy (&frame);
-        zmsg_destroy (msg_p);
-        hydra_msg_destroy (&self);
-        return (NULL);
+        zsys_warning ("hydra_msg: hydra_msg malformed message, fail");
+        zmq_msg_close (&frame);
+        return -1;              //  Invalid message
 }
 
 
 //  --------------------------------------------------------------------------
-//  Encode hydra_msg into zmsg and destroy it. Returns a newly created
-//  object or NULL if error. Use when not in control of sending the message.
+//  Send the hydra_msg to the socket. Does not destroy it. Returns 0 if
+//  OK, else -1.
 
-zmsg_t *
-hydra_msg_encode (hydra_msg_t **self_p)
+int
+hydra_msg_send (hydra_msg_t *self, zsock_t *output)
 {
-    assert (self_p);
-    assert (*self_p);
-    
-    hydra_msg_t *self = *self_p;
-    zmsg_t *msg = zmsg_new ();
+    assert (self);
+    assert (output);
+
+    if (zsock_type (output) == ZMQ_ROUTER)
+        zframe_send (&self->routing_id, output, ZFRAME_MORE + ZFRAME_REUSE);
 
     size_t frame_size = 2 + 1;          //  Signature and message ID
     switch (self->id) {
-        case HYDRA_MSG_HELLO:
-            break;
-            
         case HYDRA_MSG_HELLO_OK:
-            //  post_id is a string with 1-byte length
-            frame_size++;       //  Size is one octet
-            if (self->post_id)
-                frame_size += strlen (self->post_id);
+            frame_size += 1 + strlen (self->post_id);
             break;
-            
-        case HYDRA_MSG_GET_TAGS:
-            break;
-            
         case HYDRA_MSG_GET_TAGS_OK:
-            //  tags is a string with 1-byte length
-            frame_size++;       //  Size is one octet
-            if (self->tags)
-                frame_size += strlen (self->tags);
+            frame_size += 1 + strlen (self->tags);
             break;
-            
         case HYDRA_MSG_GET_TAG:
-            //  tag is a string with 1-byte length
-            frame_size++;       //  Size is one octet
-            if (self->tag)
-                frame_size += strlen (self->tag);
+            frame_size += 1 + strlen (self->tag);
             break;
-            
         case HYDRA_MSG_GET_TAG_OK:
-            //  tag is a string with 1-byte length
-            frame_size++;       //  Size is one octet
-            if (self->tag)
-                frame_size += strlen (self->tag);
-            //  post_id is a string with 1-byte length
-            frame_size++;       //  Size is one octet
-            if (self->post_id)
-                frame_size += strlen (self->post_id);
+            frame_size += 1 + strlen (self->tag);
+            frame_size += 1 + strlen (self->post_id);
             break;
-            
         case HYDRA_MSG_GET_POST:
-            //  post_id is a string with 1-byte length
-            frame_size++;       //  Size is one octet
-            if (self->post_id)
-                frame_size += strlen (self->post_id);
+            frame_size += 1 + strlen (self->post_id);
             break;
-            
         case HYDRA_MSG_GET_POST_OK:
-            //  post_id is a string with 1-byte length
-            frame_size++;       //  Size is one octet
-            if (self->post_id)
-                frame_size += strlen (self->post_id);
-            //  reply_to is a string with 1-byte length
-            frame_size++;       //  Size is one octet
-            if (self->reply_to)
-                frame_size += strlen (self->reply_to);
-            //  previous is a string with 1-byte length
-            frame_size++;       //  Size is one octet
-            if (self->previous)
-                frame_size += strlen (self->previous);
-            //  tags is a string with 1-byte length
-            frame_size++;       //  Size is one octet
-            if (self->tags)
-                frame_size += strlen (self->tags);
-            //  timestamp is a 8-byte integer
-            frame_size += 8;
-            //  type is a string with 1-byte length
-            frame_size++;       //  Size is one octet
-            if (self->type)
-                frame_size += strlen (self->type);
-            //  content is a string with 1-byte length
-            frame_size++;       //  Size is one octet
-            if (self->content)
-                frame_size += strlen (self->content);
+            frame_size += 1 + strlen (self->post_id);
+            frame_size += 1 + strlen (self->reply_to);
+            frame_size += 1 + strlen (self->previous);
+            frame_size += 1 + strlen (self->tags);
+            frame_size += 8;            //  timestamp
+            frame_size += 1 + strlen (self->type);
+            frame_size += 1 + strlen (self->content);
             break;
-            
-        case HYDRA_MSG_GOODBYE:
-            break;
-            
-        case HYDRA_MSG_GOODBYE_OK:
-            break;
-            
-        case HYDRA_MSG_INVALID:
-            break;
-            
         case HYDRA_MSG_FAILED:
-            //  reason is a string with 1-byte length
-            frame_size++;       //  Size is one octet
-            if (self->reason)
-                frame_size += strlen (self->reason);
+            frame_size += 1 + strlen (self->reason);
             break;
-            
-        default:
-            zsys_error ("bad message type '%d', not sent\n", self->id);
-            //  No recovery, this is a fatal application error
-            assert (false);
     }
     //  Now serialize message into the frame
-    zframe_t *frame = zframe_new (NULL, frame_size);
-    self->needle = zframe_data (frame);
+    zmq_msg_t frame;
+    zmq_msg_init_size (&frame, frame_size);
+    self->needle = (byte *) zmq_msg_data (&frame);
     PUT_NUMBER2 (0xAAA0 | 0);
     PUT_NUMBER1 (self->id);
-
+    size_t nbr_frames = 1;              //  Total number of frames to send
+    
     switch (self->id) {
-        case HYDRA_MSG_HELLO:
-            break;
-
         case HYDRA_MSG_HELLO_OK:
-            if (self->post_id) {
-                PUT_STRING (self->post_id);
-            }
-            else
-                PUT_NUMBER1 (0);    //  Empty string
-            break;
-
-        case HYDRA_MSG_GET_TAGS:
+            PUT_STRING (self->post_id);
             break;
 
         case HYDRA_MSG_GET_TAGS_OK:
-            if (self->tags) {
-                PUT_STRING (self->tags);
-            }
-            else
-                PUT_NUMBER1 (0);    //  Empty string
+            PUT_STRING (self->tags);
             break;
 
         case HYDRA_MSG_GET_TAG:
-            if (self->tag) {
-                PUT_STRING (self->tag);
-            }
-            else
-                PUT_NUMBER1 (0);    //  Empty string
+            PUT_STRING (self->tag);
             break;
 
         case HYDRA_MSG_GET_TAG_OK:
-            if (self->tag) {
-                PUT_STRING (self->tag);
-            }
-            else
-                PUT_NUMBER1 (0);    //  Empty string
-            if (self->post_id) {
-                PUT_STRING (self->post_id);
-            }
-            else
-                PUT_NUMBER1 (0);    //  Empty string
+            PUT_STRING (self->tag);
+            PUT_STRING (self->post_id);
             break;
 
         case HYDRA_MSG_GET_POST:
-            if (self->post_id) {
-                PUT_STRING (self->post_id);
-            }
-            else
-                PUT_NUMBER1 (0);    //  Empty string
+            PUT_STRING (self->post_id);
             break;
 
         case HYDRA_MSG_GET_POST_OK:
-            if (self->post_id) {
-                PUT_STRING (self->post_id);
-            }
-            else
-                PUT_NUMBER1 (0);    //  Empty string
-            if (self->reply_to) {
-                PUT_STRING (self->reply_to);
-            }
-            else
-                PUT_NUMBER1 (0);    //  Empty string
-            if (self->previous) {
-                PUT_STRING (self->previous);
-            }
-            else
-                PUT_NUMBER1 (0);    //  Empty string
-            if (self->tags) {
-                PUT_STRING (self->tags);
-            }
-            else
-                PUT_NUMBER1 (0);    //  Empty string
+            PUT_STRING (self->post_id);
+            PUT_STRING (self->reply_to);
+            PUT_STRING (self->previous);
+            PUT_STRING (self->tags);
             PUT_NUMBER8 (self->timestamp);
-            if (self->type) {
-                PUT_STRING (self->type);
-            }
-            else
-                PUT_NUMBER1 (0);    //  Empty string
-            if (self->content) {
-                PUT_STRING (self->content);
-            }
-            else
-                PUT_NUMBER1 (0);    //  Empty string
-            break;
-
-        case HYDRA_MSG_GOODBYE:
-            break;
-
-        case HYDRA_MSG_GOODBYE_OK:
-            break;
-
-        case HYDRA_MSG_INVALID:
+            PUT_STRING (self->type);
+            PUT_STRING (self->content);
             break;
 
         case HYDRA_MSG_FAILED:
-            if (self->reason) {
-                PUT_STRING (self->reason);
-            }
-            else
-                PUT_NUMBER1 (0);    //  Empty string
+            PUT_STRING (self->reason);
             break;
 
     }
     //  Now send the data frame
-    if (zmsg_append (msg, &frame)) {
-        zmsg_destroy (&msg);
-        hydra_msg_destroy (self_p);
-        return NULL;
-    }
-    //  Destroy hydra_msg object
-    hydra_msg_destroy (self_p);
-    return msg;
-}
-
-
-//  --------------------------------------------------------------------------
-//  Receive and parse a hydra_msg from the socket. Returns new object or
-//  NULL if error. Will block if there's no message waiting.
-
-hydra_msg_t *
-hydra_msg_recv (void *input)
-{
-    assert (input);
-    zmsg_t *msg = zmsg_recv (input);
-    if (!msg)
-        return NULL;            //  Interrupted
-    //  If message came from a router socket, first frame is routing_id
-    zframe_t *routing_id = NULL;
-    if (zsocket_type (zsock_resolve (input)) == ZMQ_ROUTER) {
-        routing_id = zmsg_pop (msg);
-        //  If message was not valid, forget about it
-        if (!routing_id || !zmsg_next (msg))
-            return NULL;        //  Malformed or empty
-    }
-    hydra_msg_t *hydra_msg = hydra_msg_decode (&msg);
-    if (hydra_msg && zsocket_type (zsock_resolve (input)) == ZMQ_ROUTER)
-        hydra_msg->routing_id = routing_id;
-
-    return hydra_msg;
-}
-
-
-//  --------------------------------------------------------------------------
-//  Receive and parse a hydra_msg from the socket. Returns new object,
-//  or NULL either if there was no input waiting, or the recv was interrupted.
-
-hydra_msg_t *
-hydra_msg_recv_nowait (void *input)
-{
-    assert (input);
-    zmsg_t *msg = zmsg_recv_nowait (input);
-    if (!msg)
-        return NULL;            //  Interrupted
-    //  If message came from a router socket, first frame is routing_id
-    zframe_t *routing_id = NULL;
-    if (zsocket_type (zsock_resolve (input)) == ZMQ_ROUTER) {
-        routing_id = zmsg_pop (msg);
-        //  If message was not valid, forget about it
-        if (!routing_id || !zmsg_next (msg))
-            return NULL;        //  Malformed or empty
-    }
-    hydra_msg_t *hydra_msg = hydra_msg_decode (&msg);
-    if (hydra_msg && zsocket_type (zsock_resolve (input)) == ZMQ_ROUTER)
-        hydra_msg->routing_id = routing_id;
-
-    return hydra_msg;
-}
-
-
-//  --------------------------------------------------------------------------
-//  Send the hydra_msg to the socket, and destroy it
-//  Returns 0 if OK, else -1
-
-int
-hydra_msg_send (hydra_msg_t **self_p, void *output)
-{
-    assert (self_p);
-    assert (*self_p);
-    assert (output);
-
-    //  Save routing_id if any, as encode will destroy it
-    hydra_msg_t *self = *self_p;
-    zframe_t *routing_id = self->routing_id;
-    self->routing_id = NULL;
-
-    //  Encode hydra_msg message to a single zmsg
-    zmsg_t *msg = hydra_msg_encode (self_p);
+    zmq_msg_send (&frame, zsock_resolve (output), --nbr_frames? ZMQ_SNDMORE: 0);
     
-    //  If we're sending to a ROUTER, send the routing_id first
-    if (zsocket_type (zsock_resolve (output)) == ZMQ_ROUTER) {
-        assert (routing_id);
-        zmsg_prepend (msg, &routing_id);
-    }
-    else
-        zframe_destroy (&routing_id);
-        
-    if (msg && zmsg_send (&msg, output) == 0)
-        return 0;
-    else
-        return -1;              //  Failed to encode, or send
-}
-
-
-//  --------------------------------------------------------------------------
-//  Send the hydra_msg to the output, and do not destroy it
-
-int
-hydra_msg_send_again (hydra_msg_t *self, void *output)
-{
-    assert (self);
-    assert (output);
-    self = hydra_msg_dup (self);
-    return hydra_msg_send (&self, output);
-}
-
-
-//  --------------------------------------------------------------------------
-//  Encode HELLO message
-
-zmsg_t * 
-hydra_msg_encode_hello (
-)
-{
-    hydra_msg_t *self = hydra_msg_new (HYDRA_MSG_HELLO);
-    return hydra_msg_encode (&self);
-}
-
-
-//  --------------------------------------------------------------------------
-//  Encode HELLO_OK message
-
-zmsg_t * 
-hydra_msg_encode_hello_ok (
-    const char *post_id)
-{
-    hydra_msg_t *self = hydra_msg_new (HYDRA_MSG_HELLO_OK);
-    hydra_msg_set_post_id (self, post_id);
-    return hydra_msg_encode (&self);
-}
-
-
-//  --------------------------------------------------------------------------
-//  Encode GET_TAGS message
-
-zmsg_t * 
-hydra_msg_encode_get_tags (
-)
-{
-    hydra_msg_t *self = hydra_msg_new (HYDRA_MSG_GET_TAGS);
-    return hydra_msg_encode (&self);
-}
-
-
-//  --------------------------------------------------------------------------
-//  Encode GET_TAGS_OK message
-
-zmsg_t * 
-hydra_msg_encode_get_tags_ok (
-    const char *tags)
-{
-    hydra_msg_t *self = hydra_msg_new (HYDRA_MSG_GET_TAGS_OK);
-    hydra_msg_set_tags (self, tags);
-    return hydra_msg_encode (&self);
-}
-
-
-//  --------------------------------------------------------------------------
-//  Encode GET_TAG message
-
-zmsg_t * 
-hydra_msg_encode_get_tag (
-    const char *tag)
-{
-    hydra_msg_t *self = hydra_msg_new (HYDRA_MSG_GET_TAG);
-    hydra_msg_set_tag (self, tag);
-    return hydra_msg_encode (&self);
-}
-
-
-//  --------------------------------------------------------------------------
-//  Encode GET_TAG_OK message
-
-zmsg_t * 
-hydra_msg_encode_get_tag_ok (
-    const char *tag,
-    const char *post_id)
-{
-    hydra_msg_t *self = hydra_msg_new (HYDRA_MSG_GET_TAG_OK);
-    hydra_msg_set_tag (self, tag);
-    hydra_msg_set_post_id (self, post_id);
-    return hydra_msg_encode (&self);
-}
-
-
-//  --------------------------------------------------------------------------
-//  Encode GET_POST message
-
-zmsg_t * 
-hydra_msg_encode_get_post (
-    const char *post_id)
-{
-    hydra_msg_t *self = hydra_msg_new (HYDRA_MSG_GET_POST);
-    hydra_msg_set_post_id (self, post_id);
-    return hydra_msg_encode (&self);
-}
-
-
-//  --------------------------------------------------------------------------
-//  Encode GET_POST_OK message
-
-zmsg_t * 
-hydra_msg_encode_get_post_ok (
-    const char *post_id,
-    const char *reply_to,
-    const char *previous,
-    const char *tags,
-    uint64_t timestamp,
-    const char *type,
-    const char *content)
-{
-    hydra_msg_t *self = hydra_msg_new (HYDRA_MSG_GET_POST_OK);
-    hydra_msg_set_post_id (self, post_id);
-    hydra_msg_set_reply_to (self, reply_to);
-    hydra_msg_set_previous (self, previous);
-    hydra_msg_set_tags (self, tags);
-    hydra_msg_set_timestamp (self, timestamp);
-    hydra_msg_set_type (self, type);
-    hydra_msg_set_content (self, content);
-    return hydra_msg_encode (&self);
-}
-
-
-//  --------------------------------------------------------------------------
-//  Encode GOODBYE message
-
-zmsg_t * 
-hydra_msg_encode_goodbye (
-)
-{
-    hydra_msg_t *self = hydra_msg_new (HYDRA_MSG_GOODBYE);
-    return hydra_msg_encode (&self);
-}
-
-
-//  --------------------------------------------------------------------------
-//  Encode GOODBYE_OK message
-
-zmsg_t * 
-hydra_msg_encode_goodbye_ok (
-)
-{
-    hydra_msg_t *self = hydra_msg_new (HYDRA_MSG_GOODBYE_OK);
-    return hydra_msg_encode (&self);
-}
-
-
-//  --------------------------------------------------------------------------
-//  Encode INVALID message
-
-zmsg_t * 
-hydra_msg_encode_invalid (
-)
-{
-    hydra_msg_t *self = hydra_msg_new (HYDRA_MSG_INVALID);
-    return hydra_msg_encode (&self);
-}
-
-
-//  --------------------------------------------------------------------------
-//  Encode FAILED message
-
-zmsg_t * 
-hydra_msg_encode_failed (
-    const char *reason)
-{
-    hydra_msg_t *self = hydra_msg_new (HYDRA_MSG_FAILED);
-    hydra_msg_set_reason (self, reason);
-    return hydra_msg_encode (&self);
-}
-
-
-//  --------------------------------------------------------------------------
-//  Send the HELLO to the socket in one step
-
-int
-hydra_msg_send_hello (
-    void *output)
-{
-    hydra_msg_t *self = hydra_msg_new (HYDRA_MSG_HELLO);
-    return hydra_msg_send (&self, output);
-}
-
-
-//  --------------------------------------------------------------------------
-//  Send the HELLO_OK to the socket in one step
-
-int
-hydra_msg_send_hello_ok (
-    void *output,
-    const char *post_id)
-{
-    hydra_msg_t *self = hydra_msg_new (HYDRA_MSG_HELLO_OK);
-    hydra_msg_set_post_id (self, post_id);
-    return hydra_msg_send (&self, output);
-}
-
-
-//  --------------------------------------------------------------------------
-//  Send the GET_TAGS to the socket in one step
-
-int
-hydra_msg_send_get_tags (
-    void *output)
-{
-    hydra_msg_t *self = hydra_msg_new (HYDRA_MSG_GET_TAGS);
-    return hydra_msg_send (&self, output);
-}
-
-
-//  --------------------------------------------------------------------------
-//  Send the GET_TAGS_OK to the socket in one step
-
-int
-hydra_msg_send_get_tags_ok (
-    void *output,
-    const char *tags)
-{
-    hydra_msg_t *self = hydra_msg_new (HYDRA_MSG_GET_TAGS_OK);
-    hydra_msg_set_tags (self, tags);
-    return hydra_msg_send (&self, output);
-}
-
-
-//  --------------------------------------------------------------------------
-//  Send the GET_TAG to the socket in one step
-
-int
-hydra_msg_send_get_tag (
-    void *output,
-    const char *tag)
-{
-    hydra_msg_t *self = hydra_msg_new (HYDRA_MSG_GET_TAG);
-    hydra_msg_set_tag (self, tag);
-    return hydra_msg_send (&self, output);
-}
-
-
-//  --------------------------------------------------------------------------
-//  Send the GET_TAG_OK to the socket in one step
-
-int
-hydra_msg_send_get_tag_ok (
-    void *output,
-    const char *tag,
-    const char *post_id)
-{
-    hydra_msg_t *self = hydra_msg_new (HYDRA_MSG_GET_TAG_OK);
-    hydra_msg_set_tag (self, tag);
-    hydra_msg_set_post_id (self, post_id);
-    return hydra_msg_send (&self, output);
-}
-
-
-//  --------------------------------------------------------------------------
-//  Send the GET_POST to the socket in one step
-
-int
-hydra_msg_send_get_post (
-    void *output,
-    const char *post_id)
-{
-    hydra_msg_t *self = hydra_msg_new (HYDRA_MSG_GET_POST);
-    hydra_msg_set_post_id (self, post_id);
-    return hydra_msg_send (&self, output);
-}
-
-
-//  --------------------------------------------------------------------------
-//  Send the GET_POST_OK to the socket in one step
-
-int
-hydra_msg_send_get_post_ok (
-    void *output,
-    const char *post_id,
-    const char *reply_to,
-    const char *previous,
-    const char *tags,
-    uint64_t timestamp,
-    const char *type,
-    const char *content)
-{
-    hydra_msg_t *self = hydra_msg_new (HYDRA_MSG_GET_POST_OK);
-    hydra_msg_set_post_id (self, post_id);
-    hydra_msg_set_reply_to (self, reply_to);
-    hydra_msg_set_previous (self, previous);
-    hydra_msg_set_tags (self, tags);
-    hydra_msg_set_timestamp (self, timestamp);
-    hydra_msg_set_type (self, type);
-    hydra_msg_set_content (self, content);
-    return hydra_msg_send (&self, output);
-}
-
-
-//  --------------------------------------------------------------------------
-//  Send the GOODBYE to the socket in one step
-
-int
-hydra_msg_send_goodbye (
-    void *output)
-{
-    hydra_msg_t *self = hydra_msg_new (HYDRA_MSG_GOODBYE);
-    return hydra_msg_send (&self, output);
-}
-
-
-//  --------------------------------------------------------------------------
-//  Send the GOODBYE_OK to the socket in one step
-
-int
-hydra_msg_send_goodbye_ok (
-    void *output)
-{
-    hydra_msg_t *self = hydra_msg_new (HYDRA_MSG_GOODBYE_OK);
-    return hydra_msg_send (&self, output);
-}
-
-
-//  --------------------------------------------------------------------------
-//  Send the INVALID to the socket in one step
-
-int
-hydra_msg_send_invalid (
-    void *output)
-{
-    hydra_msg_t *self = hydra_msg_new (HYDRA_MSG_INVALID);
-    return hydra_msg_send (&self, output);
-}
-
-
-//  --------------------------------------------------------------------------
-//  Send the FAILED to the socket in one step
-
-int
-hydra_msg_send_failed (
-    void *output,
-    const char *reason)
-{
-    hydra_msg_t *self = hydra_msg_new (HYDRA_MSG_FAILED);
-    hydra_msg_set_reason (self, reason);
-    return hydra_msg_send (&self, output);
-}
-
-
-//  --------------------------------------------------------------------------
-//  Duplicate the hydra_msg message
-
-hydra_msg_t *
-hydra_msg_dup (hydra_msg_t *self)
-{
-    if (!self)
-        return NULL;
-        
-    hydra_msg_t *copy = hydra_msg_new (self->id);
-    if (self->routing_id)
-        copy->routing_id = zframe_dup (self->routing_id);
-    switch (self->id) {
-        case HYDRA_MSG_HELLO:
-            break;
-
-        case HYDRA_MSG_HELLO_OK:
-            copy->post_id = self->post_id? strdup (self->post_id): NULL;
-            break;
-
-        case HYDRA_MSG_GET_TAGS:
-            break;
-
-        case HYDRA_MSG_GET_TAGS_OK:
-            copy->tags = self->tags? strdup (self->tags): NULL;
-            break;
-
-        case HYDRA_MSG_GET_TAG:
-            copy->tag = self->tag? strdup (self->tag): NULL;
-            break;
-
-        case HYDRA_MSG_GET_TAG_OK:
-            copy->tag = self->tag? strdup (self->tag): NULL;
-            copy->post_id = self->post_id? strdup (self->post_id): NULL;
-            break;
-
-        case HYDRA_MSG_GET_POST:
-            copy->post_id = self->post_id? strdup (self->post_id): NULL;
-            break;
-
-        case HYDRA_MSG_GET_POST_OK:
-            copy->post_id = self->post_id? strdup (self->post_id): NULL;
-            copy->reply_to = self->reply_to? strdup (self->reply_to): NULL;
-            copy->previous = self->previous? strdup (self->previous): NULL;
-            copy->tags = self->tags? strdup (self->tags): NULL;
-            copy->timestamp = self->timestamp;
-            copy->type = self->type? strdup (self->type): NULL;
-            copy->content = self->content? strdup (self->content): NULL;
-            break;
-
-        case HYDRA_MSG_GOODBYE:
-            break;
-
-        case HYDRA_MSG_GOODBYE_OK:
-            break;
-
-        case HYDRA_MSG_INVALID:
-            break;
-
-        case HYDRA_MSG_FAILED:
-            copy->reason = self->reason? strdup (self->reason): NULL;
-            break;
-
-    }
-    return copy;
+    return 0;
 }
 
 
@@ -1269,15 +637,11 @@ hydra_msg_post_id (hydra_msg_t *self)
 }
 
 void
-hydra_msg_set_post_id (hydra_msg_t *self, const char *format, ...)
+hydra_msg_set_post_id (hydra_msg_t *self, const char *value)
 {
-    //  Format post_id from provided arguments
     assert (self);
-    va_list argptr;
-    va_start (argptr, format);
-    free (self->post_id);
-    self->post_id = zsys_vprintf (format, argptr);
-    va_end (argptr);
+    strncpy (self->post_id, value, 255);
+    self->post_id [255] = 0;
 }
 
 
@@ -1292,15 +656,11 @@ hydra_msg_tags (hydra_msg_t *self)
 }
 
 void
-hydra_msg_set_tags (hydra_msg_t *self, const char *format, ...)
+hydra_msg_set_tags (hydra_msg_t *self, const char *value)
 {
-    //  Format tags from provided arguments
     assert (self);
-    va_list argptr;
-    va_start (argptr, format);
-    free (self->tags);
-    self->tags = zsys_vprintf (format, argptr);
-    va_end (argptr);
+    strncpy (self->tags, value, 255);
+    self->tags [255] = 0;
 }
 
 
@@ -1315,15 +675,11 @@ hydra_msg_tag (hydra_msg_t *self)
 }
 
 void
-hydra_msg_set_tag (hydra_msg_t *self, const char *format, ...)
+hydra_msg_set_tag (hydra_msg_t *self, const char *value)
 {
-    //  Format tag from provided arguments
     assert (self);
-    va_list argptr;
-    va_start (argptr, format);
-    free (self->tag);
-    self->tag = zsys_vprintf (format, argptr);
-    va_end (argptr);
+    strncpy (self->tag, value, 255);
+    self->tag [255] = 0;
 }
 
 
@@ -1338,15 +694,11 @@ hydra_msg_reply_to (hydra_msg_t *self)
 }
 
 void
-hydra_msg_set_reply_to (hydra_msg_t *self, const char *format, ...)
+hydra_msg_set_reply_to (hydra_msg_t *self, const char *value)
 {
-    //  Format reply_to from provided arguments
     assert (self);
-    va_list argptr;
-    va_start (argptr, format);
-    free (self->reply_to);
-    self->reply_to = zsys_vprintf (format, argptr);
-    va_end (argptr);
+    strncpy (self->reply_to, value, 255);
+    self->reply_to [255] = 0;
 }
 
 
@@ -1361,15 +713,11 @@ hydra_msg_previous (hydra_msg_t *self)
 }
 
 void
-hydra_msg_set_previous (hydra_msg_t *self, const char *format, ...)
+hydra_msg_set_previous (hydra_msg_t *self, const char *value)
 {
-    //  Format previous from provided arguments
     assert (self);
-    va_list argptr;
-    va_start (argptr, format);
-    free (self->previous);
-    self->previous = zsys_vprintf (format, argptr);
-    va_end (argptr);
+    strncpy (self->previous, value, 255);
+    self->previous [255] = 0;
 }
 
 
@@ -1402,15 +750,11 @@ hydra_msg_type (hydra_msg_t *self)
 }
 
 void
-hydra_msg_set_type (hydra_msg_t *self, const char *format, ...)
+hydra_msg_set_type (hydra_msg_t *self, const char *value)
 {
-    //  Format type from provided arguments
     assert (self);
-    va_list argptr;
-    va_start (argptr, format);
-    free (self->type);
-    self->type = zsys_vprintf (format, argptr);
-    va_end (argptr);
+    strncpy (self->type, value, 255);
+    self->type [255] = 0;
 }
 
 
@@ -1425,15 +769,11 @@ hydra_msg_content (hydra_msg_t *self)
 }
 
 void
-hydra_msg_set_content (hydra_msg_t *self, const char *format, ...)
+hydra_msg_set_content (hydra_msg_t *self, const char *value)
 {
-    //  Format content from provided arguments
     assert (self);
-    va_list argptr;
-    va_start (argptr, format);
-    free (self->content);
-    self->content = zsys_vprintf (format, argptr);
-    va_end (argptr);
+    strncpy (self->content, value, 255);
+    self->content [255] = 0;
 }
 
 
@@ -1448,15 +788,11 @@ hydra_msg_reason (hydra_msg_t *self)
 }
 
 void
-hydra_msg_set_reason (hydra_msg_t *self, const char *format, ...)
+hydra_msg_set_reason (hydra_msg_t *self, const char *value)
 {
-    //  Format reason from provided arguments
     assert (self);
-    va_list argptr;
-    va_start (argptr, format);
-    free (self->reason);
-    self->reason = zsys_vprintf (format, argptr);
-    va_end (argptr);
+    strncpy (self->reason, value, 255);
+    self->reason [255] = 0;
 }
 
 
@@ -1471,7 +807,7 @@ hydra_msg_test (bool verbose)
 
     //  @selftest
     //  Simple create/destroy test
-    hydra_msg_t *self = hydra_msg_new (0);
+    hydra_msg_t *self = hydra_msg_new ();
     assert (self);
     hydra_msg_destroy (&self);
 
@@ -1486,151 +822,104 @@ hydra_msg_test (bool verbose)
 
     //  Encode/send/decode and verify each message type
     int instance;
-    hydra_msg_t *copy;
-    self = hydra_msg_new (HYDRA_MSG_HELLO);
-    
-    //  Check that _dup works on empty message
-    copy = hydra_msg_dup (self);
-    assert (copy);
-    hydra_msg_destroy (&copy);
+    self = hydra_msg_new ();
+    hydra_msg_set_id (self, HYDRA_MSG_HELLO);
 
-    //  Send twice from same object
-    hydra_msg_send_again (self, output);
-    hydra_msg_send (&self, output);
+    //  Send twice
+    hydra_msg_send (self, output);
+    hydra_msg_send (self, output);
 
     for (instance = 0; instance < 2; instance++) {
-        self = hydra_msg_recv (input);
-        assert (self);
-        assert (hydra_msg_routing_id (self));
-        
         hydra_msg_destroy (&self);
+        self = hydra_msg_new ();
+        hydra_msg_recv (self, input);
+        assert (hydra_msg_routing_id (self));
     }
-    self = hydra_msg_new (HYDRA_MSG_HELLO_OK);
-    
-    //  Check that _dup works on empty message
-    copy = hydra_msg_dup (self);
-    assert (copy);
-    hydra_msg_destroy (&copy);
+    hydra_msg_set_id (self, HYDRA_MSG_HELLO_OK);
 
     hydra_msg_set_post_id (self, "Life is short but Now lasts for ever");
-    //  Send twice from same object
-    hydra_msg_send_again (self, output);
-    hydra_msg_send (&self, output);
+    //  Send twice
+    hydra_msg_send (self, output);
+    hydra_msg_send (self, output);
 
     for (instance = 0; instance < 2; instance++) {
-        self = hydra_msg_recv (input);
-        assert (self);
+        hydra_msg_destroy (&self);
+        self = hydra_msg_new ();
+        hydra_msg_recv (self, input);
         assert (hydra_msg_routing_id (self));
-        
         assert (streq (hydra_msg_post_id (self), "Life is short but Now lasts for ever"));
-        hydra_msg_destroy (&self);
     }
-    self = hydra_msg_new (HYDRA_MSG_GET_TAGS);
-    
-    //  Check that _dup works on empty message
-    copy = hydra_msg_dup (self);
-    assert (copy);
-    hydra_msg_destroy (&copy);
+    hydra_msg_set_id (self, HYDRA_MSG_GET_TAGS);
 
-    //  Send twice from same object
-    hydra_msg_send_again (self, output);
-    hydra_msg_send (&self, output);
+    //  Send twice
+    hydra_msg_send (self, output);
+    hydra_msg_send (self, output);
 
     for (instance = 0; instance < 2; instance++) {
-        self = hydra_msg_recv (input);
-        assert (self);
-        assert (hydra_msg_routing_id (self));
-        
         hydra_msg_destroy (&self);
+        self = hydra_msg_new ();
+        hydra_msg_recv (self, input);
+        assert (hydra_msg_routing_id (self));
     }
-    self = hydra_msg_new (HYDRA_MSG_GET_TAGS_OK);
-    
-    //  Check that _dup works on empty message
-    copy = hydra_msg_dup (self);
-    assert (copy);
-    hydra_msg_destroy (&copy);
+    hydra_msg_set_id (self, HYDRA_MSG_GET_TAGS_OK);
 
     hydra_msg_set_tags (self, "Life is short but Now lasts for ever");
-    //  Send twice from same object
-    hydra_msg_send_again (self, output);
-    hydra_msg_send (&self, output);
+    //  Send twice
+    hydra_msg_send (self, output);
+    hydra_msg_send (self, output);
 
     for (instance = 0; instance < 2; instance++) {
-        self = hydra_msg_recv (input);
-        assert (self);
+        hydra_msg_destroy (&self);
+        self = hydra_msg_new ();
+        hydra_msg_recv (self, input);
         assert (hydra_msg_routing_id (self));
-        
         assert (streq (hydra_msg_tags (self), "Life is short but Now lasts for ever"));
-        hydra_msg_destroy (&self);
     }
-    self = hydra_msg_new (HYDRA_MSG_GET_TAG);
-    
-    //  Check that _dup works on empty message
-    copy = hydra_msg_dup (self);
-    assert (copy);
-    hydra_msg_destroy (&copy);
+    hydra_msg_set_id (self, HYDRA_MSG_GET_TAG);
 
     hydra_msg_set_tag (self, "Life is short but Now lasts for ever");
-    //  Send twice from same object
-    hydra_msg_send_again (self, output);
-    hydra_msg_send (&self, output);
+    //  Send twice
+    hydra_msg_send (self, output);
+    hydra_msg_send (self, output);
 
     for (instance = 0; instance < 2; instance++) {
-        self = hydra_msg_recv (input);
-        assert (self);
-        assert (hydra_msg_routing_id (self));
-        
-        assert (streq (hydra_msg_tag (self), "Life is short but Now lasts for ever"));
         hydra_msg_destroy (&self);
+        self = hydra_msg_new ();
+        hydra_msg_recv (self, input);
+        assert (hydra_msg_routing_id (self));
+        assert (streq (hydra_msg_tag (self), "Life is short but Now lasts for ever"));
     }
-    self = hydra_msg_new (HYDRA_MSG_GET_TAG_OK);
-    
-    //  Check that _dup works on empty message
-    copy = hydra_msg_dup (self);
-    assert (copy);
-    hydra_msg_destroy (&copy);
+    hydra_msg_set_id (self, HYDRA_MSG_GET_TAG_OK);
 
     hydra_msg_set_tag (self, "Life is short but Now lasts for ever");
     hydra_msg_set_post_id (self, "Life is short but Now lasts for ever");
-    //  Send twice from same object
-    hydra_msg_send_again (self, output);
-    hydra_msg_send (&self, output);
+    //  Send twice
+    hydra_msg_send (self, output);
+    hydra_msg_send (self, output);
 
     for (instance = 0; instance < 2; instance++) {
-        self = hydra_msg_recv (input);
-        assert (self);
+        hydra_msg_destroy (&self);
+        self = hydra_msg_new ();
+        hydra_msg_recv (self, input);
         assert (hydra_msg_routing_id (self));
-        
         assert (streq (hydra_msg_tag (self), "Life is short but Now lasts for ever"));
         assert (streq (hydra_msg_post_id (self), "Life is short but Now lasts for ever"));
-        hydra_msg_destroy (&self);
     }
-    self = hydra_msg_new (HYDRA_MSG_GET_POST);
-    
-    //  Check that _dup works on empty message
-    copy = hydra_msg_dup (self);
-    assert (copy);
-    hydra_msg_destroy (&copy);
+    hydra_msg_set_id (self, HYDRA_MSG_GET_POST);
 
     hydra_msg_set_post_id (self, "Life is short but Now lasts for ever");
-    //  Send twice from same object
-    hydra_msg_send_again (self, output);
-    hydra_msg_send (&self, output);
+    //  Send twice
+    hydra_msg_send (self, output);
+    hydra_msg_send (self, output);
 
     for (instance = 0; instance < 2; instance++) {
-        self = hydra_msg_recv (input);
-        assert (self);
-        assert (hydra_msg_routing_id (self));
-        
-        assert (streq (hydra_msg_post_id (self), "Life is short but Now lasts for ever"));
         hydra_msg_destroy (&self);
+        self = hydra_msg_new ();
+        hydra_msg_recv (self, input);
+        assert (hydra_msg_routing_id (self));
+        assert (streq (hydra_msg_post_id (self), "Life is short but Now lasts for ever"));
     }
-    self = hydra_msg_new (HYDRA_MSG_GET_POST_OK);
-    
-    //  Check that _dup works on empty message
-    copy = hydra_msg_dup (self);
-    assert (copy);
-    hydra_msg_destroy (&copy);
+    hydra_msg_set_id (self, HYDRA_MSG_GET_POST_OK);
 
     hydra_msg_set_post_id (self, "Life is short but Now lasts for ever");
     hydra_msg_set_reply_to (self, "Life is short but Now lasts for ever");
@@ -1639,15 +928,15 @@ hydra_msg_test (bool verbose)
     hydra_msg_set_timestamp (self, 123);
     hydra_msg_set_type (self, "Life is short but Now lasts for ever");
     hydra_msg_set_content (self, "Life is short but Now lasts for ever");
-    //  Send twice from same object
-    hydra_msg_send_again (self, output);
-    hydra_msg_send (&self, output);
+    //  Send twice
+    hydra_msg_send (self, output);
+    hydra_msg_send (self, output);
 
     for (instance = 0; instance < 2; instance++) {
-        self = hydra_msg_recv (input);
-        assert (self);
+        hydra_msg_destroy (&self);
+        self = hydra_msg_new ();
+        hydra_msg_recv (self, input);
         assert (hydra_msg_routing_id (self));
-        
         assert (streq (hydra_msg_post_id (self), "Life is short but Now lasts for ever"));
         assert (streq (hydra_msg_reply_to (self), "Life is short but Now lasts for ever"));
         assert (streq (hydra_msg_previous (self), "Life is short but Now lasts for ever"));
@@ -1655,81 +944,56 @@ hydra_msg_test (bool verbose)
         assert (hydra_msg_timestamp (self) == 123);
         assert (streq (hydra_msg_type (self), "Life is short but Now lasts for ever"));
         assert (streq (hydra_msg_content (self), "Life is short but Now lasts for ever"));
-        hydra_msg_destroy (&self);
     }
-    self = hydra_msg_new (HYDRA_MSG_GOODBYE);
-    
-    //  Check that _dup works on empty message
-    copy = hydra_msg_dup (self);
-    assert (copy);
-    hydra_msg_destroy (&copy);
+    hydra_msg_set_id (self, HYDRA_MSG_GOODBYE);
 
-    //  Send twice from same object
-    hydra_msg_send_again (self, output);
-    hydra_msg_send (&self, output);
+    //  Send twice
+    hydra_msg_send (self, output);
+    hydra_msg_send (self, output);
 
     for (instance = 0; instance < 2; instance++) {
-        self = hydra_msg_recv (input);
-        assert (self);
-        assert (hydra_msg_routing_id (self));
-        
         hydra_msg_destroy (&self);
+        self = hydra_msg_new ();
+        hydra_msg_recv (self, input);
+        assert (hydra_msg_routing_id (self));
     }
-    self = hydra_msg_new (HYDRA_MSG_GOODBYE_OK);
-    
-    //  Check that _dup works on empty message
-    copy = hydra_msg_dup (self);
-    assert (copy);
-    hydra_msg_destroy (&copy);
+    hydra_msg_set_id (self, HYDRA_MSG_GOODBYE_OK);
 
-    //  Send twice from same object
-    hydra_msg_send_again (self, output);
-    hydra_msg_send (&self, output);
+    //  Send twice
+    hydra_msg_send (self, output);
+    hydra_msg_send (self, output);
 
     for (instance = 0; instance < 2; instance++) {
-        self = hydra_msg_recv (input);
-        assert (self);
-        assert (hydra_msg_routing_id (self));
-        
         hydra_msg_destroy (&self);
+        self = hydra_msg_new ();
+        hydra_msg_recv (self, input);
+        assert (hydra_msg_routing_id (self));
     }
-    self = hydra_msg_new (HYDRA_MSG_INVALID);
-    
-    //  Check that _dup works on empty message
-    copy = hydra_msg_dup (self);
-    assert (copy);
-    hydra_msg_destroy (&copy);
+    hydra_msg_set_id (self, HYDRA_MSG_INVALID);
 
-    //  Send twice from same object
-    hydra_msg_send_again (self, output);
-    hydra_msg_send (&self, output);
+    //  Send twice
+    hydra_msg_send (self, output);
+    hydra_msg_send (self, output);
 
     for (instance = 0; instance < 2; instance++) {
-        self = hydra_msg_recv (input);
-        assert (self);
-        assert (hydra_msg_routing_id (self));
-        
         hydra_msg_destroy (&self);
+        self = hydra_msg_new ();
+        hydra_msg_recv (self, input);
+        assert (hydra_msg_routing_id (self));
     }
-    self = hydra_msg_new (HYDRA_MSG_FAILED);
-    
-    //  Check that _dup works on empty message
-    copy = hydra_msg_dup (self);
-    assert (copy);
-    hydra_msg_destroy (&copy);
+    hydra_msg_set_id (self, HYDRA_MSG_FAILED);
 
     hydra_msg_set_reason (self, "Life is short but Now lasts for ever");
-    //  Send twice from same object
-    hydra_msg_send_again (self, output);
-    hydra_msg_send (&self, output);
+    //  Send twice
+    hydra_msg_send (self, output);
+    hydra_msg_send (self, output);
 
     for (instance = 0; instance < 2; instance++) {
-        self = hydra_msg_recv (input);
-        assert (self);
-        assert (hydra_msg_routing_id (self));
-        
-        assert (streq (hydra_msg_reason (self), "Life is short but Now lasts for ever"));
         hydra_msg_destroy (&self);
+        self = hydra_msg_new ();
+        hydra_msg_recv (self, input);
+        assert (hydra_msg_routing_id (self));
+        assert (streq (hydra_msg_reason (self), "Life is short but Now lasts for ever"));
     }
 
     zsock_destroy (&input);
