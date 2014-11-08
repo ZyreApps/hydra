@@ -102,7 +102,6 @@ typedef struct {
     zsock_t *pipe;              //  Socket to back to caller API
     zsock_t *dealer;            //  Socket to talk to server
     zloop_t *loop;              //  Listen to pipe and dealer
-    hydra_msg_t *message;       //  Message received or sent
     client_args_t args;         //  Method arguments structure
     bool terminated;            //  True if client is shutdown
     size_t timeout;             //  inactivity timeout, msecs
@@ -162,16 +161,15 @@ s_client_new (zsock_t *pipe)
         self->pipe = pipe;
         self->dealer = zsock_new (ZMQ_DEALER);
         if (self->dealer)
-            self->message = hydra_msg_new ();
-        if (self->message)
             self->loop = zloop_new ();
-        if (self->loop) {
+        if (self->loop)
+            self->client.msgout = hydra_msg_new (0);
+        if (self->client.msgout) {
             //  Give application chance to initialize and set next event
             self->state = start_state;
             self->event = NULL_event;
             self->client.pipe = self->pipe;
             self->client.dealer = self->dealer;
-            self->client.message = self->message;
             self->client.args = &self->args;
             if (client_initialize (&self->client))
                 s_client_destroy (&self);
@@ -195,7 +193,8 @@ s_client_destroy (s_client_t **self_p)
         zstr_free (&self->args.tag);
         zstr_free (&self->args.post_id);
         client_terminate (&self->client);
-        hydra_msg_destroy (&self->message);
+        hydra_msg_destroy (&self->client.msgout);
+        hydra_msg_destroy (&self->client.msgin);
         zsock_destroy (&self->dealer);
         zloop_destroy (&self->loop);
         free (self);
@@ -302,10 +301,10 @@ s_satisfy_pedantic_compilers (void)
 //  TODO: replace with lookup table, since ID is one byte
 
 static event_t
-s_protocol_event (s_client_t *self, hydra_msg_t *message)
+s_protocol_event (s_client_t *self, hydra_msg_t *msgin)
 {
-    assert (message);
-    switch (hydra_msg_id (message)) {
+    assert (msgin);
+    switch (hydra_msg_id (msgin)) {
         case HYDRA_MSG_HELLO_OK:
             return hello_ok_event;
             break;
@@ -380,8 +379,9 @@ s_client_execute (s_client_t *self, event_t event)
                         //  send HELLO
                         if (self->verbose)
                             zsys_debug ("hydra_client:          $ send HELLO");
-                        hydra_msg_set_id (self->message, HYDRA_MSG_HELLO);
-                        hydra_msg_send (self->message, self->dealer);
+                        hydra_msg_set_id (self->client.msgout, HYDRA_MSG_HELLO);
+                        hydra_msg_send (&self->client.msgout, self->dealer);
+                        self->client.msgout = hydra_msg_new (0);
                     }
                     if (!self->exception)
                         self->state = connecting_state;
@@ -441,8 +441,9 @@ s_client_execute (s_client_t *self, event_t event)
                         //  send HELLO
                         if (self->verbose)
                             zsys_debug ("hydra_client:          $ send HELLO");
-                        hydra_msg_set_id (self->message, HYDRA_MSG_HELLO);
-                        hydra_msg_send (self->message, self->dealer);
+                        hydra_msg_set_id (self->client.msgout, HYDRA_MSG_HELLO);
+                        hydra_msg_send (&self->client.msgout, self->dealer);
+                        self->client.msgout = hydra_msg_new (0);
                     }
                     if (!self->exception)
                         self->state = connecting_state;
@@ -458,8 +459,9 @@ s_client_execute (s_client_t *self, event_t event)
                         //  send GET_TAGS
                         if (self->verbose)
                             zsys_debug ("hydra_client:          $ send GET_TAGS");
-                        hydra_msg_set_id (self->message, HYDRA_MSG_GET_TAGS);
-                        hydra_msg_send (self->message, self->dealer);
+                        hydra_msg_set_id (self->client.msgout, HYDRA_MSG_GET_TAGS);
+                        hydra_msg_send (&self->client.msgout, self->dealer);
+                        self->client.msgout = hydra_msg_new (0);
                     }
                     if (!self->exception)
                         self->state = expect_get_tags_ok_state;
@@ -476,8 +478,9 @@ s_client_execute (s_client_t *self, event_t event)
                         //  send GET_TAG
                         if (self->verbose)
                             zsys_debug ("hydra_client:          $ send GET_TAG");
-                        hydra_msg_set_id (self->message, HYDRA_MSG_GET_TAG);
-                        hydra_msg_send (self->message, self->dealer);
+                        hydra_msg_set_id (self->client.msgout, HYDRA_MSG_GET_TAG);
+                        hydra_msg_send (&self->client.msgout, self->dealer);
+                        self->client.msgout = hydra_msg_new (0);
                     }
                     if (!self->exception)
                         self->state = expect_get_tag_ok_state;
@@ -494,8 +497,9 @@ s_client_execute (s_client_t *self, event_t event)
                         //  send GET_POST
                         if (self->verbose)
                             zsys_debug ("hydra_client:          $ send GET_POST");
-                        hydra_msg_set_id (self->message, HYDRA_MSG_GET_POST);
-                        hydra_msg_send (self->message, self->dealer);
+                        hydra_msg_set_id (self->client.msgout, HYDRA_MSG_GET_POST);
+                        hydra_msg_send (&self->client.msgout, self->dealer);
+                        self->client.msgout = hydra_msg_new (0);
                     }
                     if (!self->exception)
                         self->state = expect_get_post_ok_state;
@@ -506,8 +510,9 @@ s_client_execute (s_client_t *self, event_t event)
                         //  send GOODBYE
                         if (self->verbose)
                             zsys_debug ("hydra_client:          $ send GOODBYE");
-                        hydra_msg_set_id (self->message, HYDRA_MSG_GOODBYE);
-                        hydra_msg_send (self->message, self->dealer);
+                        hydra_msg_set_id (self->client.msgout, HYDRA_MSG_GOODBYE);
+                        hydra_msg_send (&self->client.msgout, self->dealer);
+                        self->client.msgout = hydra_msg_new (0);
                     }
                     if (!self->exception)
                         self->state = expect_goodbye_ok_state;
@@ -524,8 +529,9 @@ s_client_execute (s_client_t *self, event_t event)
                         //  send HELLO
                         if (self->verbose)
                             zsys_debug ("hydra_client:          $ send HELLO");
-                        hydra_msg_set_id (self->message, HYDRA_MSG_HELLO);
-                        hydra_msg_send (self->message, self->dealer);
+                        hydra_msg_set_id (self->client.msgout, HYDRA_MSG_HELLO);
+                        hydra_msg_send (&self->client.msgout, self->dealer);
+                        self->client.msgout = hydra_msg_new (0);
                     }
                     if (!self->exception)
                         self->state = connecting_state;
@@ -558,8 +564,9 @@ s_client_execute (s_client_t *self, event_t event)
                         //  send HELLO
                         if (self->verbose)
                             zsys_debug ("hydra_client:          $ send HELLO");
-                        hydra_msg_set_id (self->message, HYDRA_MSG_HELLO);
-                        hydra_msg_send (self->message, self->dealer);
+                        hydra_msg_set_id (self->client.msgout, HYDRA_MSG_HELLO);
+                        hydra_msg_send (&self->client.msgout, self->dealer);
+                        self->client.msgout = hydra_msg_new (0);
                     }
                     if (!self->exception)
                         self->state = connecting_state;
@@ -592,8 +599,9 @@ s_client_execute (s_client_t *self, event_t event)
                         //  send HELLO
                         if (self->verbose)
                             zsys_debug ("hydra_client:          $ send HELLO");
-                        hydra_msg_set_id (self->message, HYDRA_MSG_HELLO);
-                        hydra_msg_send (self->message, self->dealer);
+                        hydra_msg_set_id (self->client.msgout, HYDRA_MSG_HELLO);
+                        hydra_msg_send (&self->client.msgout, self->dealer);
+                        self->client.msgout = hydra_msg_new (0);
                     }
                     if (!self->exception)
                         self->state = connecting_state;
@@ -626,8 +634,9 @@ s_client_execute (s_client_t *self, event_t event)
                         //  send HELLO
                         if (self->verbose)
                             zsys_debug ("hydra_client:          $ send HELLO");
-                        hydra_msg_set_id (self->message, HYDRA_MSG_HELLO);
-                        hydra_msg_send (self->message, self->dealer);
+                        hydra_msg_set_id (self->client.msgout, HYDRA_MSG_HELLO);
+                        hydra_msg_send (&self->client.msgout, self->dealer);
+                        self->client.msgout = hydra_msg_new (0);
                     }
                     if (!self->exception)
                         self->state = connecting_state;
@@ -681,8 +690,9 @@ s_client_execute (s_client_t *self, event_t event)
                         //  send HELLO
                         if (self->verbose)
                             zsys_debug ("hydra_client:          $ send HELLO");
-                        hydra_msg_set_id (self->message, HYDRA_MSG_HELLO);
-                        hydra_msg_send (self->message, self->dealer);
+                        hydra_msg_set_id (self->client.msgout, HYDRA_MSG_HELLO);
+                        hydra_msg_send (&self->client.msgout, self->dealer);
+                        self->client.msgout = hydra_msg_new (0);
                     }
                     if (!self->exception)
                         self->state = connecting_state;
@@ -704,8 +714,9 @@ s_client_execute (s_client_t *self, event_t event)
                         //  send HELLO
                         if (self->verbose)
                             zsys_debug ("hydra_client:          $ send HELLO");
-                        hydra_msg_set_id (self->message, HYDRA_MSG_HELLO);
-                        hydra_msg_send (self->message, self->dealer);
+                        hydra_msg_set_id (self->client.msgout, HYDRA_MSG_HELLO);
+                        hydra_msg_send (&self->client.msgout, self->dealer);
+                        self->client.msgout = hydra_msg_new (0);
                     }
                     if (!self->exception)
                         self->state = connecting_state;
@@ -756,50 +767,43 @@ s_client_handle_pipe (zloop_t *loop, zsock_t *reader, void *argument)
     s_client_t *self = (s_client_t *) argument;
     char *method = zstr_recv (self->pipe);
     if (!method)
-        return -1;                  //  Interrupted; exit zloop
+        return -1;              //  Interrupted; exit zloop
     if (self->verbose)
         zsys_debug ("hydra_client:      API command=%s", method);
-
+    
     if (streq (method, "VERBOSE"))
-        self->verbose = true;       //  Start verbose logging
+        self->verbose = true;
     else
-    if (streq (method, "$TERM"))
-        self->terminated = true;    //  Shutdown the engine
+    if (streq (method, "$TERM")) {
+        //  Shutdown the engine
+        zstr_free (&method);
+        self->terminated = true;
+    }
     else
     if (streq (method, "CONSTRUCTOR")) {
         zstr_free (&self->args.endpoint);
         zsock_recv (self->pipe, "si", &self->args.endpoint, &self->args.timeout);
         s_client_execute (self, constructor_event);
-        if (self->terminated)
-            return -1;
     }
     else
     if (streq (method, "DESTRUCTOR")) {
         s_client_execute (self, destructor_event);
-        if (self->terminated)
-            return -1;
     }
     else
     if (streq (method, "GET TAGS")) {
         s_client_execute (self, get_tags_event);
-        if (self->terminated)
-            return -1;
     }
     else
     if (streq (method, "GET TAG")) {
         zstr_free (&self->args.tag);
         zsock_recv (self->pipe, "s", &self->args.tag);
         s_client_execute (self, get_tag_event);
-        if (self->terminated)
-            return -1;
     }
     else
     if (streq (method, "GET POST")) {
         zstr_free (&self->args.post_id);
         zsock_recv (self->pipe, "s", &self->args.post_id);
         s_client_execute (self, get_post_event);
-        if (self->terminated)
-            return -1;
     }
     //  Cleanup pipe if any argument frames are still waiting to be eaten
     if (zsock_rcvmore (self->pipe)) {
@@ -809,7 +813,7 @@ s_client_handle_pipe (zloop_t *loop, zsock_t *reader, void *argument)
         zmsg_destroy (&more);
     }
     zstr_free (&method);
-    return 0;
+    return self->terminated? -1: 0;
 }
 
 //  Handle a message (a protocol reply) from the server
@@ -818,27 +822,24 @@ static int
 s_client_handle_protocol (zloop_t *loop, zsock_t *reader, void *argument)
 {
     s_client_t *self = (s_client_t *) argument;
+    hydra_msg_t *msgin = hydra_msg_recv (self->dealer);
+    if (!msgin)
+        return -1;              //  Interrupted; exit zloop
 
-    //  We will process as many messages as we can, to reduce the overhead
-    //  of polling and the reactor:
-    while (zsock_events (self->dealer) & ZMQ_POLLIN) {
-        if (hydra_msg_recv (self->message, self->dealer))
-            return -1;              //  Interrupted; exit zloop
+    hydra_msg_destroy (&self->client.msgin);
+    self->client.msgin = msgin;
 
-        //  Any input from client counts as activity
-        if (self->expiry_timer) {
-            zloop_timer_end (self->loop, self->expiry_timer);
-            self->expiry_timer = 0;
-        }
-        //  Reset expiry timer if timeout is not zero
-        if (self->timeout)
-            self->expiry_timer = zloop_timer (
-                self->loop, self->timeout, 1, s_client_handle_timeout, self);
-        s_client_execute (self, s_protocol_event (self, self->message));
-        if (self->terminated)
-            return -1;
+    //  Any input from client counts as activity
+    if (self->expiry_timer) {
+        zloop_timer_end (self->loop, self->expiry_timer);
+        self->expiry_timer = 0;
     }
-    return 0;
+    //  Reset expiry timer if timeout is not zero
+    if (self->timeout)
+        self->expiry_timer = zloop_timer (
+            self->loop, self->timeout, 1, s_client_handle_timeout, self);
+    s_client_execute (self, s_protocol_event (self, msgin));
+    return self->terminated? -1: 0;
 }
 
 
