@@ -92,189 +92,23 @@ typedef struct _hydra_msg_t hydra_msg_t;
 #endif
 
 //  @interface
-//  Create a new hydra_msg
+//  Create a new empty hydra_msg
 hydra_msg_t *
-    hydra_msg_new (int id);
+    hydra_msg_new (void);
 
-//  Destroy the hydra_msg
+//  Destroy a hydra_msg instance
 void
     hydra_msg_destroy (hydra_msg_t **self_p);
 
-//  Parse a hydra_msg from zmsg_t. Returns a new object, or NULL if
-//  the message could not be parsed, or was NULL. Destroys msg and 
-//  nullifies the msg reference.
-hydra_msg_t *
-    hydra_msg_decode (zmsg_t **msg_p);
-
-//  Encode hydra_msg into zmsg and destroy it. Returns a newly created
-//  object or NULL if error. Use when not in control of sending the message.
-zmsg_t *
-    hydra_msg_encode (hydra_msg_t **self_p);
-
-//  Receive and parse a hydra_msg from the socket. Returns new object, 
-//  or NULL if error. Will block if there's no message waiting.
-hydra_msg_t *
-    hydra_msg_recv (void *input);
-
-//  Receive and parse a hydra_msg from the socket. Returns new object, 
-//  or NULL either if there was no input waiting, or the recv was interrupted.
-hydra_msg_t *
-    hydra_msg_recv_nowait (void *input);
-
-//  Send the hydra_msg to the output, and destroy it
+//  Receive a hydra_msg from the socket. Returns 0 if OK, -1 if
+//  there was an error. Blocks if there is no message waiting.
 int
-    hydra_msg_send (hydra_msg_t **self_p, void *output);
+    hydra_msg_recv (hydra_msg_t *self, zsock_t *input);
 
-//  Send the hydra_msg to the output, and do not destroy it
+//  Send the hydra_msg to the output socket, does not destroy it
 int
-    hydra_msg_send_again (hydra_msg_t *self, void *output);
-
-//  Encode the HELLO 
-zmsg_t *
-    hydra_msg_encode_hello (
-);
-
-//  Encode the HELLO_OK 
-zmsg_t *
-    hydra_msg_encode_hello_ok (
-        const char *post_id);
-
-//  Encode the GET_TAGS 
-zmsg_t *
-    hydra_msg_encode_get_tags (
-);
-
-//  Encode the GET_TAGS_OK 
-zmsg_t *
-    hydra_msg_encode_get_tags_ok (
-        const char *tags);
-
-//  Encode the GET_TAG 
-zmsg_t *
-    hydra_msg_encode_get_tag (
-        const char *tag);
-
-//  Encode the GET_TAG_OK 
-zmsg_t *
-    hydra_msg_encode_get_tag_ok (
-        const char *tag,
-        const char *post_id);
-
-//  Encode the GET_POST 
-zmsg_t *
-    hydra_msg_encode_get_post (
-        const char *post_id);
-
-//  Encode the GET_POST_OK 
-zmsg_t *
-    hydra_msg_encode_get_post_ok (
-        const char *post_id,
-        const char *reply_to,
-        const char *previous,
-        const char *tags,
-        uint64_t timestamp,
-        const char *type,
-        const char *content);
-
-//  Encode the GOODBYE 
-zmsg_t *
-    hydra_msg_encode_goodbye (
-);
-
-//  Encode the GOODBYE_OK 
-zmsg_t *
-    hydra_msg_encode_goodbye_ok (
-);
-
-//  Encode the INVALID 
-zmsg_t *
-    hydra_msg_encode_invalid (
-);
-
-//  Encode the FAILED 
-zmsg_t *
-    hydra_msg_encode_failed (
-        const char *reason);
-
-
-//  Send the HELLO to the output in one step
-//  WARNING, this call will fail if output is of type ZMQ_ROUTER.
-int
-    hydra_msg_send_hello (void *output);
+    hydra_msg_send (hydra_msg_t *self, zsock_t *output);
     
-//  Send the HELLO_OK to the output in one step
-//  WARNING, this call will fail if output is of type ZMQ_ROUTER.
-int
-    hydra_msg_send_hello_ok (void *output,
-        const char *post_id);
-    
-//  Send the GET_TAGS to the output in one step
-//  WARNING, this call will fail if output is of type ZMQ_ROUTER.
-int
-    hydra_msg_send_get_tags (void *output);
-    
-//  Send the GET_TAGS_OK to the output in one step
-//  WARNING, this call will fail if output is of type ZMQ_ROUTER.
-int
-    hydra_msg_send_get_tags_ok (void *output,
-        const char *tags);
-    
-//  Send the GET_TAG to the output in one step
-//  WARNING, this call will fail if output is of type ZMQ_ROUTER.
-int
-    hydra_msg_send_get_tag (void *output,
-        const char *tag);
-    
-//  Send the GET_TAG_OK to the output in one step
-//  WARNING, this call will fail if output is of type ZMQ_ROUTER.
-int
-    hydra_msg_send_get_tag_ok (void *output,
-        const char *tag,
-        const char *post_id);
-    
-//  Send the GET_POST to the output in one step
-//  WARNING, this call will fail if output is of type ZMQ_ROUTER.
-int
-    hydra_msg_send_get_post (void *output,
-        const char *post_id);
-    
-//  Send the GET_POST_OK to the output in one step
-//  WARNING, this call will fail if output is of type ZMQ_ROUTER.
-int
-    hydra_msg_send_get_post_ok (void *output,
-        const char *post_id,
-        const char *reply_to,
-        const char *previous,
-        const char *tags,
-        uint64_t timestamp,
-        const char *type,
-        const char *content);
-    
-//  Send the GOODBYE to the output in one step
-//  WARNING, this call will fail if output is of type ZMQ_ROUTER.
-int
-    hydra_msg_send_goodbye (void *output);
-    
-//  Send the GOODBYE_OK to the output in one step
-//  WARNING, this call will fail if output is of type ZMQ_ROUTER.
-int
-    hydra_msg_send_goodbye_ok (void *output);
-    
-//  Send the INVALID to the output in one step
-//  WARNING, this call will fail if output is of type ZMQ_ROUTER.
-int
-    hydra_msg_send_invalid (void *output);
-    
-//  Send the FAILED to the output in one step
-//  WARNING, this call will fail if output is of type ZMQ_ROUTER.
-int
-    hydra_msg_send_failed (void *output,
-        const char *reason);
-    
-//  Duplicate the hydra_msg message
-hydra_msg_t *
-    hydra_msg_dup (hydra_msg_t *self);
-
 //  Print contents of message to stdout
 void
     hydra_msg_print (hydra_msg_t *self);
@@ -297,31 +131,31 @@ const char *
 const char *
     hydra_msg_post_id (hydra_msg_t *self);
 void
-    hydra_msg_set_post_id (hydra_msg_t *self, const char *format, ...);
+    hydra_msg_set_post_id (hydra_msg_t *self, const char *value);
 
 //  Get/set the tags field
 const char *
     hydra_msg_tags (hydra_msg_t *self);
 void
-    hydra_msg_set_tags (hydra_msg_t *self, const char *format, ...);
+    hydra_msg_set_tags (hydra_msg_t *self, const char *value);
 
 //  Get/set the tag field
 const char *
     hydra_msg_tag (hydra_msg_t *self);
 void
-    hydra_msg_set_tag (hydra_msg_t *self, const char *format, ...);
+    hydra_msg_set_tag (hydra_msg_t *self, const char *value);
 
 //  Get/set the reply_to field
 const char *
     hydra_msg_reply_to (hydra_msg_t *self);
 void
-    hydra_msg_set_reply_to (hydra_msg_t *self, const char *format, ...);
+    hydra_msg_set_reply_to (hydra_msg_t *self, const char *value);
 
 //  Get/set the previous field
 const char *
     hydra_msg_previous (hydra_msg_t *self);
 void
-    hydra_msg_set_previous (hydra_msg_t *self, const char *format, ...);
+    hydra_msg_set_previous (hydra_msg_t *self, const char *value);
 
 //  Get/set the timestamp field
 uint64_t
@@ -333,19 +167,19 @@ void
 const char *
     hydra_msg_type (hydra_msg_t *self);
 void
-    hydra_msg_set_type (hydra_msg_t *self, const char *format, ...);
+    hydra_msg_set_type (hydra_msg_t *self, const char *value);
 
 //  Get/set the content field
 const char *
     hydra_msg_content (hydra_msg_t *self);
 void
-    hydra_msg_set_content (hydra_msg_t *self, const char *format, ...);
+    hydra_msg_set_content (hydra_msg_t *self, const char *value);
 
 //  Get/set the reason field
 const char *
     hydra_msg_reason (hydra_msg_t *self);
 void
-    hydra_msg_set_reason (hydra_msg_t *self, const char *format, ...);
+    hydra_msg_set_reason (hydra_msg_t *self, const char *value);
 
 //  Self test of this class
 int

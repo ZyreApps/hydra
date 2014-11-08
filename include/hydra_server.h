@@ -1,5 +1,5 @@
 /*  =========================================================================
-    hydra_server - hydra_server
+    hydra_server - Hydra Server (in C)
 
     ** WARNING *************************************************************
     THIS SOURCE FILE IS 100% GENERATED. If you edit this file, you will lose

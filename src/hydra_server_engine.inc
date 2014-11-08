@@ -56,7 +56,6 @@ s_event_name [] = {
     "GET_TAG",
     "GET_POST"
 };
- 
 
 //  ---------------------------------------------------------------------------
 //  Context for the whole server task. This embeds the application-level
@@ -69,6 +68,7 @@ typedef struct {
     zsock_t *router;            //  Socket to talk to clients
     int port;                   //  Server port bound to
     zloop_t *loop;              //  Reactor for server sockets
+    hydra_msg_t *message;       //  Message received or sent
     zhash_t *clients;           //  Clients we're connected to
     zconfig_t *config;          //  Configuration tree
     uint client_id;             //  Client identifier counter
@@ -295,10 +295,10 @@ s_satisfy_pedantic_compilers (void)
 //  TODO: replace with lookup table, since ID is one byte
 
 static event_t
-s_protocol_event (hydra_msg_t *request)
+s_protocol_event (hydra_msg_t *message)
 {
-    assert (request);
-    switch (hydra_msg_id (request)) {
+    assert (message);
+    switch (hydra_msg_id (message)) {
         case HYDRA_MSG_HELLO:
             return hello_event;
             break;
@@ -335,8 +335,7 @@ s_client_new (s_server_t *server, zframe_t *routing_id)
     engine_set_log_prefix (&self->client, server->log_prefix);
 
     self->client.server = (server_t *) server;
-    self->client.reply = hydra_msg_new (0);
-    hydra_msg_set_routing_id (self->client.reply, self->routing_id);
+    self->client.message = server->message;
 
     //  Give application chance to initialize and set next event
     self->state = start_state;
@@ -351,9 +350,6 @@ s_client_destroy (s_client_t **self_p)
     assert (self_p);
     if (*self_p) {
         s_client_t *self = *self_p;
-        hydra_msg_destroy (&self->client.request);
-        hydra_msg_destroy (&self->client.reply);
-        
         if (self->wakeup_timer)
             zloop_timer_end (self->server->loop, self->wakeup_timer);
         if (self->expiry_timer)
@@ -373,6 +369,7 @@ s_client_free (void *argument)
     s_client_t *client = (s_client_t *) argument;
     s_client_destroy (&client);
 }
+
 
 //  Execute state machine as long as we have events
 
@@ -409,10 +406,9 @@ s_client_execute (s_client_t *self, event_t event)
                         if (self->server->verbose)
                             zsys_debug ("%s:         $ send HELLO_OK",
                                 self->log_prefix);
-                        hydra_msg_set_id (self->client.reply, HYDRA_MSG_HELLO_OK);
-                        hydra_msg_send (&self->client.reply, self->server->router);
-                        self->client.reply = hydra_msg_new (0);
-                        hydra_msg_set_routing_id (self->client.reply, self->routing_id);
+                        hydra_msg_set_id (self->server->message, HYDRA_MSG_HELLO_OK);
+                        hydra_msg_set_routing_id (self->server->message, self->routing_id);
+                        hydra_msg_send (self->server->message, self->server->router);
                     }
                     if (!self->exception)
                         self->state = connected_state;
@@ -424,10 +420,9 @@ s_client_execute (s_client_t *self, event_t event)
                         if (self->server->verbose)
                             zsys_debug ("%s:         $ send INVALID",
                                 self->log_prefix);
-                        hydra_msg_set_id (self->client.reply, HYDRA_MSG_INVALID);
-                        hydra_msg_send (&self->client.reply, self->server->router);
-                        self->client.reply = hydra_msg_new (0);
-                        hydra_msg_set_routing_id (self->client.reply, self->routing_id);
+                        hydra_msg_set_id (self->server->message, HYDRA_MSG_INVALID);
+                        hydra_msg_set_routing_id (self->server->message, self->routing_id);
+                        hydra_msg_send (self->server->message, self->server->router);
                     }
                     if (!self->exception) {
                         //  terminate
@@ -451,10 +446,9 @@ s_client_execute (s_client_t *self, event_t event)
                         if (self->server->verbose)
                             zsys_debug ("%s:         $ send GET_TAGS_OK",
                                 self->log_prefix);
-                        hydra_msg_set_id (self->client.reply, HYDRA_MSG_GET_TAGS_OK);
-                        hydra_msg_send (&self->client.reply, self->server->router);
-                        self->client.reply = hydra_msg_new (0);
-                        hydra_msg_set_routing_id (self->client.reply, self->routing_id);
+                        hydra_msg_set_id (self->server->message, HYDRA_MSG_GET_TAGS_OK);
+                        hydra_msg_set_routing_id (self->server->message, self->routing_id);
+                        hydra_msg_send (self->server->message, self->server->router);
                     }
                 }
                 else
@@ -470,10 +464,9 @@ s_client_execute (s_client_t *self, event_t event)
                         if (self->server->verbose)
                             zsys_debug ("%s:         $ send GET_TAG_OK",
                                 self->log_prefix);
-                        hydra_msg_set_id (self->client.reply, HYDRA_MSG_GET_TAG_OK);
-                        hydra_msg_send (&self->client.reply, self->server->router);
-                        self->client.reply = hydra_msg_new (0);
-                        hydra_msg_set_routing_id (self->client.reply, self->routing_id);
+                        hydra_msg_set_id (self->server->message, HYDRA_MSG_GET_TAG_OK);
+                        hydra_msg_set_routing_id (self->server->message, self->routing_id);
+                        hydra_msg_send (self->server->message, self->server->router);
                     }
                 }
                 else
@@ -489,10 +482,9 @@ s_client_execute (s_client_t *self, event_t event)
                         if (self->server->verbose)
                             zsys_debug ("%s:         $ send GET_POST_OK",
                                 self->log_prefix);
-                        hydra_msg_set_id (self->client.reply, HYDRA_MSG_GET_POST_OK);
-                        hydra_msg_send (&self->client.reply, self->server->router);
-                        self->client.reply = hydra_msg_new (0);
-                        hydra_msg_set_routing_id (self->client.reply, self->routing_id);
+                        hydra_msg_set_id (self->server->message, HYDRA_MSG_GET_POST_OK);
+                        hydra_msg_set_routing_id (self->server->message, self->routing_id);
+                        hydra_msg_send (self->server->message, self->server->router);
                     }
                 }
                 else {
@@ -502,10 +494,9 @@ s_client_execute (s_client_t *self, event_t event)
                         if (self->server->verbose)
                             zsys_debug ("%s:         $ send INVALID",
                                 self->log_prefix);
-                        hydra_msg_set_id (self->client.reply, HYDRA_MSG_INVALID);
-                        hydra_msg_send (&self->client.reply, self->server->router);
-                        self->client.reply = hydra_msg_new (0);
-                        hydra_msg_set_routing_id (self->client.reply, self->routing_id);
+                        hydra_msg_set_id (self->server->message, HYDRA_MSG_INVALID);
+                        hydra_msg_set_routing_id (self->server->message, self->routing_id);
+                        hydra_msg_send (self->server->message, self->server->router);
                     }
                     if (!self->exception) {
                         //  terminate
@@ -524,10 +515,9 @@ s_client_execute (s_client_t *self, event_t event)
                         if (self->server->verbose)
                             zsys_debug ("%s:         $ send INVALID",
                                 self->log_prefix);
-                        hydra_msg_set_id (self->client.reply, HYDRA_MSG_INVALID);
-                        hydra_msg_send (&self->client.reply, self->server->router);
-                        self->client.reply = hydra_msg_new (0);
-                        hydra_msg_set_routing_id (self->client.reply, self->routing_id);
+                        hydra_msg_set_id (self->server->message, HYDRA_MSG_INVALID);
+                        hydra_msg_set_routing_id (self->server->message, self->routing_id);
+                        hydra_msg_send (self->server->message, self->server->router);
                     }
                     if (!self->exception) {
                         //  terminate
@@ -607,6 +597,7 @@ s_server_new (zsock_t *pipe)
     //  against queue overflow, they should use a credit-based flow
     //  control scheme.
     zsock_set_unbounded (self->router);
+    self->message = hydra_msg_new ();
     self->clients = zhash_new ();
     self->config = zconfig_new ("root", NULL);
     self->loop = zloop_new ();
@@ -629,6 +620,7 @@ s_server_destroy (s_server_t **self_p)
     assert (self_p);
     if (*self_p) {
         s_server_t *self = *self_p;
+        hydra_msg_destroy (&self->message);
         //  Destroy clients before destroying the server
         zhash_destroy (&self->clients);
         server_terminate (&self->server);
@@ -749,23 +741,25 @@ static int
 s_server_handle_protocol (zloop_t *loop, zsock_t *reader, void *argument)
 {
     s_server_t *self = (s_server_t *) argument;
-    hydra_msg_t *msg = hydra_msg_recv (self->router);
-    if (!msg)
-        return -1;              //  Interrupted; exit zloop
+    //  We process as many messages as we can, to reduce the overhead
+    //  of polling and the reactor:
+    while (zsock_events (self->router) & ZMQ_POLLIN) {
+        if (hydra_msg_recv (self->message, self->router))
+            return -1;              //  Interrupted; exit zloop
 
-    char *hashkey = zframe_strhex (hydra_msg_routing_id (msg));
-    s_client_t *client = (s_client_t *) zhash_lookup (self->clients, hashkey);
-    if (client == NULL) {
-        client = s_client_new (self, hydra_msg_routing_id (msg));
-        zhash_insert (self->clients, hashkey, client);
-        zhash_freefn (self->clients, hashkey, s_client_free);
+        //  TODO: use binary hashing on routing_id
+        char *hashkey = zframe_strhex (hydra_msg_routing_id (self->message));
+        s_client_t *client = (s_client_t *) zhash_lookup (self->clients, hashkey);
+        if (client == NULL) {
+            client = s_client_new (self, hydra_msg_routing_id (self->message));
+            zhash_insert (self->clients, hashkey, client);
+            zhash_freefn (self->clients, hashkey, s_client_free);
+        }
+        free (hashkey);
+
+        //  Pass to client state machine
+        s_client_execute (client, s_protocol_event (self->message));
     }
-    free (hashkey);
-
-    //  Pass to client state machine
-    hydra_msg_destroy (&client->client.request);
-    client->client.request = msg;
-    s_client_execute (client, s_protocol_event (client->client.request));
     return 0;
 }
 
