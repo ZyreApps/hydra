@@ -29,7 +29,7 @@ main (int argc, char *argv [])
     else
         verbose = false;
 
-    printf ("Running HYDRA selftests...\n");
+    printf ("Running hydra selftests...\n");
 
     hydra_msg_test (verbose); 
     hydra_server_test (verbose); 

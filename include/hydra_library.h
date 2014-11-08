@@ -15,8 +15,8 @@
     =========================================================================
 */
 
-#ifndef __HYDRA_LIBRARY_H_INCLUDED__
-#define __HYDRA_LIBRARY_H_INCLUDED__
+#ifndef __hydra_library_H_INCLUDED__
+#define __hydra_library_H_INCLUDED__
 
 //  External dependencies
 #include <czmq.h>
