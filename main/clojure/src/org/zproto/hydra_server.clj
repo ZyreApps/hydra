@@ -31,12 +31,6 @@
                                               " state, but had "
                                               current-state))))))))
 
-(defn ensure-state
-  [atom routing-id expected-state]
-  (when (= (get @atom routing-id)
-              expected-state)
-    expected-state))
-
 (defn maybe-setup-session [state routing-id]
   (if (get state routing-id)
     state
@@ -45,38 +39,43 @@
 (defrecord Server [socket state backend]
   HydraServer
   (hello [this routing-id]
-    (if (ensure-state state routing-id :start)
-      (do (next-state state routing-id :start :connected)
-          (let [post-id (get-latest-post backend)]
-            (msg/hello-ok socket routing-id post-id)))
+    (case (get @state routing-id)
+      :start (let [post-id (get-latest-post backend)]
+               (msg/hello-ok socket routing-id post-id)
+               (next-state state routing-id :start :connected))
+
       (invalid this routing-id)))
 
   (get-tags [this routing-id]
-    (if (ensure-state state routing-id :connected)
-      (let [tags (get-all-tags backend)]
-        (msg/get-tags-ok socket routing-id tags))
+    (case (get @state routing-id)
+      :connected (let [tags (get-all-tags backend)]
+                   (msg/get-tags-ok socket routing-id tags))
+
       (invalid this routing-id)))
 
   (get-tag [this routing-id tag]
-    (if (ensure-state state routing-id :connected)
-      (if-let [post-id (get-single-tag backend tag)]
-        (msg/get-tag-ok socket routing-id tag post-id)
-        (msg/failed socket routing-id (format "no post for tag %s" tag)))
+    (case (get @state routing-id)
+      :connected (if-let [post-id (get-single-tag backend tag)]
+                   (msg/get-tag-ok socket routing-id tag post-id)
+                   (msg/failed socket routing-id (format "no post for tag %s" tag)))
       (invalid this routing-id)))
 
   (get-post [this routing-id post-id]
-    (if (ensure-state state routing-id :connected)
-      (if-let [post-data (get-single-post backend post-id)]
-        (apply msg/get-post-ok socket routing-id post-data)
-        (msg/failed socket routing-id (format "post not found: %s" post-id)))
+    (case (get @state routing-id)
+      :connected (if-let [post-data (get-single-post backend post-id)]
+                   (apply msg/get-post-ok socket routing-id post-data)
+                   (msg/failed socket
+                               routing-id
+                               (format "post not found: %s" post-id)))
+
       (invalid this routing-id)))
 
   (invalid [this routing-id]
     (msg/invalid socket routing-id))
 
   (goodbye [this routing-id]
-    (if (ensure-state state routing-id :connected)
-      (msg/goodbye-ok socket routing-id)
+    (case (get @state routing-id)
+      :connected  (msg/goodbye-ok socket routing-id)
       (invalid this routing-id))))
 
 
