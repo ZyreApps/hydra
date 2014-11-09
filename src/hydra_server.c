@@ -44,8 +44,7 @@ struct _client_t {
     //  These properties must always be present in the client_t
     //  and are set by the generated engine; do not modify them!
     server_t *server;           //  Reference to parent server
-    hydra_msg_t *request;       //  Last received request
-    hydra_msg_t *reply;         //  Reply to send out, if any
+    hydra_msg_t *message;       //  Message from and to client
 };
 
 //  Include the generated server engine
@@ -115,7 +114,7 @@ get_latest_post (client_t *self)
 static void
 get_all_tags (client_t *self)
 {
-    hydra_msg_set_tags (self->reply, "photos people");
+    hydra_msg_set_tags (self->message, "photos people");
 }
 
 
@@ -126,8 +125,8 @@ get_all_tags (client_t *self)
 static void
 get_single_tag (client_t *self)
 {
-    hydra_msg_set_tag     (self->reply, "photos");
-    hydra_msg_set_post_id (self->reply, "51a5578aa5398ebe8a92b3cf554fdb8113921010");
+    hydra_msg_set_tag     (self->message, "photos");
+    hydra_msg_set_post_id (self->message, "51a5578aa5398ebe8a92b3cf554fdb8113921010");
 }
 
 
@@ -138,10 +137,10 @@ get_single_tag (client_t *self)
 static void
 get_single_post (client_t *self)
 {
-    hydra_msg_set_tags    (self->reply, "photos");
-    hydra_msg_set_post_id (self->reply, "51a5578aa5398ebe8a92b3cf554fdb8113921010");
-    hydra_msg_set_type    (self->reply, "text/plain");
-    hydra_msg_set_content (self->reply, "Hello, World");
+    hydra_msg_set_tags    (self->message, "photos");
+    hydra_msg_set_post_id (self->message, "51a5578aa5398ebe8a92b3cf554fdb8113921010");
+    hydra_msg_set_type    (self->message, "text/plain");
+    hydra_msg_set_content (self->message, "Hello, World");
 }
 
 
@@ -166,14 +165,12 @@ hydra_server_test (bool verbose)
     zsock_set_rcvtimeo (client, 2000);
     zsock_connect (client, "ipc://@/hydra_server");
 
-    hydra_msg_t *request, *reply;
-    request = hydra_msg_new (HYDRA_MSG_HELLO);
-    hydra_msg_send (&request, client);
-    
-    reply = hydra_msg_recv (client);
-    assert (reply);
-    assert (hydra_msg_id (reply) == HYDRA_MSG_HELLO_OK);
-    hydra_msg_destroy (&reply);
+    hydra_msg_t *message = hydra_msg_new ();
+    hydra_msg_set_id (message, HYDRA_MSG_HELLO);
+    hydra_msg_send (message, client);
+    hydra_msg_recv (message, client);
+    assert (hydra_msg_id (message) == HYDRA_MSG_HELLO_OK);
+    hydra_msg_destroy (&message);
     
     zsock_destroy (&client);
     zactor_destroy (&server);

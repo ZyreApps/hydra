@@ -30,8 +30,7 @@ typedef struct {
     //  and are set by the generated engine.
     zsock_t *pipe;              //  Actor pipe back to caller
     zsock_t *dealer;            //  Socket to talk to server
-    hydra_msg_t *msgout;        //  Message to send to server
-    hydra_msg_t *msgin;         //  Message received from server
+    hydra_msg_t *message;       //  Message from and to server
     client_args_t *args;        //  Arguments from methods
 } client_t;
 
@@ -88,7 +87,7 @@ use_connect_timeout (client_t *self)
 static void
 prepare_to_send_get_tag (client_t *self)
 {
-    hydra_msg_set_tag (self->msgout, self->args->tag);
+    hydra_msg_set_tag (self->message, self->args->tag);
 }
 
 
@@ -99,7 +98,7 @@ prepare_to_send_get_tag (client_t *self)
 static void
 prepare_to_send_get_post (client_t *self)
 {
-    hydra_msg_set_post_id (self->msgout, self->args->post_id);
+    hydra_msg_set_post_id (self->message, self->args->post_id);
 }
 
 
@@ -111,7 +110,7 @@ static void
 return_tags_to_application (client_t *self)
 {
     zsock_send (self->pipe, "ss", "TAGS",
-                 hydra_msg_tags (self->msgin));
+                 hydra_msg_tags (self->message));
 }
 
 
@@ -123,8 +122,8 @@ static void
 return_tag_to_application (client_t *self)
 {
     zsock_send (self->pipe, "ss", "TAG",
-                 hydra_msg_tag (self->msgin),
-                 hydra_msg_post_id (self->msgin));
+                 hydra_msg_tag (self->message),
+                 hydra_msg_post_id (self->message));
 }
 
 
@@ -136,13 +135,13 @@ static void
 return_post_to_application (client_t *self)
 {
     zsock_send (self->pipe, "ssssiss", "POST",
-                 hydra_msg_post_id (self->msgin),
-                 hydra_msg_reply_to (self->msgin),
-                 hydra_msg_previous (self->msgin),
-                 hydra_msg_tags (self->msgin),
-                 (int) hydra_msg_timestamp (self->msgin),
-                 hydra_msg_type (self->msgin),
-                 hydra_msg_content (self->msgin));
+                 hydra_msg_post_id (self->message),
+                 hydra_msg_reply_to (self->message),
+                 hydra_msg_previous (self->message),
+                 hydra_msg_tags (self->message),
+                 (int) hydra_msg_timestamp (self->message),
+                 hydra_msg_type (self->message),
+                 hydra_msg_content (self->message));
 }
 
 

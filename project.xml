@@ -7,7 +7,14 @@
     <include filename = "license.xml" />
     <version major = "0" minor = "1" patch = "0" />
     <use project = "czmq" />
+    
     <class name = "hydra_msg" />
     <class name = "hydra_server" />
     <class name = "hydra_client" />
+    
+    <model name = "hydra_msg" />
+    <model name = "hydra_msg" script = "zproto_codec_java.gsl" />
+    <model name = "hydra_msg" script = "zproto_codec_clj.gsl" />
+    <model name = "hydra_server" />
+    <model name = "hydra_client" />
 </project>
