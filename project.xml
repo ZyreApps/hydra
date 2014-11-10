@@ -14,7 +14,9 @@
     
     <model name = "hydra_msg" />
     <model name = "hydra_msg" script = "zproto_codec_java.gsl" />
-    <model name = "hydra_msg" script = "zproto_codec_clj.gsl" />
+    <model name = "hydra_msg" script = "zproto_codec_clj.gsl">
+      <param name = "root_path" value = "../main"/>
+    </model>
     <model name = "hydra_server" />
     <model name = "hydra_client" />
 </project>
