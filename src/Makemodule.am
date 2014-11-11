@@ -53,7 +53,7 @@ src: src/libhydra.la src/hydra_selftest
 code:
 	cd $(srcdir)/src; gsl -q hydra_msg.xml
 	cd $(srcdir)/src; gsl -topdir:.. -script:zproto_codec_java.gsl -q hydra_msg.xml
-	cd $(srcdir)/src; gsl -topdir:.. -script:zproto_codec_clj.gsl -root_path:../main -q hydra_msg.xml
+	cd $(srcdir)/src; gsl -topdir:.. -script:zproto_codec_clj.gsl -q hydra_msg.xml
 	cd $(srcdir)/src; gsl -q hydra_server.xml
 	cd $(srcdir)/src; gsl -q hydra_client.xml
 #############################################################################

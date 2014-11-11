@@ -190,6 +190,7 @@ struct _hydra_msg_t {
         zsys_warning ("hydra_msg: GET_LONGSTR failed"); \
         goto malformed; \
     } \
+    free ((host)); \
     (host) = (char *) malloc (string_size + 1); \
     memcpy ((host), self->needle, string_size); \
     (host) [string_size] = 0; \
@@ -640,6 +641,9 @@ void
 hydra_msg_set_post_id (hydra_msg_t *self, const char *value)
 {
     assert (self);
+    assert (value);
+    if (value == self->post_id)
+        return;
     strncpy (self->post_id, value, 255);
     self->post_id [255] = 0;
 }
@@ -659,6 +663,9 @@ void
 hydra_msg_set_tags (hydra_msg_t *self, const char *value)
 {
     assert (self);
+    assert (value);
+    if (value == self->tags)
+        return;
     strncpy (self->tags, value, 255);
     self->tags [255] = 0;
 }
@@ -678,6 +685,9 @@ void
 hydra_msg_set_tag (hydra_msg_t *self, const char *value)
 {
     assert (self);
+    assert (value);
+    if (value == self->tag)
+        return;
     strncpy (self->tag, value, 255);
     self->tag [255] = 0;
 }
@@ -697,6 +707,9 @@ void
 hydra_msg_set_reply_to (hydra_msg_t *self, const char *value)
 {
     assert (self);
+    assert (value);
+    if (value == self->reply_to)
+        return;
     strncpy (self->reply_to, value, 255);
     self->reply_to [255] = 0;
 }
@@ -716,6 +729,9 @@ void
 hydra_msg_set_previous (hydra_msg_t *self, const char *value)
 {
     assert (self);
+    assert (value);
+    if (value == self->previous)
+        return;
     strncpy (self->previous, value, 255);
     self->previous [255] = 0;
 }
@@ -753,6 +769,9 @@ void
 hydra_msg_set_type (hydra_msg_t *self, const char *value)
 {
     assert (self);
+    assert (value);
+    if (value == self->type)
+        return;
     strncpy (self->type, value, 255);
     self->type [255] = 0;
 }
@@ -772,6 +791,9 @@ void
 hydra_msg_set_content (hydra_msg_t *self, const char *value)
 {
     assert (self);
+    assert (value);
+    if (value == self->content)
+        return;
     strncpy (self->content, value, 255);
     self->content [255] = 0;
 }
@@ -791,6 +813,9 @@ void
 hydra_msg_set_reason (hydra_msg_t *self, const char *value)
 {
     assert (self);
+    assert (value);
+    if (value == self->reason)
+        return;
     strncpy (self->reason, value, 255);
     self->reason [255] = 0;
 }
@@ -830,8 +855,6 @@ hydra_msg_test (bool verbose)
     hydra_msg_send (self, output);
 
     for (instance = 0; instance < 2; instance++) {
-        hydra_msg_destroy (&self);
-        self = hydra_msg_new ();
         hydra_msg_recv (self, input);
         assert (hydra_msg_routing_id (self));
     }
@@ -843,8 +866,6 @@ hydra_msg_test (bool verbose)
     hydra_msg_send (self, output);
 
     for (instance = 0; instance < 2; instance++) {
-        hydra_msg_destroy (&self);
-        self = hydra_msg_new ();
         hydra_msg_recv (self, input);
         assert (hydra_msg_routing_id (self));
         assert (streq (hydra_msg_post_id (self), "Life is short but Now lasts for ever"));
@@ -856,8 +877,6 @@ hydra_msg_test (bool verbose)
     hydra_msg_send (self, output);
 
     for (instance = 0; instance < 2; instance++) {
-        hydra_msg_destroy (&self);
-        self = hydra_msg_new ();
         hydra_msg_recv (self, input);
         assert (hydra_msg_routing_id (self));
     }
@@ -869,8 +888,6 @@ hydra_msg_test (bool verbose)
     hydra_msg_send (self, output);
 
     for (instance = 0; instance < 2; instance++) {
-        hydra_msg_destroy (&self);
-        self = hydra_msg_new ();
         hydra_msg_recv (self, input);
         assert (hydra_msg_routing_id (self));
         assert (streq (hydra_msg_tags (self), "Life is short but Now lasts for ever"));
@@ -883,8 +900,6 @@ hydra_msg_test (bool verbose)
     hydra_msg_send (self, output);
 
     for (instance = 0; instance < 2; instance++) {
-        hydra_msg_destroy (&self);
-        self = hydra_msg_new ();
         hydra_msg_recv (self, input);
         assert (hydra_msg_routing_id (self));
         assert (streq (hydra_msg_tag (self), "Life is short but Now lasts for ever"));
@@ -898,8 +913,6 @@ hydra_msg_test (bool verbose)
     hydra_msg_send (self, output);
 
     for (instance = 0; instance < 2; instance++) {
-        hydra_msg_destroy (&self);
-        self = hydra_msg_new ();
         hydra_msg_recv (self, input);
         assert (hydra_msg_routing_id (self));
         assert (streq (hydra_msg_tag (self), "Life is short but Now lasts for ever"));
@@ -913,8 +926,6 @@ hydra_msg_test (bool verbose)
     hydra_msg_send (self, output);
 
     for (instance = 0; instance < 2; instance++) {
-        hydra_msg_destroy (&self);
-        self = hydra_msg_new ();
         hydra_msg_recv (self, input);
         assert (hydra_msg_routing_id (self));
         assert (streq (hydra_msg_post_id (self), "Life is short but Now lasts for ever"));
@@ -933,8 +944,6 @@ hydra_msg_test (bool verbose)
     hydra_msg_send (self, output);
 
     for (instance = 0; instance < 2; instance++) {
-        hydra_msg_destroy (&self);
-        self = hydra_msg_new ();
         hydra_msg_recv (self, input);
         assert (hydra_msg_routing_id (self));
         assert (streq (hydra_msg_post_id (self), "Life is short but Now lasts for ever"));
@@ -952,8 +961,6 @@ hydra_msg_test (bool verbose)
     hydra_msg_send (self, output);
 
     for (instance = 0; instance < 2; instance++) {
-        hydra_msg_destroy (&self);
-        self = hydra_msg_new ();
         hydra_msg_recv (self, input);
         assert (hydra_msg_routing_id (self));
     }
@@ -964,8 +971,6 @@ hydra_msg_test (bool verbose)
     hydra_msg_send (self, output);
 
     for (instance = 0; instance < 2; instance++) {
-        hydra_msg_destroy (&self);
-        self = hydra_msg_new ();
         hydra_msg_recv (self, input);
         assert (hydra_msg_routing_id (self));
     }
@@ -976,8 +981,6 @@ hydra_msg_test (bool verbose)
     hydra_msg_send (self, output);
 
     for (instance = 0; instance < 2; instance++) {
-        hydra_msg_destroy (&self);
-        self = hydra_msg_new ();
         hydra_msg_recv (self, input);
         assert (hydra_msg_routing_id (self));
     }
@@ -989,13 +992,13 @@ hydra_msg_test (bool verbose)
     hydra_msg_send (self, output);
 
     for (instance = 0; instance < 2; instance++) {
-        hydra_msg_destroy (&self);
-        self = hydra_msg_new ();
         hydra_msg_recv (self, input);
         assert (hydra_msg_routing_id (self));
         assert (streq (hydra_msg_reason (self), "Life is short but Now lasts for ever"));
     }
+    hydra_msg_destroy (&self);
 
+    hydra_msg_destroy (&self);
     zsock_destroy (&input);
     zsock_destroy (&output);
     //  @end
