@@ -17,7 +17,7 @@
       "tag_1 tag_2 tag_3 tag_4")
     (get-single-tag [this tag-id]
       (when (= tag-id "tag_1")
-        "dummy-post-id-2"))))
+        [tag-id "dummy-post-id-2"]))))
 
 (defn setup [& [connect?]]
   (let [srv-sock (msg/server-socket test-endpoint)
@@ -71,20 +71,7 @@
         (is (= HydraMsg/GET_TAG_OK
                (.id response)))
         (is (= (server/get-single-tag dummy-backend "tag_1")
-               (.post_id response)))
-        (is (= :connected
-               (-> @(:state srv) vals first))))
-      (finally
-        (teardown cl-sock srv-sock)))))
-
-(deftest test-get-tag-failed
-  (let [[cl-sock srv-sock srv] (setup :connected)]
-    (try
-      (let [response (server-client-comm cl-sock srv srv-sock msg/get-tag "tag_2")]
-        (is (= HydraMsg/FAILED
-               (.id response)))
-        (is (= "no post for tag tag_2"
-               (.reason response)))
+               [(.tag response) (.post_id response)]))
         (is (= :connected
                (-> @(:state srv) vals first))))
       (finally
@@ -109,19 +96,6 @@
       (finally
         (teardown cl-sock srv-sock)))))
 
-(deftest test-get-post-failed
-  (let [[cl-sock srv-sock srv] (setup :connected)]
-    (try
-      (let [response (server-client-comm cl-sock srv srv-sock msg/get-post "unknown-post-id")]
-        (is (= HydraMsg/FAILED
-               (.id response)))
-        (is (= "post not found: unknown-post-id"
-               (.reason response)))
-        (is (= :connected
-               (-> @(:state srv) vals first))))
-      (finally
-        (teardown cl-sock srv-sock)))))
-
 (deftest test-invalid
   (let [[cl-sock srv-sock srv] (setup)]
     (try
@@ -132,18 +106,6 @@
                (-> @(:state srv) vals first))))
       (finally
         (teardown cl-sock srv-sock)))))
-
-(deftest test-goodbye
-  (let [[cl-sock srv-sock srv] (setup :connected)]
-    (try
-      (let [response (server-client-comm cl-sock srv srv-sock msg/goodbye)]
-        (is (= HydraMsg/GOODBYE_OK
-               (.id response)))
-        (is (= :connected
-               (-> @(:state srv) vals first))))
-      (finally
-        (teardown cl-sock srv-sock)))))
-
 
 (deftest multiple-clients
   (let [srv-sock (msg/server-socket test-endpoint)
