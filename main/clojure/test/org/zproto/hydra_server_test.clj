@@ -99,11 +99,10 @@
 (deftest test-invalid
   (let [[cl-sock srv-sock srv] (setup)]
     (try
-      (let [response (server-client-comm cl-sock srv srv-sock msg/invalid)]
+      (let [response (server-client-comm cl-sock srv srv-sock msg/goodbye)]
         (is (= HydraMsg/INVALID
                (.id response)))
-        (is (= :start
-               (-> @(:state srv) vals first))))
+        (is (empty? @(:state srv))))
       (finally
         (teardown cl-sock srv-sock)))))
 
@@ -113,8 +112,7 @@
       (let [response (server-client-comm cl-sock srv srv-sock msg/goodbye)]
         (is (= HydraMsg/GOODBYE_OK
                (.id response)))
-        (is (= :connected
-               (-> @(:state srv) vals first))))
+        (is (empty? @(:state srv))))
       (finally
         (teardown cl-sock srv-sock)))))
 
@@ -124,14 +122,14 @@
         client-1 (msg/client-socket test-endpoint)
         client-2 (msg/client-socket test-endpoint)]
     (try
-      (let [r1 (server-client-comm client-1 srv srv-sock msg/goodbye)
-            r2 (server-client-comm client-2 srv srv-sock msg/get-tags)]
+      (let [r1 (server-client-comm client-1 srv srv-sock msg/hello)
+            r2 (server-client-comm client-2 srv srv-sock msg/hello)]
         (is (= 2 (count @(:state srv))))
-        (is (= [:start :start]
+        (is (= [:connected :connected]
                (-> @(:state srv) vals)))
-        (server-client-comm client-1 srv srv-sock msg/hello)
-        (is (= {:start 1 :connected 1}
-               (frequencies (vals @(:state srv))))))
+        (server-client-comm client-1 srv srv-sock msg/goodbye)
+        (is (= [:connected]
+               (vals @(:state srv)))))
       (finally
         (teardown client-1 srv-sock)
         (.close (:socket client-2))))))
