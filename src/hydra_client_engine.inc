@@ -99,7 +99,8 @@ struct _client_args_t {
 
 typedef struct {
     client_t client;            //  Application-level client context
-    zsock_t *pipe;              //  Socket to back to caller API
+    zsock_t *cmdpipe;           //  Get/send commands from caller API
+    zsock_t *msgpipe;           //  Get/send messages from caller API
     zsock_t *dealer;            //  Socket to talk to server
     zloop_t *loop;              //  Listen to pipe and dealer
     hydra_msg_t *message;       //  Message received or sent
@@ -154,12 +155,13 @@ static void
 //  Create a new client connection
 
 static s_client_t *
-s_client_new (zsock_t *pipe)
+s_client_new (zsock_t *cmdpipe, zsock_t *msgpipe)
 {
     s_client_t *self = (s_client_t *) zmalloc (sizeof (s_client_t));
     if (self) {
         assert ((s_client_t *) &self->client == self);
-        self->pipe = pipe;
+        self->cmdpipe = cmdpipe;
+        self->msgpipe = msgpipe;
         self->dealer = zsock_new (ZMQ_DEALER);
         if (self->dealer)
             self->message = hydra_msg_new ();
@@ -169,7 +171,8 @@ s_client_new (zsock_t *pipe)
             //  Give application chance to initialize and set next event
             self->state = start_state;
             self->event = NULL_event;
-            self->client.pipe = self->pipe;
+            self->client.cmdpipe = self->cmdpipe;
+            self->client.msgpipe = self->msgpipe;
             self->client.dealer = self->dealer;
             self->client.message = self->message;
             self->client.args = &self->args;
@@ -196,6 +199,7 @@ s_client_destroy (s_client_t **self_p)
         zstr_free (&self->args.post_id);
         client_terminate (&self->client);
         hydra_msg_destroy (&self->message);
+        zsock_destroy (&self->msgpipe);
         zsock_destroy (&self->dealer);
         zloop_destroy (&self->loop);
         free (self);
@@ -269,17 +273,17 @@ engine_set_timeout (client_t *client, size_t timeout)
 //  Handler must be a CZMQ zloop_fn function; receives client as arg.
 
 static void
-engine_handle_socket (client_t *client, zsock_t *socket, zloop_reader_fn handler)
+engine_handle_socket (client_t *client, zsock_t *sock, zloop_reader_fn handler)
 {
-    if (client) {
+    if (client && sock) {
         s_client_t *self = (s_client_t *) client;
         if (handler != NULL) {
-            int rc = zloop_reader (self->loop, socket, handler, self);
+            int rc = zloop_reader (self->loop, sock, handler, self);
             assert (rc == 0);
-            zloop_reader_set_tolerant (self->loop, socket);
+            zloop_reader_set_tolerant (self->loop, sock);
         }
         else
-            zloop_reader_end (self->loop, socket);
+            zloop_reader_end (self->loop, sock);
     }
 }
 
@@ -748,13 +752,13 @@ s_client_handle_wakeup (zloop_t *loop, int timer_id, void *argument)
 }
 
 
-//  Process message from pipe
+//  Handle command pipe to/from calling API
 
 static int
-s_client_handle_pipe (zloop_t *loop, zsock_t *reader, void *argument)
+s_client_handle_cmdpipe (zloop_t *loop, zsock_t *reader, void *argument)
 {
     s_client_t *self = (s_client_t *) argument;
-    char *method = zstr_recv (self->pipe);
+    char *method = zstr_recv (self->cmdpipe);
     if (!method)
         return -1;                  //  Interrupted; exit zloop
     if (self->verbose)
@@ -768,7 +772,7 @@ s_client_handle_pipe (zloop_t *loop, zsock_t *reader, void *argument)
     else
     if (streq (method, "CONSTRUCTOR")) {
         zstr_free (&self->args.endpoint);
-        zsock_recv (self->pipe, "si", &self->args.endpoint, &self->args.timeout);
+        zsock_recv (self->cmdpipe, "si", &self->args.endpoint, &self->args.timeout);
         s_client_execute (self, constructor_event);
         if (self->terminated)
             return -1;
@@ -788,7 +792,7 @@ s_client_handle_pipe (zloop_t *loop, zsock_t *reader, void *argument)
     else
     if (streq (method, "GET TAG")) {
         zstr_free (&self->args.tag);
-        zsock_recv (self->pipe, "s", &self->args.tag);
+        zsock_recv (self->cmdpipe, "s", &self->args.tag);
         s_client_execute (self, get_tag_event);
         if (self->terminated)
             return -1;
@@ -796,21 +800,22 @@ s_client_handle_pipe (zloop_t *loop, zsock_t *reader, void *argument)
     else
     if (streq (method, "GET POST")) {
         zstr_free (&self->args.post_id);
-        zsock_recv (self->pipe, "s", &self->args.post_id);
+        zsock_recv (self->cmdpipe, "s", &self->args.post_id);
         s_client_execute (self, get_post_event);
         if (self->terminated)
             return -1;
     }
     //  Cleanup pipe if any argument frames are still waiting to be eaten
-    if (zsock_rcvmore (self->pipe)) {
+    if (zsock_rcvmore (self->cmdpipe)) {
         zsys_error ("hydra_client: trailing API command frames (%s)", method);
-        zmsg_t *more = zmsg_recv (self->pipe);
+        zmsg_t *more = zmsg_recv (self->cmdpipe);
         zmsg_print (more);
         zmsg_destroy (&more);
     }
     zstr_free (&method);
     return 0;
 }
+
 
 //  Handle a message (a protocol reply) from the server
 
@@ -847,15 +852,15 @@ s_client_handle_protocol (zloop_t *loop, zsock_t *reader, void *argument)
 //  incoming messages
 
 void
-hydra_client (zsock_t *pipe, void *args)
+hydra_client (zsock_t *cmdpipe, void *msgpipe)
 {
     //  Initialize
-    s_client_t *self = s_client_new (pipe);
+    s_client_t *self = s_client_new (cmdpipe, (zsock_t *) msgpipe);
     if (self) {
-        zsock_signal (pipe, 0);
+        zsock_signal (cmdpipe, 0);
         
-        //  Set up handler for the two main sockets the client uses
-        engine_handle_socket ((client_t *) self, self->pipe, s_client_handle_pipe);
+        //  Set up handler for the sockets the client uses
+        engine_handle_socket ((client_t *) self, self->cmdpipe, s_client_handle_cmdpipe);
         engine_handle_socket ((client_t *) self, self->dealer, s_client_handle_protocol);
 
         //  Run reactor until there's a termination signal
@@ -864,6 +869,8 @@ hydra_client (zsock_t *pipe, void *args)
         //  Reactor has ended
         s_client_destroy (&self);
     }
+    else
+        zsock_signal (cmdpipe, -1);
 }
 
 
@@ -872,6 +879,7 @@ hydra_client (zsock_t *pipe, void *args)
 
 struct _hydra_client_t {
     zactor_t *actor;            //  Client actor
+    zsock_t *msgpipe;           //  Pipe for async message flow
     int status;                 //  Returned by actor reply
     char *reason;               //  Returned by actor reply
     char *tags;                 //  Returned by actor reply
@@ -898,7 +906,9 @@ hydra_client_new (const char *endpoint, int timeout)
 {
     hydra_client_t *self = (hydra_client_t *) zmalloc (sizeof (hydra_client_t));
     if (self) {
-        self->actor = zactor_new (hydra_client, NULL);
+        zsock_t *backend;
+        self->msgpipe = zsys_create_pipe (&backend);
+        self->actor = zactor_new (hydra_client, backend);
         if (self->actor)
             self->status = hydra_client_constructor (self, endpoint, timeout);
         if (self->status == -1)
@@ -927,6 +937,7 @@ hydra_client_destroy (hydra_client_t **self_p)
         if (self->actor)
             hydra_client_destructor (self);
         zactor_destroy (&self->actor);
+        zsock_destroy (&self->msgpipe);
         zstr_free (&self->reason);
         zstr_free (&self->tags);
         zstr_free (&self->tag);
@@ -953,13 +964,17 @@ hydra_client_verbose (hydra_client_t *self)
 
 
 //  ---------------------------------------------------------------------------
-//  Return actor for low-level command control and polling
+//  Return message pipe for asynchronous message I/O. In the high-volume case,
+//  we send methods and get replies to the actor, in a synchronous manner, and
+//  we send/recv high volume message data to a second pipe, the msgpipe. In
+//  the low-volume case we can do everything over the actor pipe, if traffic
+//  is never ambiguous.
 
-zactor_t *
-hydra_client_actor (hydra_client_t *self)
+zsock_t *
+hydra_client_msgpipe (hydra_client_t *self)
 {
     assert (self);
-    return self->actor;
+    return self->msgpipe;
 }
 
 

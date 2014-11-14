@@ -996,7 +996,6 @@ hydra_msg_test (bool verbose)
         assert (hydra_msg_routing_id (self));
         assert (streq (hydra_msg_reason (self), "Life is short but Now lasts for ever"));
     }
-    hydra_msg_destroy (&self);
 
     hydra_msg_destroy (&self);
     zsock_destroy (&input);
