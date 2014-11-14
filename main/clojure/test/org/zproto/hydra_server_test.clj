@@ -107,6 +107,17 @@
       (finally
         (teardown cl-sock srv-sock)))))
 
+(deftest test-goodbye
+  (let [[cl-sock srv-sock srv] (setup :connected)]
+    (try
+      (let [response (server-client-comm cl-sock srv srv-sock msg/goodbye)]
+        (is (= HydraMsg/GOODBYE_OK
+               (.id response)))
+        (is (= :connected
+               (-> @(:state srv) vals first))))
+      (finally
+        (teardown cl-sock srv-sock)))))
+
 (deftest multiple-clients
   (let [srv-sock (msg/server-socket test-endpoint)
         srv (server/->Server srv-sock (atom {}) dummy-backend)
