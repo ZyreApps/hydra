@@ -47,9 +47,13 @@ void
 void
     hydra_client_verbose (hydra_client_t *self);
 
-//  Return actor for low-level command control and polling
-zactor_t *
-    hydra_client_actor (hydra_client_t *self);
+//  Return message pipe for asynchronous message I/O. In the high-volume case,
+//  we send methods and get replies to the actor, in a synchronous manner, and
+//  we send/recv high volume message data to a second pipe, the msgpipe. In
+//  the low-volume case we can do everything over the actor pipe, if traffic
+//  is never ambiguous.
+zsock_t *
+    hydra_client_msgpipe (hydra_client_t *self);
 
 //  Get list of tags from peer                                                      
 //  Returns >= 0 if successful, -1 if interrupted.

@@ -36,8 +36,8 @@
   (get-single-tag [this tag])
   (get-single-post [this post-id]))
 
-;; currently just a catch-all no op.
-(defn terminate [& _])
+(defn terminate [{:keys [state]} routing-id _]
+  (swap! state dissoc routing-id))
 
 (defn next-state [to-state]
   (fn [{:keys [state]} routing-id _]
@@ -71,17 +71,17 @@
 (def state-events {
   :start {
     HydraMsg/HELLO [ (action get-latest-post) (send msg/hello-ok) (next-state :connected) ]
-    :* [ (send msg/invalid) (action terminate) ]
+    :* [ (send msg/invalid) terminate ]
   }
   :connected {
     HydraMsg/GET_TAGS [ (action get-all-tags) (send msg/get-tags-ok) ]
     HydraMsg/GET_TAG [ (action get-single-tag .tag) (send msg/get-tag-ok) ]
     HydraMsg/GET_POST [ (action get-single-post .post_id) (send msg/get-post-ok) ]
-    HydraMsg/GOODBYE [ (send msg/goodbye-ok) (action terminate) ]
-    :* [ (send msg/invalid) (action terminate) ]
+    HydraMsg/GOODBYE [ (send msg/goodbye-ok) terminate ]
+    :* [ (send msg/invalid) terminate ]
   }
   :external {
-    :* [ (send msg/invalid) (action terminate) ]
+    :* [ (send msg/invalid) terminate ]
   }})
 
 (def determine-actions
