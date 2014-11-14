@@ -77,6 +77,7 @@
     HydraMsg/GET_TAGS [ (action get-all-tags) (send msg/get-tags-ok) ]
     HydraMsg/GET_TAG [ (action get-single-tag .tag) (send msg/get-tag-ok) ]
     HydraMsg/GET_POST [ (action get-single-post .post_id) (send msg/get-post-ok) ]
+    HydraMsg/GOODBYE [ (send msg/goodbye-ok) (action terminate) ]
     :* [ (send msg/invalid) (action terminate) ]
   }
   :external {

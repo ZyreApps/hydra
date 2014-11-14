@@ -29,6 +29,10 @@
             <action name = "get single post" />
             <action name = "send" message = "GET POST OK" />
         </event>
+        <event name = "GOODBYE">
+            <action name = "send" message = "GOODBYE OK" />
+            <action name = "terminate" />
+        </event>
     </state>
 
     <state name = "external">
