@@ -8,16 +8,19 @@
 
 (def dummy-backend
   (reify server/HydraServerBackend
-    (get-latest-post [this]
-      "dummy-post-id")
-    (get-single-post [this post-id]
-      (when (= "dummy-post-id" post-id)
-        ["dummy-post-id" "none" "none" "tag_2" 123123123 "dummy" "dummy-post"]))
-    (get-all-tags [this]
-      "tag_1 tag_2 tag_3 tag_4")
-    (get-single-tag [this tag-id]
-      (when (= tag-id "tag_1")
-        [tag-id "dummy-post-id-2"]))))
+    (get-latest-post [this m]
+      (msg/post-id! m "dummy-post-id"))
+    (get-single-post [this m post-id]
+      (msg/reply-to! m "none")
+      (msg/previous! m "none")
+      (msg/tags! m "tag_2")
+      (msg/timestamp! m 123123123)
+      (msg/type! m "dummy")
+      (msg/content! m "dummy-post"))
+    (get-all-tags [this m]
+      (msg/tags! m "tag_1 tag_2 tag_3 tag_4"))
+    (get-single-tag [this m tag-id]
+      (msg/post-id! m "dummy-post-id-2"))))
 
 (defn setup [& [connect?]]
   (let [srv-sock (msg/server-socket test-endpoint)
@@ -33,6 +36,9 @@
   (.close (:socket srv-sock))
   (.close (:socket cl-sock)))
 
+(defn blank-msg []
+  (HydraMsg. 0))
+
 (defn server-client-comm [cl-sock srv srv-sock cl-msg & args]
   (apply cl-msg cl-sock args)
   (server/match-msg srv (msg/recv srv-sock))
@@ -41,10 +47,12 @@
 (deftest test-hello-ok
   (let [[cl-sock srv-sock srv] (setup)]
     (try
-      (let [response (server-client-comm cl-sock srv srv-sock msg/hello)]
+      (let [response (server-client-comm cl-sock srv srv-sock msg/hello)
+            expected (blank-msg)]
+        (server/get-latest-post dummy-backend expected)
         (is (= HydraMsg/HELLO_OK
                (.id response)))
-        (is (= (server/get-latest-post dummy-backend)
+        (is (= (.post_id expected)
                (.post_id response)))
         (is (= :connected
                (-> @(:state srv) vals first))))
@@ -54,10 +62,12 @@
 (deftest test-get-tags-ok
   (let [[cl-sock srv-sock srv] (setup :connected)]
     (try
-      (let [response (server-client-comm cl-sock srv srv-sock msg/get-tags)]
+      (let [response (server-client-comm cl-sock srv srv-sock msg/get-tags)
+            expected (blank-msg)]
+        (server/get-all-tags dummy-backend expected)
         (is (= HydraMsg/GET_TAGS_OK
                (.id response)))
-        (is (= (server/get-all-tags dummy-backend)
+        (is (= (.tags expected)
                (.tags response)))
         (is (= :connected
                (-> @(:state srv) vals first))))
@@ -67,11 +77,16 @@
 (deftest test-get-tag-ok
   (let [[cl-sock srv-sock srv] (setup :connected)]
     (try
-      (let [response (server-client-comm cl-sock srv srv-sock msg/get-tag "tag_1")]
+      (let [tag "tag_1"
+            response (server-client-comm cl-sock srv srv-sock msg/get-tag tag)
+            expected (blank-msg)]
+        (server/get-single-tag dummy-backend expected tag)
         (is (= HydraMsg/GET_TAG_OK
                (.id response)))
-        (is (= (server/get-single-tag dummy-backend "tag_1")
-               [(.tag response) (.post_id response)]))
+        (is (= tag
+               (.tag response)))
+        (is (= (.post_id expected)
+               (.post_id response)))
         (is (= :connected
                (-> @(:state srv) vals first))))
       (finally
@@ -80,17 +95,26 @@
 (deftest test-get-post-ok
   (let [[cl-sock srv-sock srv] (setup :connected)]
     (try
-      (let [response (server-client-comm cl-sock srv srv-sock msg/get-post "dummy-post-id")]
+      (let [post-id "dummy-post-id"
+            response (server-client-comm cl-sock srv srv-sock msg/get-post post-id)
+            expected (blank-msg)]
+        (server/get-single-post dummy-backend expected post-id)
         (is (= HydraMsg/GET_POST_OK
                (.id response)))
-        (is (= (server/get-single-post dummy-backend "dummy-post-id")
-               [(.post_id response)
-                (.reply_to response)
-                (.previous response)
-                (.tags response)
-                (.timestamp response)
-                (.type response)
-                (.content response)]))
+        (is (= post-id
+               (.post_id response)))
+        (is (= (.reply_to expected)
+               (.reply_to response)))
+        (is (= (.previous expected)
+               (.previous response)))
+        (is (= (.tags expected)
+               (.tags response)))
+        (is (= (.timestamp expected)
+               (.timestamp response)))
+        (is (= (.type expected)
+               (.type response)))
+        (is (= (.content expected)
+               (.content response)))
         (is (= :connected
                (-> @(:state srv) vals first))))
       (finally
