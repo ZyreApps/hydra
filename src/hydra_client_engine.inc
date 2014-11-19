@@ -767,8 +767,10 @@ s_client_handle_cmdpipe (zloop_t *loop, zsock_t *reader, void *argument)
     if (streq (method, "VERBOSE"))
         self->verbose = true;       //  Start verbose logging
     else
-    if (streq (method, "$TERM"))
+    if (streq (method, "$TERM")) {
         self->terminated = true;    //  Shutdown the engine
+        return -1;
+    }
     else
     if (streq (method, "CONSTRUCTOR")) {
         zstr_free (&self->args.endpoint);

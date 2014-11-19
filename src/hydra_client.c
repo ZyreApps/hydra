@@ -27,8 +27,11 @@ typedef struct _client_args_t client_args_t;
 //  This structure defines the context for a client connection
 typedef struct {
     //  These properties must always be present in the client_t
-    //  and are set by the generated engine.
-    zsock_t *pipe;              //  Actor pipe back to caller
+    //  and are set by the generated engine. The cmdpipe gets
+    //  messages sent to the actor; the msgpipe may be used for
+    //  faster asynchronous message flows.
+    zsock_t *cmdpipe;           //  Command pipe to/from caller API
+    zsock_t *msgpipe;           //  Message pipe to/from caller API
     zsock_t *dealer;            //  Socket to talk to server
     hydra_msg_t *message;       //  Message from and to server
     client_args_t *args;        //  Arguments from methods
@@ -109,7 +112,7 @@ prepare_to_send_get_post (client_t *self)
 static void
 return_tags_to_application (client_t *self)
 {
-    zsock_send (self->pipe, "ss", "TAGS",
+    zsock_send (self->cmdpipe, "ss", "TAGS",
                  hydra_msg_tags (self->message));
 }
 
@@ -121,7 +124,7 @@ return_tags_to_application (client_t *self)
 static void
 return_tag_to_application (client_t *self)
 {
-    zsock_send (self->pipe, "ss", "TAG",
+    zsock_send (self->cmdpipe, "ss", "TAG",
                  hydra_msg_tag (self->message),
                  hydra_msg_post_id (self->message));
 }
@@ -134,7 +137,7 @@ return_tag_to_application (client_t *self)
 static void
 return_post_to_application (client_t *self)
 {
-    zsock_send (self->pipe, "ssssiss", "POST",
+    zsock_send (self->cmdpipe, "ssssiss", "POST",
                  hydra_msg_post_id (self->message),
                  hydra_msg_reply_to (self->message),
                  hydra_msg_previous (self->message),
@@ -152,7 +155,7 @@ return_post_to_application (client_t *self)
 static void
 signal_success (client_t *self)
 {
-    zsock_send (self->pipe, "si", "SUCCESS", 0);
+    zsock_send (self->cmdpipe, "si", "SUCCESS", 0);
 }
 
 
@@ -163,7 +166,7 @@ signal_success (client_t *self)
 static void
 signal_server_not_present (client_t *self)
 {
-    zsock_send (self->pipe, "sis", "FAILURE", -1, "Server is not reachable");
+    zsock_send (self->cmdpipe, "sis", "FAILURE", -1, "Server is not reachable");
 }
 
 
@@ -174,7 +177,7 @@ signal_server_not_present (client_t *self)
 static void
 signal_failure (client_t *self)
 {
-    zsock_send (self->pipe, "si", "FAILURE", -1);
+    zsock_send (self->cmdpipe, "si", "FAILURE", -1);
 }
 
 

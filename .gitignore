@@ -1,6 +1,37 @@
-src/*.o
-src/hydra_selftest
-src/hydrad
+# Object files
+*.o
+*.ko
+
+# Libraries
+*.lib
+*.a
+*.la
+*.pc
+
+# Shared objects (inc. Windows DLLs)
+*.dll
+*.so
+*.so.*
+*.dylib
+*.lo
+
+# Executables
+hydra_selftest
+*.exe
+*.out
+*.app
+core
+
+# Man pages
+doc/*.1
+doc/*.3
+doc/*.7
+
+# autoconf files
+.deps
+.libs
+*.log
+*.trs
 Makefile
 Makefile.in
 aclocal.m4
@@ -9,24 +40,27 @@ config.log
 config.status
 config/
 configure
-doc/Makefile
-doc/Makefile.in
 libtool
-src/.deps/
-src/.dirstamp
-src/.libs/
-src/libhydra.la
-src/libhydra.pc
 src/platform.h
 src/platform.h.in
-src/src_libhydra_la-hydra_client.lo
-src/src_libhydra_la-hydra_msg.lo
-src/src_libhydra_la-hydra_server.lo
+src/platform.h.in~
 src/stamp-h1
-target
-.nrepl-port
-.lein-failures
-*~
-doc/*.3
-doc/*.7
+src/test-suite.log
+src/.dirstamp
 
+# qt-android build results
+builds/qt-android/prefix
+
+# Android - generated directories
+src/app/bin/
+src/app/gen/
+src/app/obj/
+src/app/local.properties
+
+# Android -dependencies
+builds/android/libsodium
+builds/android/libzmq
+builds/android/czmq
+builds/android/e2fsprogs
+builds/android/zyre
+src/app/jni/output
