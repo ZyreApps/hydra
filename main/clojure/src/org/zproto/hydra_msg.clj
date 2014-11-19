@@ -99,6 +99,41 @@
   (failed [this routing-id reason]
     (HydraMsg/sendFailed socket routing-id reason)))
 
+
+;;
+;; message setters
+;;
+
+(defn id! [^HydraMsg msg id]
+  (.setId msg id))
+
+(defn post-id! [^HydraMsg msg format & opts]
+ (.setPost_Id msg format (object-array opts)))
+
+(defn tags! [^HydraMsg msg format & opts]
+ (.setTags msg format (object-array opts)))
+
+(defn tag! [^HydraMsg msg format & opts]
+ (.setTag msg format (object-array opts)))
+
+(defn reply-to! [^HydraMsg msg format & opts]
+ (.setReply_To msg format (object-array opts)))
+
+(defn previous! [^HydraMsg msg format & opts]
+ (.setPrevious msg format (object-array opts)))
+
+(defn timestamp! [^HydraMsg msg timestamp]
+ (.setTimestamp msg timestamp))
+
+(defn type! [^HydraMsg msg format & opts]
+ (.setType msg format (object-array opts)))
+
+(defn content! [^HydraMsg msg format & opts]
+ (.setContent msg format (object-array opts)))
+
+(defn reason! [^HydraMsg msg format & opts]
+ (.setReason msg format (object-array opts)))
+
 (def context (zmq/context))
 
 (defn client-socket [endpoint]
