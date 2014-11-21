@@ -767,45 +767,33 @@ s_client_handle_cmdpipe (zloop_t *loop, zsock_t *reader, void *argument)
     if (streq (method, "VERBOSE"))
         self->verbose = true;       //  Start verbose logging
     else
-    if (streq (method, "$TERM")) {
+    if (streq (method, "$TERM"))
         self->terminated = true;    //  Shutdown the engine
-        return -1;
-    }
     else
     if (streq (method, "CONSTRUCTOR")) {
         zstr_free (&self->args.endpoint);
         zsock_recv (self->cmdpipe, "si", &self->args.endpoint, &self->args.timeout);
         s_client_execute (self, constructor_event);
-        if (self->terminated)
-            return -1;
     }
     else
     if (streq (method, "DESTRUCTOR")) {
         s_client_execute (self, destructor_event);
-        if (self->terminated)
-            return -1;
     }
     else
     if (streq (method, "GET TAGS")) {
         s_client_execute (self, get_tags_event);
-        if (self->terminated)
-            return -1;
     }
     else
     if (streq (method, "GET TAG")) {
         zstr_free (&self->args.tag);
         zsock_recv (self->cmdpipe, "s", &self->args.tag);
         s_client_execute (self, get_tag_event);
-        if (self->terminated)
-            return -1;
     }
     else
     if (streq (method, "GET POST")) {
         zstr_free (&self->args.post_id);
         zsock_recv (self->cmdpipe, "s", &self->args.post_id);
         s_client_execute (self, get_post_event);
-        if (self->terminated)
-            return -1;
     }
     //  Cleanup pipe if any argument frames are still waiting to be eaten
     if (zsock_rcvmore (self->cmdpipe)) {
@@ -815,7 +803,7 @@ s_client_handle_cmdpipe (zloop_t *loop, zsock_t *reader, void *argument)
         zmsg_destroy (&more);
     }
     zstr_free (&method);
-    return 0;
+    return self->terminated? -1: 0;
 }
 
 
