@@ -8,25 +8,38 @@
 
     <grammar>
     hydra = hello *( tags / tag / post ) [ goodbye ]
-
     hello = c:hello ( s:hello-ok / s:invalid / s:failed )
-    
-    get-tags = c:get-tags ( s:get-tags-ok / s:invalid / s:failed )
-    
-    get-tag = c:get-tag ( s:get-tag-ok / s:invalid / s:failed )
-    
     get-post = c:get-post ( s:get-post-ok / s:invalid / s:failed )
-
+    get-tags = c:get-tags ( s:get-tags-ok / s:invalid / s:failed )
+    get-tag = c:get-tag ( s:get-tag-ok / s:invalid / s:failed )
     goodbye = c:goodbye ( s:goodbye-ok / s:invalid / s:failed )
     </grammar>
 
     <message name = "hello">
-        Open new connection and ask for most recent post
+        Open new connection
+        <field name = "address" type = "string">Client address</field>
     </message>
 
     <message name = "hello ok">
-        Return last post known for peer
+        Accept new connection and return most recent (last) post.
         <field name = "post-id" type = "string">Post identifier</field>
+    </message>
+
+    <message name = "get post">
+        Fetch a given post's content
+        <field name = "post-id" type = "string">Post identifier</field>
+    </message>
+
+    <message name = "get post ok">
+        Return a post's metadata and content
+        <field name = "post-id" type = "string">Post identifier</field>
+        <field name = "reply-to" type = "string">Parent post, if any</field>
+        <field name = "previous" type = "string">Previous post, if any</field>
+        <field name = "tags" type = "strings">Content tags</field>
+        <field name = "timestamp" type = "string">Content date/time</field>
+        <field name = "digest" type = "octets" size = "20">SHA1 content digest</field>
+        <field name = "type" type = "string">Content type</field>
+        <field name = "content" type = "msg">Content body</field>
     </message>
 
     <message name = "get tags">
@@ -35,34 +48,18 @@
 
     <message name = "get tags ok">
         Return list of known tags
-        <field name = "tags" type = "string">List of known tags</field>
+        <field name = "tags" type = "strings">List of known tags</field>
     </message>
 
     <message name = "get tag">
-        Request last post for a given tag
+        Request summary for a given tag
         <field name = "tag" type = "string">Name of tag</field>
     </message>
 
     <message name = "get tag ok">
-        Return last post for given tag
+        Return latest post ID for given tag
         <field name = "tag" type = "string">Name of tag</field>
         <field name = "post-id" type = "string">Post identifier</field>
-    </message>
-
-    <message name = "get post">
-        Fetch a given post
-        <field name = "post-id" type = "string">Post identifier</field>
-    </message>
-
-    <message name = "get post ok">
-        Return a post details
-        <field name = "post-id" type = "string">Post identifier</field>
-        <field name = "reply-to" type = "string">Parent post, if any</field>
-        <field name = "previous" type = "string">Previous post, if any</field>
-        <field name = "tags" type = "string">Post tags</field>
-        <field name = "timestamp" type = "number" size = "8">Post creation timestamp</field>
-        <field name = "type" type = "string">Content type</field>
-        <field name = "content" type = "string">Content body</field>
     </message>
 
     <message name = "goodbye">

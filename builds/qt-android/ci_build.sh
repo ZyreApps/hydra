@@ -22,6 +22,9 @@ git clone https://github.com/zeromq/libzmq $ZMQ_ROOT
 export CZMQ_ROOT="/tmp/czmq"
 git clone https://github.com/zeromq/czmq $CZMQ_ROOT
 
+export ZYRE_ROOT="/tmp/zyre"
+git clone https://github.com/zeromq/zyre $ZYRE_ROOT
+
 source ./build.sh
 
 ################################################################################

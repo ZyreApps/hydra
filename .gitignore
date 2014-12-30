@@ -21,6 +21,7 @@ hydra_selftest
 *.out
 *.app
 core
+hydrad
 
 # Man pages
 doc/*.1

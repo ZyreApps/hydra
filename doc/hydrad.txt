@@ -1,0 +1,26 @@
+hydrad(1)
+=========
+
+NAME
+----
+hydrad - command-line service
+
+SYNOPSIS
+--------
+----
+Please add @interface section in ../src/hydrad.c.
+----
+
+DESCRIPTION
+-----------
+
+Hydrad is a test program.
+
+Please add @discuss section in ../src/hydrad.c.
+
+EXAMPLE
+-------
+.From hydrad_test method
+----
+Please add @selftest section in ../src/hydrad.c.
+----

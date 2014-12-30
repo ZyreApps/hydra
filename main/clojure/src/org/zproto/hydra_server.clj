@@ -31,7 +31,7 @@
 ;; the returning send function as a vector.
 ;;
 (defprotocol HydraServerBackend
-  (get-latest-post [this msg])
+  (get-latest-post [this msg address])
   (get-all-tags [this msg])
   (get-single-tag [this msg tag])
   (get-single-post [this msg post-id]))
@@ -69,7 +69,7 @@
 ;;
 (def state-events {
   :start {
-    HydraMsg/HELLO [ (action get-latest-post) (send HydraMsg/HELLO_OK) (next-state :connected) ]
+    HydraMsg/HELLO [ (action get-latest-post .address) (send HydraMsg/HELLO_OK) (next-state :connected) ]
     :* [ (send HydraMsg/INVALID) terminate ]
   }
   :connected {

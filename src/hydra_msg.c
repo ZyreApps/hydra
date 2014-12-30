@@ -37,14 +37,16 @@ struct _hydra_msg_t {
     int id;                             //  hydra_msg message ID
     byte *needle;                       //  Read/write pointer for serialization
     byte *ceiling;                      //  Valid upper limit for read pointer
+    char address [256];                 //  Client address
     char post_id [256];                 //  Post identifier
-    char tags [256];                    //  List of known tags
-    char tag [256];                     //  Name of tag
     char reply_to [256];                //  Parent post, if any
     char previous [256];                //  Previous post, if any
-    uint64_t timestamp;                 //  Post creation timestamp
+    zlist_t *tags;                      //  Content tags
+    char timestamp [256];               //  Content date/time
+    byte digest [20];                   //  SHA1 content digest
     char type [256];                    //  Content type
-    char content [256];                 //  Content body
+    zmsg_t *content;                    //  Content body
+    char tag [256];                     //  Name of tag
     char reason [256];                  //  Reason for failure
 };
 
@@ -221,6 +223,9 @@ hydra_msg_destroy (hydra_msg_t **self_p)
 
         //  Free class properties
         zframe_destroy (&self->routing_id);
+        if (self->tags)
+            zlist_destroy (&self->tags);
+        zmsg_destroy (&self->content);
 
         //  Free object itself
         free (self);
@@ -270,25 +275,10 @@ hydra_msg_recv (hydra_msg_t *self, zsock_t *input)
 
     switch (self->id) {
         case HYDRA_MSG_HELLO:
+            GET_STRING (self->address);
             break;
 
         case HYDRA_MSG_HELLO_OK:
-            GET_STRING (self->post_id);
-            break;
-
-        case HYDRA_MSG_GET_TAGS:
-            break;
-
-        case HYDRA_MSG_GET_TAGS_OK:
-            GET_STRING (self->tags);
-            break;
-
-        case HYDRA_MSG_GET_TAG:
-            GET_STRING (self->tag);
-            break;
-
-        case HYDRA_MSG_GET_TAG_OK:
-            GET_STRING (self->tag);
             GET_STRING (self->post_id);
             break;
 
@@ -300,10 +290,54 @@ hydra_msg_recv (hydra_msg_t *self, zsock_t *input)
             GET_STRING (self->post_id);
             GET_STRING (self->reply_to);
             GET_STRING (self->previous);
-            GET_STRING (self->tags);
-            GET_NUMBER8 (self->timestamp);
+            {
+                size_t list_size;
+                GET_NUMBER4 (list_size);
+                self->tags = zlist_new ();
+                zlist_autofree (self->tags);
+                while (list_size--) {
+                    char *string = NULL;
+                    GET_LONGSTR (string);
+                    zlist_append (self->tags, string);
+                    free (string);
+                }
+            }
+            GET_STRING (self->timestamp);
+            GET_OCTETS (self->digest, 20);
             GET_STRING (self->type);
-            GET_STRING (self->content);
+            //  Get zero or more remaining frames
+            zmsg_destroy (&self->content);
+            if (zsock_rcvmore (input))
+                self->content = zmsg_recv (input);
+            else
+                self->content = zmsg_new ();
+            break;
+
+        case HYDRA_MSG_GET_TAGS:
+            break;
+
+        case HYDRA_MSG_GET_TAGS_OK:
+            {
+                size_t list_size;
+                GET_NUMBER4 (list_size);
+                self->tags = zlist_new ();
+                zlist_autofree (self->tags);
+                while (list_size--) {
+                    char *string = NULL;
+                    GET_LONGSTR (string);
+                    zlist_append (self->tags, string);
+                    free (string);
+                }
+            }
+            break;
+
+        case HYDRA_MSG_GET_TAG:
+            GET_STRING (self->tag);
+            break;
+
+        case HYDRA_MSG_GET_TAG_OK:
+            GET_STRING (self->tag);
+            GET_STRING (self->post_id);
             break;
 
         case HYDRA_MSG_GOODBYE:
@@ -350,17 +384,10 @@ hydra_msg_send (hydra_msg_t *self, zsock_t *output)
 
     size_t frame_size = 2 + 1;          //  Signature and message ID
     switch (self->id) {
+        case HYDRA_MSG_HELLO:
+            frame_size += 1 + strlen (self->address);
+            break;
         case HYDRA_MSG_HELLO_OK:
-            frame_size += 1 + strlen (self->post_id);
-            break;
-        case HYDRA_MSG_GET_TAGS_OK:
-            frame_size += 1 + strlen (self->tags);
-            break;
-        case HYDRA_MSG_GET_TAG:
-            frame_size += 1 + strlen (self->tag);
-            break;
-        case HYDRA_MSG_GET_TAG_OK:
-            frame_size += 1 + strlen (self->tag);
             frame_size += 1 + strlen (self->post_id);
             break;
         case HYDRA_MSG_GET_POST:
@@ -370,10 +397,34 @@ hydra_msg_send (hydra_msg_t *self, zsock_t *output)
             frame_size += 1 + strlen (self->post_id);
             frame_size += 1 + strlen (self->reply_to);
             frame_size += 1 + strlen (self->previous);
-            frame_size += 1 + strlen (self->tags);
-            frame_size += 8;            //  timestamp
+            frame_size += 4;            //  Size is 4 octets
+            if (self->tags) {
+                char *tags = (char *) zlist_first (self->tags);
+                while (tags) {
+                    frame_size += 4 + strlen (tags);
+                    tags = (char *) zlist_next (self->tags);
+                }
+            }
+            frame_size += 1 + strlen (self->timestamp);
+            frame_size += 20;           //  digest
             frame_size += 1 + strlen (self->type);
-            frame_size += 1 + strlen (self->content);
+            break;
+        case HYDRA_MSG_GET_TAGS_OK:
+            frame_size += 4;            //  Size is 4 octets
+            if (self->tags) {
+                char *tags = (char *) zlist_first (self->tags);
+                while (tags) {
+                    frame_size += 4 + strlen (tags);
+                    tags = (char *) zlist_next (self->tags);
+                }
+            }
+            break;
+        case HYDRA_MSG_GET_TAG:
+            frame_size += 1 + strlen (self->tag);
+            break;
+        case HYDRA_MSG_GET_TAG_OK:
+            frame_size += 1 + strlen (self->tag);
+            frame_size += 1 + strlen (self->post_id);
             break;
         case HYDRA_MSG_FAILED:
             frame_size += 1 + strlen (self->reason);
@@ -385,23 +436,15 @@ hydra_msg_send (hydra_msg_t *self, zsock_t *output)
     self->needle = (byte *) zmq_msg_data (&frame);
     PUT_NUMBER2 (0xAAA0 | 0);
     PUT_NUMBER1 (self->id);
+    bool send_content = false;
     size_t nbr_frames = 1;              //  Total number of frames to send
     
     switch (self->id) {
+        case HYDRA_MSG_HELLO:
+            PUT_STRING (self->address);
+            break;
+
         case HYDRA_MSG_HELLO_OK:
-            PUT_STRING (self->post_id);
-            break;
-
-        case HYDRA_MSG_GET_TAGS_OK:
-            PUT_STRING (self->tags);
-            break;
-
-        case HYDRA_MSG_GET_TAG:
-            PUT_STRING (self->tag);
-            break;
-
-        case HYDRA_MSG_GET_TAG_OK:
-            PUT_STRING (self->tag);
             PUT_STRING (self->post_id);
             break;
 
@@ -413,10 +456,43 @@ hydra_msg_send (hydra_msg_t *self, zsock_t *output)
             PUT_STRING (self->post_id);
             PUT_STRING (self->reply_to);
             PUT_STRING (self->previous);
-            PUT_STRING (self->tags);
-            PUT_NUMBER8 (self->timestamp);
+            if (self->tags) {
+                PUT_NUMBER4 (zlist_size (self->tags));
+                char *tags = (char *) zlist_first (self->tags);
+                while (tags) {
+                    PUT_LONGSTR (tags);
+                    tags = (char *) zlist_next (self->tags);
+                }
+            }
+            else
+                PUT_NUMBER4 (0);    //  Empty string array
+            PUT_STRING (self->timestamp);
+            PUT_OCTETS (self->digest, 20);
             PUT_STRING (self->type);
-            PUT_STRING (self->content);
+            nbr_frames += self->content? zmsg_size (self->content): 1;
+            send_content = true;
+            break;
+
+        case HYDRA_MSG_GET_TAGS_OK:
+            if (self->tags) {
+                PUT_NUMBER4 (zlist_size (self->tags));
+                char *tags = (char *) zlist_first (self->tags);
+                while (tags) {
+                    PUT_LONGSTR (tags);
+                    tags = (char *) zlist_next (self->tags);
+                }
+            }
+            else
+                PUT_NUMBER4 (0);    //  Empty string array
+            break;
+
+        case HYDRA_MSG_GET_TAG:
+            PUT_STRING (self->tag);
+            break;
+
+        case HYDRA_MSG_GET_TAG_OK:
+            PUT_STRING (self->tag);
+            PUT_STRING (self->post_id);
             break;
 
         case HYDRA_MSG_FAILED:
@@ -427,6 +503,18 @@ hydra_msg_send (hydra_msg_t *self, zsock_t *output)
     //  Now send the data frame
     zmq_msg_send (&frame, zsock_resolve (output), --nbr_frames? ZMQ_SNDMORE: 0);
     
+    //  Now send the content if necessary
+    if (send_content) {
+        if (self->content) {
+            zframe_t *frame = zmsg_first (self->content);
+            while (frame) {
+                zframe_send (&frame, output, ZFRAME_REUSE + (--nbr_frames? ZFRAME_MORE: 0));
+                frame = zmsg_next (self->content);
+            }
+        }
+        else
+            zmq_send (zsock_resolve (output), NULL, 0, 0);
+    }
     return 0;
 }
 
@@ -441,42 +529,14 @@ hydra_msg_print (hydra_msg_t *self)
     switch (self->id) {
         case HYDRA_MSG_HELLO:
             zsys_debug ("HYDRA_MSG_HELLO:");
+            if (self->address)
+                zsys_debug ("    address='%s'", self->address);
+            else
+                zsys_debug ("    address=");
             break;
             
         case HYDRA_MSG_HELLO_OK:
             zsys_debug ("HYDRA_MSG_HELLO_OK:");
-            if (self->post_id)
-                zsys_debug ("    post_id='%s'", self->post_id);
-            else
-                zsys_debug ("    post_id=");
-            break;
-            
-        case HYDRA_MSG_GET_TAGS:
-            zsys_debug ("HYDRA_MSG_GET_TAGS:");
-            break;
-            
-        case HYDRA_MSG_GET_TAGS_OK:
-            zsys_debug ("HYDRA_MSG_GET_TAGS_OK:");
-            if (self->tags)
-                zsys_debug ("    tags='%s'", self->tags);
-            else
-                zsys_debug ("    tags=");
-            break;
-            
-        case HYDRA_MSG_GET_TAG:
-            zsys_debug ("HYDRA_MSG_GET_TAG:");
-            if (self->tag)
-                zsys_debug ("    tag='%s'", self->tag);
-            else
-                zsys_debug ("    tag=");
-            break;
-            
-        case HYDRA_MSG_GET_TAG_OK:
-            zsys_debug ("HYDRA_MSG_GET_TAG_OK:");
-            if (self->tag)
-                zsys_debug ("    tag='%s'", self->tag);
-            else
-                zsys_debug ("    tag=");
             if (self->post_id)
                 zsys_debug ("    post_id='%s'", self->post_id);
             else
@@ -505,19 +565,64 @@ hydra_msg_print (hydra_msg_t *self)
                 zsys_debug ("    previous='%s'", self->previous);
             else
                 zsys_debug ("    previous=");
-            if (self->tags)
-                zsys_debug ("    tags='%s'", self->tags);
+            zsys_debug ("    tags=");
+            if (self->tags) {
+                char *tags = (char *) zlist_first (self->tags);
+                while (tags) {
+                    zsys_debug ("        '%s'", tags);
+                    tags = (char *) zlist_next (self->tags);
+                }
+            }
+            if (self->timestamp)
+                zsys_debug ("    timestamp='%s'", self->timestamp);
             else
-                zsys_debug ("    tags=");
-            zsys_debug ("    timestamp=%ld", (long) self->timestamp);
+                zsys_debug ("    timestamp=");
+            zsys_debug ("    digest=[ ... ]");
             if (self->type)
                 zsys_debug ("    type='%s'", self->type);
             else
                 zsys_debug ("    type=");
+            zsys_debug ("    content=");
             if (self->content)
-                zsys_debug ("    content='%s'", self->content);
+                zmsg_print (self->content);
             else
-                zsys_debug ("    content=");
+                zsys_debug ("(NULL)");
+            break;
+            
+        case HYDRA_MSG_GET_TAGS:
+            zsys_debug ("HYDRA_MSG_GET_TAGS:");
+            break;
+            
+        case HYDRA_MSG_GET_TAGS_OK:
+            zsys_debug ("HYDRA_MSG_GET_TAGS_OK:");
+            zsys_debug ("    tags=");
+            if (self->tags) {
+                char *tags = (char *) zlist_first (self->tags);
+                while (tags) {
+                    zsys_debug ("        '%s'", tags);
+                    tags = (char *) zlist_next (self->tags);
+                }
+            }
+            break;
+            
+        case HYDRA_MSG_GET_TAG:
+            zsys_debug ("HYDRA_MSG_GET_TAG:");
+            if (self->tag)
+                zsys_debug ("    tag='%s'", self->tag);
+            else
+                zsys_debug ("    tag=");
+            break;
+            
+        case HYDRA_MSG_GET_TAG_OK:
+            zsys_debug ("HYDRA_MSG_GET_TAG_OK:");
+            if (self->tag)
+                zsys_debug ("    tag='%s'", self->tag);
+            else
+                zsys_debug ("    tag=");
+            if (self->post_id)
+                zsys_debug ("    post_id='%s'", self->post_id);
+            else
+                zsys_debug ("    post_id=");
             break;
             
         case HYDRA_MSG_GOODBYE:
@@ -593,6 +698,12 @@ hydra_msg_command (hydra_msg_t *self)
         case HYDRA_MSG_HELLO_OK:
             return ("HELLO_OK");
             break;
+        case HYDRA_MSG_GET_POST:
+            return ("GET_POST");
+            break;
+        case HYDRA_MSG_GET_POST_OK:
+            return ("GET_POST_OK");
+            break;
         case HYDRA_MSG_GET_TAGS:
             return ("GET_TAGS");
             break;
@@ -604,12 +715,6 @@ hydra_msg_command (hydra_msg_t *self)
             break;
         case HYDRA_MSG_GET_TAG_OK:
             return ("GET_TAG_OK");
-            break;
-        case HYDRA_MSG_GET_POST:
-            return ("GET_POST");
-            break;
-        case HYDRA_MSG_GET_POST_OK:
-            return ("GET_POST_OK");
             break;
         case HYDRA_MSG_GOODBYE:
             return ("GOODBYE");
@@ -626,6 +731,28 @@ hydra_msg_command (hydra_msg_t *self)
     }
     return "?";
 }
+
+//  --------------------------------------------------------------------------
+//  Get/set the address field
+
+const char *
+hydra_msg_address (hydra_msg_t *self)
+{
+    assert (self);
+    return self->address;
+}
+
+void
+hydra_msg_set_address (hydra_msg_t *self, const char *value)
+{
+    assert (self);
+    assert (value);
+    if (value == self->address)
+        return;
+    strncpy (self->address, value, 255);
+    self->address [255] = 0;
+}
+
 
 //  --------------------------------------------------------------------------
 //  Get/set the post_id field
@@ -646,50 +773,6 @@ hydra_msg_set_post_id (hydra_msg_t *self, const char *value)
         return;
     strncpy (self->post_id, value, 255);
     self->post_id [255] = 0;
-}
-
-
-//  --------------------------------------------------------------------------
-//  Get/set the tags field
-
-const char *
-hydra_msg_tags (hydra_msg_t *self)
-{
-    assert (self);
-    return self->tags;
-}
-
-void
-hydra_msg_set_tags (hydra_msg_t *self, const char *value)
-{
-    assert (self);
-    assert (value);
-    if (value == self->tags)
-        return;
-    strncpy (self->tags, value, 255);
-    self->tags [255] = 0;
-}
-
-
-//  --------------------------------------------------------------------------
-//  Get/set the tag field
-
-const char *
-hydra_msg_tag (hydra_msg_t *self)
-{
-    assert (self);
-    return self->tag;
-}
-
-void
-hydra_msg_set_tag (hydra_msg_t *self, const char *value)
-{
-    assert (self);
-    assert (value);
-    if (value == self->tag)
-        return;
-    strncpy (self->tag, value, 255);
-    self->tag [255] = 0;
 }
 
 
@@ -738,9 +821,44 @@ hydra_msg_set_previous (hydra_msg_t *self, const char *value)
 
 
 //  --------------------------------------------------------------------------
+//  Get the tags field, without transferring ownership
+
+zlist_t *
+hydra_msg_tags (hydra_msg_t *self)
+{
+    assert (self);
+    return self->tags;
+}
+
+//  Get the tags field and transfer ownership to caller
+
+zlist_t *
+hydra_msg_get_tags (hydra_msg_t *self)
+{
+    assert (self);
+    zlist_t *tags = self->tags;
+    self->tags = NULL;
+    return tags;
+}
+
+//  Set the tags field, transferring ownership from caller
+
+void
+hydra_msg_set_tags (hydra_msg_t *self, zlist_t **tags_p)
+{
+    assert (self);
+    assert (tags_p);
+    zlist_destroy (&self->tags);
+    self->tags = *tags_p;
+    *tags_p = NULL;
+}
+
+
+
+//  --------------------------------------------------------------------------
 //  Get/set the timestamp field
 
-uint64_t
+const char *
 hydra_msg_timestamp (hydra_msg_t *self)
 {
     assert (self);
@@ -748,10 +866,32 @@ hydra_msg_timestamp (hydra_msg_t *self)
 }
 
 void
-hydra_msg_set_timestamp (hydra_msg_t *self, uint64_t timestamp)
+hydra_msg_set_timestamp (hydra_msg_t *self, const char *value)
 {
     assert (self);
-    self->timestamp = timestamp;
+    assert (value);
+    if (value == self->timestamp)
+        return;
+    strncpy (self->timestamp, value, 255);
+    self->timestamp [255] = 0;
+}
+
+
+//  --------------------------------------------------------------------------
+//  Get/set the digest field
+
+byte *
+hydra_msg_digest (hydra_msg_t *self)
+{
+    assert (self);
+    return self->digest;
+}
+
+void
+hydra_msg_set_digest (hydra_msg_t *self, byte *digest)
+{
+    assert (self);
+    memcpy (self->digest, digest, 20);
 }
 
 
@@ -778,24 +918,57 @@ hydra_msg_set_type (hydra_msg_t *self, const char *value)
 
 
 //  --------------------------------------------------------------------------
-//  Get/set the content field
+//  Get the content field without transferring ownership
 
-const char *
+zmsg_t *
 hydra_msg_content (hydra_msg_t *self)
 {
     assert (self);
     return self->content;
 }
 
+//  Get the content field and transfer ownership to caller
+
+zmsg_t *
+hydra_msg_get_content (hydra_msg_t *self)
+{
+    zmsg_t *content = self->content;
+    self->content = NULL;
+    return content;
+}
+
+//  Set the content field, transferring ownership from caller
+
 void
-hydra_msg_set_content (hydra_msg_t *self, const char *value)
+hydra_msg_set_content (hydra_msg_t *self, zmsg_t **msg_p)
+{
+    assert (self);
+    assert (msg_p);
+    zmsg_destroy (&self->content);
+    self->content = *msg_p;
+    *msg_p = NULL;
+}
+
+
+//  --------------------------------------------------------------------------
+//  Get/set the tag field
+
+const char *
+hydra_msg_tag (hydra_msg_t *self)
+{
+    assert (self);
+    return self->tag;
+}
+
+void
+hydra_msg_set_tag (hydra_msg_t *self, const char *value)
 {
     assert (self);
     assert (value);
-    if (value == self->content)
+    if (value == self->tag)
         return;
-    strncpy (self->content, value, 255);
-    self->content [255] = 0;
+    strncpy (self->tag, value, 255);
+    self->tag [255] = 0;
 }
 
 
@@ -850,6 +1023,7 @@ hydra_msg_test (bool verbose)
     self = hydra_msg_new ();
     hydra_msg_set_id (self, HYDRA_MSG_HELLO);
 
+    hydra_msg_set_address (self, "Life is short but Now lasts for ever");
     //  Send twice
     hydra_msg_send (self, output);
     hydra_msg_send (self, output);
@@ -857,6 +1031,7 @@ hydra_msg_test (bool verbose)
     for (instance = 0; instance < 2; instance++) {
         hydra_msg_recv (self, input);
         assert (hydra_msg_routing_id (self));
+        assert (streq (hydra_msg_address (self), "Life is short but Now lasts for ever"));
     }
     hydra_msg_set_id (self, HYDRA_MSG_HELLO_OK);
 
@@ -870,6 +1045,56 @@ hydra_msg_test (bool verbose)
         assert (hydra_msg_routing_id (self));
         assert (streq (hydra_msg_post_id (self), "Life is short but Now lasts for ever"));
     }
+    hydra_msg_set_id (self, HYDRA_MSG_GET_POST);
+
+    hydra_msg_set_post_id (self, "Life is short but Now lasts for ever");
+    //  Send twice
+    hydra_msg_send (self, output);
+    hydra_msg_send (self, output);
+
+    for (instance = 0; instance < 2; instance++) {
+        hydra_msg_recv (self, input);
+        assert (hydra_msg_routing_id (self));
+        assert (streq (hydra_msg_post_id (self), "Life is short but Now lasts for ever"));
+    }
+    hydra_msg_set_id (self, HYDRA_MSG_GET_POST_OK);
+
+    hydra_msg_set_post_id (self, "Life is short but Now lasts for ever");
+    hydra_msg_set_reply_to (self, "Life is short but Now lasts for ever");
+    hydra_msg_set_previous (self, "Life is short but Now lasts for ever");
+    zlist_t *get_post_ok_tags = zlist_new ();
+    zlist_append (get_post_ok_tags, "Name: Brutus");
+    zlist_append (get_post_ok_tags, "Age: 43");
+    hydra_msg_set_tags (self, &get_post_ok_tags);
+    hydra_msg_set_timestamp (self, "Life is short but Now lasts for ever");
+    byte digest_data [HYDRA_MSG_DIGEST_SIZE];
+    memset (digest_data, 123, HYDRA_MSG_DIGEST_SIZE);
+    hydra_msg_set_digest (self, digest_data);
+    hydra_msg_set_type (self, "Life is short but Now lasts for ever");
+    zmsg_t *get_post_ok_content = zmsg_new ();
+    hydra_msg_set_content (self, &get_post_ok_content);
+    zmsg_addstr (hydra_msg_content (self), "Hello, World");
+    //  Send twice
+    hydra_msg_send (self, output);
+    hydra_msg_send (self, output);
+
+    for (instance = 0; instance < 2; instance++) {
+        hydra_msg_recv (self, input);
+        assert (hydra_msg_routing_id (self));
+        assert (streq (hydra_msg_post_id (self), "Life is short but Now lasts for ever"));
+        assert (streq (hydra_msg_reply_to (self), "Life is short but Now lasts for ever"));
+        assert (streq (hydra_msg_previous (self), "Life is short but Now lasts for ever"));
+        zlist_t *tags = hydra_msg_get_tags (self);
+        assert (zlist_size (tags) == 2);
+        assert (streq ((char *) zlist_first (tags), "Name: Brutus"));
+        assert (streq ((char *) zlist_next (tags), "Age: 43"));
+        zlist_destroy (&tags);
+        assert (streq (hydra_msg_timestamp (self), "Life is short but Now lasts for ever"));
+        assert (hydra_msg_digest (self) [0] == 123);
+        assert (hydra_msg_digest (self) [HYDRA_MSG_DIGEST_SIZE - 1] == 123);
+        assert (streq (hydra_msg_type (self), "Life is short but Now lasts for ever"));
+        assert (zmsg_size (hydra_msg_content (self)) == 1);
+    }
     hydra_msg_set_id (self, HYDRA_MSG_GET_TAGS);
 
     //  Send twice
@@ -882,7 +1107,10 @@ hydra_msg_test (bool verbose)
     }
     hydra_msg_set_id (self, HYDRA_MSG_GET_TAGS_OK);
 
-    hydra_msg_set_tags (self, "Life is short but Now lasts for ever");
+    zlist_t *get_tags_ok_tags = zlist_new ();
+    zlist_append (get_tags_ok_tags, "Name: Brutus");
+    zlist_append (get_tags_ok_tags, "Age: 43");
+    hydra_msg_set_tags (self, &get_tags_ok_tags);
     //  Send twice
     hydra_msg_send (self, output);
     hydra_msg_send (self, output);
@@ -890,7 +1118,11 @@ hydra_msg_test (bool verbose)
     for (instance = 0; instance < 2; instance++) {
         hydra_msg_recv (self, input);
         assert (hydra_msg_routing_id (self));
-        assert (streq (hydra_msg_tags (self), "Life is short but Now lasts for ever"));
+        zlist_t *tags = hydra_msg_get_tags (self);
+        assert (zlist_size (tags) == 2);
+        assert (streq ((char *) zlist_first (tags), "Name: Brutus"));
+        assert (streq ((char *) zlist_next (tags), "Age: 43"));
+        zlist_destroy (&tags);
     }
     hydra_msg_set_id (self, HYDRA_MSG_GET_TAG);
 
@@ -917,42 +1149,6 @@ hydra_msg_test (bool verbose)
         assert (hydra_msg_routing_id (self));
         assert (streq (hydra_msg_tag (self), "Life is short but Now lasts for ever"));
         assert (streq (hydra_msg_post_id (self), "Life is short but Now lasts for ever"));
-    }
-    hydra_msg_set_id (self, HYDRA_MSG_GET_POST);
-
-    hydra_msg_set_post_id (self, "Life is short but Now lasts for ever");
-    //  Send twice
-    hydra_msg_send (self, output);
-    hydra_msg_send (self, output);
-
-    for (instance = 0; instance < 2; instance++) {
-        hydra_msg_recv (self, input);
-        assert (hydra_msg_routing_id (self));
-        assert (streq (hydra_msg_post_id (self), "Life is short but Now lasts for ever"));
-    }
-    hydra_msg_set_id (self, HYDRA_MSG_GET_POST_OK);
-
-    hydra_msg_set_post_id (self, "Life is short but Now lasts for ever");
-    hydra_msg_set_reply_to (self, "Life is short but Now lasts for ever");
-    hydra_msg_set_previous (self, "Life is short but Now lasts for ever");
-    hydra_msg_set_tags (self, "Life is short but Now lasts for ever");
-    hydra_msg_set_timestamp (self, 123);
-    hydra_msg_set_type (self, "Life is short but Now lasts for ever");
-    hydra_msg_set_content (self, "Life is short but Now lasts for ever");
-    //  Send twice
-    hydra_msg_send (self, output);
-    hydra_msg_send (self, output);
-
-    for (instance = 0; instance < 2; instance++) {
-        hydra_msg_recv (self, input);
-        assert (hydra_msg_routing_id (self));
-        assert (streq (hydra_msg_post_id (self), "Life is short but Now lasts for ever"));
-        assert (streq (hydra_msg_reply_to (self), "Life is short but Now lasts for ever"));
-        assert (streq (hydra_msg_previous (self), "Life is short but Now lasts for ever"));
-        assert (streq (hydra_msg_tags (self), "Life is short but Now lasts for ever"));
-        assert (hydra_msg_timestamp (self) == 123);
-        assert (streq (hydra_msg_type (self), "Life is short but Now lasts for ever"));
-        assert (streq (hydra_msg_content (self), "Life is short but Now lasts for ever"));
     }
     hydra_msg_set_id (self, HYDRA_MSG_GOODBYE);
 

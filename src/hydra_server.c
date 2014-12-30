@@ -114,7 +114,10 @@ get_latest_post (client_t *self)
 static void
 get_all_tags (client_t *self)
 {
-    hydra_msg_set_tags (self->message, "photos people");
+    zlist_t *tags = zlist_new ();
+    zlist_append (tags, "photos");
+    zlist_append (tags, "people");
+    hydra_msg_set_tags (self->message, &tags);
 }
 
 
@@ -137,10 +140,14 @@ get_single_tag (client_t *self)
 static void
 get_single_post (client_t *self)
 {
-    hydra_msg_set_tags    (self->message, "photos");
+    zlist_t *tags = zlist_new ();
+    zlist_append (tags, "photos");
+    zmsg_t *msg = zmsg_new ();
+    zmsg_addstr (msg, "Hello, World");
     hydra_msg_set_post_id (self->message, "51a5578aa5398ebe8a92b3cf554fdb8113921010");
+    hydra_msg_set_tags    (self->message, &tags);
     hydra_msg_set_type    (self->message, "text/plain");
-    hydra_msg_set_content (self->message, "Hello, World");
+    hydra_msg_set_content (self->message, &msg);
 }
 
 

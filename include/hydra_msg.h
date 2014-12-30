@@ -26,34 +26,36 @@
 
 /*  These are the hydra_msg messages:
 
-    HELLO - Open new connection and ask for most recent post
+    HELLO - Open new connection
+        address             string      Client address
 
-    HELLO_OK - Return last post known for peer
+    HELLO_OK - Accept new connection and return most recent (last) post.
         post_id             string      Post identifier
+
+    GET_POST - Fetch a given post's content
+        post_id             string      Post identifier
+
+    GET_POST_OK - Return a post's metadata and content
+        post_id             string      Post identifier
+        reply_to            string      Parent post, if any
+        previous            string      Previous post, if any
+        tags                strings     Content tags
+        timestamp           string      Content date/time
+        digest              octets [20]  SHA1 content digest
+        type                string      Content type
+        content             msg         Content body
 
     GET_TAGS - Request list of tags known by peer
 
     GET_TAGS_OK - Return list of known tags
-        tags                string      List of known tags
+        tags                strings     List of known tags
 
-    GET_TAG - Request last post for a given tag
+    GET_TAG - Request summary for a given tag
         tag                 string      Name of tag
 
-    GET_TAG_OK - Return last post for given tag
+    GET_TAG_OK - Return latest post ID for given tag
         tag                 string      Name of tag
         post_id             string      Post identifier
-
-    GET_POST - Fetch a given post
-        post_id             string      Post identifier
-
-    GET_POST_OK - Return a post details
-        post_id             string      Post identifier
-        reply_to            string      Parent post, if any
-        previous            string      Previous post, if any
-        tags                string      Post tags
-        timestamp           number 8    Post creation timestamp
-        type                string      Content type
-        content             string      Content body
 
     GOODBYE - Close the connection politely
 
@@ -68,16 +70,17 @@
 
 #define HYDRA_MSG_HELLO                     1
 #define HYDRA_MSG_HELLO_OK                  2
-#define HYDRA_MSG_GET_TAGS                  3
-#define HYDRA_MSG_GET_TAGS_OK               4
-#define HYDRA_MSG_GET_TAG                   5
-#define HYDRA_MSG_GET_TAG_OK                6
-#define HYDRA_MSG_GET_POST                  7
-#define HYDRA_MSG_GET_POST_OK               8
+#define HYDRA_MSG_GET_POST                  3
+#define HYDRA_MSG_GET_POST_OK               4
+#define HYDRA_MSG_GET_TAGS                  5
+#define HYDRA_MSG_GET_TAGS_OK               6
+#define HYDRA_MSG_GET_TAG                   7
+#define HYDRA_MSG_GET_TAG_OK                8
 #define HYDRA_MSG_GOODBYE                   9
 #define HYDRA_MSG_GOODBYE_OK                10
 #define HYDRA_MSG_INVALID                   11
 #define HYDRA_MSG_FAILED                    12
+#define HYDRA_MSG_DIGEST_SIZE               20
 
 #include <czmq.h>
 
@@ -127,23 +130,17 @@ void
 const char *
     hydra_msg_command (hydra_msg_t *self);
 
+//  Get/set the address field
+const char *
+    hydra_msg_address (hydra_msg_t *self);
+void
+    hydra_msg_set_address (hydra_msg_t *self, const char *value);
+
 //  Get/set the post_id field
 const char *
     hydra_msg_post_id (hydra_msg_t *self);
 void
     hydra_msg_set_post_id (hydra_msg_t *self, const char *value);
-
-//  Get/set the tags field
-const char *
-    hydra_msg_tags (hydra_msg_t *self);
-void
-    hydra_msg_set_tags (hydra_msg_t *self, const char *value);
-
-//  Get/set the tag field
-const char *
-    hydra_msg_tag (hydra_msg_t *self);
-void
-    hydra_msg_set_tag (hydra_msg_t *self, const char *value);
 
 //  Get/set the reply_to field
 const char *
@@ -157,11 +154,27 @@ const char *
 void
     hydra_msg_set_previous (hydra_msg_t *self, const char *value);
 
+//  Get/set the tags field
+zlist_t *
+    hydra_msg_tags (hydra_msg_t *self);
+//  Get the tags field and transfer ownership to caller
+zlist_t *
+    hydra_msg_get_tags (hydra_msg_t *self);
+//  Set the tags field, transferring ownership from caller
+void
+    hydra_msg_set_tags (hydra_msg_t *self, zlist_t **tags_p);
+
 //  Get/set the timestamp field
-uint64_t
+const char *
     hydra_msg_timestamp (hydra_msg_t *self);
 void
-    hydra_msg_set_timestamp (hydra_msg_t *self, uint64_t timestamp);
+    hydra_msg_set_timestamp (hydra_msg_t *self, const char *value);
+
+//  Get/set the digest field
+byte *
+    hydra_msg_digest (hydra_msg_t *self);
+void
+    hydra_msg_set_digest (hydra_msg_t *self, byte *digest);
 
 //  Get/set the type field
 const char *
@@ -169,11 +182,21 @@ const char *
 void
     hydra_msg_set_type (hydra_msg_t *self, const char *value);
 
-//  Get/set the content field
-const char *
+//  Get a copy of the content field
+zmsg_t *
     hydra_msg_content (hydra_msg_t *self);
+//  Get the content field and transfer ownership to caller
+zmsg_t *
+    hydra_msg_get_content (hydra_msg_t *self);
+//  Set the content field, transferring ownership from caller
 void
-    hydra_msg_set_content (hydra_msg_t *self, const char *value);
+    hydra_msg_set_content (hydra_msg_t *self, zmsg_t **msg_p);
+
+//  Get/set the tag field
+const char *
+    hydra_msg_tag (hydra_msg_t *self);
+void
+    hydra_msg_set_tag (hydra_msg_t *self, const char *value);
 
 //  Get/set the reason field
 const char *

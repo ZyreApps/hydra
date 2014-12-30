@@ -23,10 +23,14 @@
   (:import [org.zproto HydraMsg]))
 
 (defprotocol PHydraMsg
-  (hello [this]
-    [this routing-id])
+  (hello [this address]
+    [this routing-id address])
   (hello-ok [this post-id]
     [this routing-id post-id])
+  (get-post [this post-id]
+    [this routing-id post-id])
+  (get-post-ok [this post-id reply-to previous tags timestamp digest type content]
+    [this routing-id post-id reply-to previous tags timestamp digest type content])
   (get-tags [this]
     [this routing-id])
   (get-tags-ok [this tags]
@@ -35,10 +39,6 @@
     [this routing-id tag])
   (get-tag-ok [this tag post-id]
     [this routing-id tag post-id])
-  (get-post [this post-id]
-    [this routing-id post-id])
-  (get-post-ok [this post-id reply-to previous tags timestamp type content]
-    [this routing-id post-id reply-to previous tags timestamp type content])
   (goodbye [this]
     [this routing-id])
   (goodbye-ok [this]
@@ -50,14 +50,22 @@
 
 (defrecord HydraMsgSocket [socket]
   PHydraMsg
-  (hello [this]
-    (HydraMsg/sendHello socket))
-  (hello [this routing-id]
-    (HydraMsg/sendHello socket routing-id))
+  (hello [this address]
+    (HydraMsg/sendHello socket address))
+  (hello [this routing-id address]
+    (HydraMsg/sendHello socket routing-id address))
   (hello-ok [this post-id]
     (HydraMsg/sendHello_Ok socket post-id))
   (hello-ok [this routing-id post-id]
     (HydraMsg/sendHello_Ok socket routing-id post-id))
+  (get-post [this post-id]
+    (HydraMsg/sendGet_Post socket post-id))
+  (get-post [this routing-id post-id]
+    (HydraMsg/sendGet_Post socket routing-id post-id))
+  (get-post-ok [this post-id reply-to previous tags timestamp digest type content]
+    (HydraMsg/sendGet_Post_Ok socket post-id reply-to previous tags timestamp digest type content))
+  (get-post-ok [this routing-id post-id reply-to previous tags timestamp digest type content]
+    (HydraMsg/sendGet_Post_Ok socket routing-id post-id reply-to previous tags timestamp digest type content))
   (get-tags [this]
     (HydraMsg/sendGet_Tags socket))
   (get-tags [this routing-id]
@@ -74,14 +82,6 @@
     (HydraMsg/sendGet_Tag_Ok socket tag post-id))
   (get-tag-ok [this routing-id tag post-id]
     (HydraMsg/sendGet_Tag_Ok socket routing-id tag post-id))
-  (get-post [this post-id]
-    (HydraMsg/sendGet_Post socket post-id))
-  (get-post [this routing-id post-id]
-    (HydraMsg/sendGet_Post socket routing-id post-id))
-  (get-post-ok [this post-id reply-to previous tags timestamp type content]
-    (HydraMsg/sendGet_Post_Ok socket post-id reply-to previous tags timestamp type content))
-  (get-post-ok [this routing-id post-id reply-to previous tags timestamp type content]
-    (HydraMsg/sendGet_Post_Ok socket routing-id post-id reply-to previous tags timestamp type content))
   (goodbye [this]
     (HydraMsg/sendGoodbye socket))
   (goodbye [this routing-id]
@@ -107,14 +107,11 @@
 (defn id! [^HydraMsg msg id]
   (.setId msg id))
 
+(defn address! [^HydraMsg msg format & opts]
+ (.setAddress msg format (object-array opts)))
+
 (defn post-id! [^HydraMsg msg format & opts]
  (.setPost_Id msg format (object-array opts)))
-
-(defn tags! [^HydraMsg msg format & opts]
- (.setTags msg format (object-array opts)))
-
-(defn tag! [^HydraMsg msg format & opts]
- (.setTag msg format (object-array opts)))
 
 (defn reply-to! [^HydraMsg msg format & opts]
  (.setReply_To msg format (object-array opts)))
@@ -122,14 +119,23 @@
 (defn previous! [^HydraMsg msg format & opts]
  (.setPrevious msg format (object-array opts)))
 
-(defn timestamp! [^HydraMsg msg timestamp]
- (.setTimestamp msg timestamp))
+(defn tags! [^HydraMsg msg tags]
+ (.setTags msg tags))
+
+(defn timestamp! [^HydraMsg msg format & opts]
+ (.setTimestamp msg format (object-array opts)))
+
+(defn digest! [^HydraMsg msg digest]
+ (.setDigest msg digest))
 
 (defn type! [^HydraMsg msg format & opts]
  (.setType msg format (object-array opts)))
 
-(defn content! [^HydraMsg msg format & opts]
- (.setContent msg format (object-array opts)))
+(defn content! [^HydraMsg msg content]
+ (.setContent msg content))
+
+(defn tag! [^HydraMsg msg format & opts]
+ (.setTag msg format (object-array opts)))
 
 (defn reason! [^HydraMsg msg format & opts]
  (.setReason msg format (object-array opts)))
