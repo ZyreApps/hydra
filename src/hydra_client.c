@@ -157,7 +157,7 @@ store_the_post (client_t *self)
     zstr_free (&filename);
 
     if (*hydra_proto_digest (self->message)) {
-        filename = zsys_sprintf ("content/%s", hydra_proto_digest (self->message));
+        filename = zsys_sprintf ("contents/%s", hydra_proto_digest (self->message));
         FILE *handle = fopen (filename, "wb");
         if (handle) {
             zchunk_t *chunk = hydra_proto_content (self->message);

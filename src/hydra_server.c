@@ -167,7 +167,7 @@ get_single_post (client_t *self)
         
         //  Get post content into message
         if (*hydra_proto_digest (self->message)) {
-            filename = zsys_sprintf ("content/%s", hydra_proto_digest (self->message));
+            filename = zsys_sprintf ("contents/%s", hydra_proto_digest (self->message));
             zchunk_t *chunk = zchunk_slurp (filename, CONTENT_MAX_SIZE);
             if (chunk) {
                 zsys_info (" - content size=%zd", zchunk_size (chunk));
