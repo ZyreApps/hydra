@@ -31,7 +31,7 @@ main (int argc, char *argv [])
 
     printf ("Running hydra selftests...\n");
 
-    hydra_msg_test (verbose); 
+    hydra_proto_test (verbose); 
     hydra_server_test (verbose); 
     hydra_client_test (verbose); 
 

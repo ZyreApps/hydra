@@ -81,7 +81,7 @@
     <ClInclude Include="..\..\..\..\include\hydra.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\..\src\hydra_msg.c">
+    <ClCompile Include="..\..\..\..\src\hydra_proto.c">
       <CompileAs>CompileAsCpp</CompileAs>
     </ClCompile>
     <ClCompile Include="..\..\..\..\src\hydra_server.c">

@@ -1,5 +1,5 @@
 <class
-    name = "hydra_msg"
+    name = "hydra_proto"
     title = "The Hydra Protocol"
     script = "zproto_codec_c"
     package_dir = "../include"
@@ -17,12 +17,15 @@
 
     <message name = "hello">
         Open new connection
-        <field name = "address" type = "string">Client address</field>
+        <field name = "identity" type = "string">Client identity</field>
+        <field name = "nickname" type = "string">Client nickname</field>
     </message>
 
     <message name = "hello ok">
-        Accept new connection and return most recent (last) post.
+        Accept new connection and return most recent post, if any.
         <field name = "post-id" type = "string">Post identifier</field>
+        <field name = "identity" type = "string">Server identity</field>
+        <field name = "nickname" type = "string">Server nickname</field>
     </message>
 
     <message name = "get post">
@@ -35,20 +38,20 @@
         <field name = "post-id" type = "string">Post identifier</field>
         <field name = "reply-to" type = "string">Parent post, if any</field>
         <field name = "previous" type = "string">Previous post, if any</field>
-        <field name = "tags" type = "strings">Content tags</field>
+        <field name = "tags" type = "string">Content tags, space delimited</field>
         <field name = "timestamp" type = "string">Content date/time</field>
-        <field name = "digest" type = "octets" size = "20">SHA1 content digest</field>
+        <field name = "digest" type = "string">Content digest</field>
         <field name = "type" type = "string">Content type</field>
-        <field name = "content" type = "msg">Content body</field>
+        <field name = "content" type = "chunk">Content body</field>
     </message>
 
     <message name = "get tags">
-        Request list of tags known by peer
+        Request list of all tags known by peer
     </message>
 
     <message name = "get tags ok">
         Return list of known tags
-        <field name = "tags" type = "strings">List of known tags</field>
+        <field name = "tags" type = "string">Known tags, space delimited</field>
     </message>
 
     <message name = "get tag">
@@ -70,12 +73,30 @@
         Handshake a connection close
     </message>
 
-    <message name = "invalid">
-        Command was invalid at this time
+    <message name = "error">
+        Command failed for some specific reason
+        <field name = "status" type = "number" size = "2">3-digit status code</field>
+        <field name = "reason" type = "string">Printable explanation</field>
     </message>
 
-    <message name = "failed">
-        Command failed for some specific reason
-        <field name = "reason" type = "string">Reason for failure</field>
-    </message>
+    <!-- Success codes -->
+    <define name = "SUCCESS" value = "200" />
+    <define name = "STORED" value = "201" />
+    <define name = "DELIVERED" value = "202" />
+
+    <!-- Temporary errors -->
+    <define name = "NOT DELIVERED" value = "300" />
+    <define name = "CONTENT TOO LARGE" value = "301" />
+    <define name = "TIMEOUT EXPIRED" value = "302" />
+    <define name = "CONNECTION REFUSED" value = "303" />
+
+    <!-- Application errors -->
+    <define name = "RESOURCE LOCKED" value = "400" />
+    <define name = "ACCESS REFUSED" value = "401" />
+    <define name = "NOT FOUND" value = "404" />
+
+    <!-- System errors -->
+    <define name = "COMMAND INVALID" value = "500" />
+    <define name = "NOT IMPLEMENTED" value = "501" />
+    <define name = "INTERNAL ERROR" value = "502" />
 </class>

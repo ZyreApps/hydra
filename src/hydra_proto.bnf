@@ -9,14 +9,17 @@ The following ABNF grammar defines the The Hydra Protocol:
 
     ;  Open new connection                                                   
 
-    HELLO           = signature %d1 address
+    HELLO           = signature %d1 identity nickname
     signature       = %xAA %xA0             ; two octets
-    address         = string                ; Client address
+    identity        = string                ; Client identity
+    nickname        = string                ; Client nickname
 
-    ;  Accept new connection and return most recent (last) post.             
+    ;  Accept new connection and return most recent post, if any.            
 
-    HELLO-OK        = signature %d2 post-id
+    HELLO-OK        = signature %d2 post-id identity nickname
     post-id         = string                ; Post identifier
+    identity        = string                ; Server identity
+    nickname        = string                ; Server nickname
 
     ;  Fetch a given post's content                                          
 
@@ -29,20 +32,20 @@ The following ABNF grammar defines the The Hydra Protocol:
     post-id         = string                ; Post identifier
     reply-to        = string                ; Parent post, if any
     previous        = string                ; Previous post, if any
-    tags            = strings               ; Content tags
+    tags            = string                ; Content tags, space delimited
     timestamp       = string                ; Content date/time
-    digest          = 20OCTET               ; SHA1 content digest
+    digest          = string                ; Content digest
     type            = string                ; Content type
-    content         = msg                   ; Content body
+    content         = chunk                 ; Content body
 
-    ;  Request list of tags known by peer                                    
+    ;  Request list of all tags known by peer                                
 
     GET-TAGS        = signature %d5
 
     ;  Return list of known tags                                             
 
     GET-TAGS-OK     = signature %d6 tags
-    tags            = strings               ; List of known tags
+    tags            = string                ; Known tags, space delimited
 
     ;  Request summary for a given tag                                       
 
@@ -63,27 +66,19 @@ The following ABNF grammar defines the The Hydra Protocol:
 
     GOODBYE-OK      = signature %d10
 
-    ;  Command was invalid at this time                                      
-
-    INVALID         = signature %d11
-
     ;  Command failed for some specific reason                               
 
-    FAILED          = signature %d12 reason
-    reason          = string                ; Reason for failure
+    ERROR           = signature %d11 status reason
+    status          = number-2              ; 3-digit status code
+    reason          = string                ; Printable explanation
 
-    ; A list of string values
-    strings         = strings-count *strings-value
-    strings-count   = number-4
-    strings-value   = longstr
-
-    ; A msg is zero or more distinct frames
-    msg             = *frame
+    ; A chunk has 4-octet length + binary contents
+    chunk           = number-4 *OCTET
 
     ; Strings are always length + text contents
     string          = number-1 *VCHAR
-    longstr         = number-4 *VCHAR
 
     ; Numbers are unsigned integers in network byte order
     number-1        = 1OCTET
+    number-2        = 2OCTET
     number-4        = 4OCTET

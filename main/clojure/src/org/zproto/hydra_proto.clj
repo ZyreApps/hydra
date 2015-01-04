@@ -1,5 +1,5 @@
 ;;  =========================================================================
-;;    HydraMsg - The Hydra Protocol
+;;    HydraProto - The Hydra Protocol
 ;;
 ;;    ** WARNING *************************************************************
 ;;    THIS SOURCE FILE IS 100% GENERATED. If you edit this file, you will lose
@@ -7,7 +7,7 @@
 ;;    statements. DO NOT MAKE ANY CHANGES YOU WISH TO KEEP. The correct places
 ;;    for commits are:
 ;;
-;;    * The XML model used for this code generation: hydra_msg.xml
+;;    * The XML model used for this code generation: hydra_proto.xml
 ;;    * The code generation script that built this file: zproto_codec_c
 ;;    ************************************************************************
 ;;    Copyright (c) the Contributors as noted in the AUTHORS file.       
@@ -18,15 +18,15 @@
 ;;    file, You can obtain one at http://mozilla.org/MPL/2.0/.           
 ;;    =========================================================================
 
-(ns org.zproto.hydra-msg
+(ns org.zproto.hydra-proto
   (:require [zeromq.zmq :as zmq])
-  (:import [org.zproto HydraMsg]))
+  (:import [org.zproto HydraProto]))
 
-(defprotocol PHydraMsg
-  (hello [this address]
-    [this routing-id address])
-  (hello-ok [this post-id]
-    [this routing-id post-id])
+(defprotocol PHydraProto
+  (hello [this identity nickname]
+    [this routing-id identity nickname])
+  (hello-ok [this post-id identity nickname]
+    [this routing-id post-id identity nickname])
   (get-post [this post-id]
     [this routing-id post-id])
   (get-post-ok [this post-id reply-to previous tags timestamp digest type content]
@@ -43,101 +43,101 @@
     [this routing-id])
   (goodbye-ok [this]
     [this routing-id])
-  (invalid [this]
-    [this routing-id])
-  (failed [this reason]
-    [this routing-id reason]))
+  (error [this status reason]
+    [this routing-id status reason]))
 
-(defrecord HydraMsgSocket [socket]
-  PHydraMsg
-  (hello [this address]
-    (HydraMsg/sendHello socket address))
-  (hello [this routing-id address]
-    (HydraMsg/sendHello socket routing-id address))
-  (hello-ok [this post-id]
-    (HydraMsg/sendHello_Ok socket post-id))
-  (hello-ok [this routing-id post-id]
-    (HydraMsg/sendHello_Ok socket routing-id post-id))
+(defrecord HydraProtoSocket [socket]
+  PHydraProto
+  (hello [this identity nickname]
+    (HydraProto/sendHello socket identity nickname))
+  (hello [this routing-id identity nickname]
+    (HydraProto/sendHello socket routing-id identity nickname))
+  (hello-ok [this post-id identity nickname]
+    (HydraProto/sendHello_Ok socket post-id identity nickname))
+  (hello-ok [this routing-id post-id identity nickname]
+    (HydraProto/sendHello_Ok socket routing-id post-id identity nickname))
   (get-post [this post-id]
-    (HydraMsg/sendGet_Post socket post-id))
+    (HydraProto/sendGet_Post socket post-id))
   (get-post [this routing-id post-id]
-    (HydraMsg/sendGet_Post socket routing-id post-id))
+    (HydraProto/sendGet_Post socket routing-id post-id))
   (get-post-ok [this post-id reply-to previous tags timestamp digest type content]
-    (HydraMsg/sendGet_Post_Ok socket post-id reply-to previous tags timestamp digest type content))
+    (HydraProto/sendGet_Post_Ok socket post-id reply-to previous tags timestamp digest type content))
   (get-post-ok [this routing-id post-id reply-to previous tags timestamp digest type content]
-    (HydraMsg/sendGet_Post_Ok socket routing-id post-id reply-to previous tags timestamp digest type content))
+    (HydraProto/sendGet_Post_Ok socket routing-id post-id reply-to previous tags timestamp digest type content))
   (get-tags [this]
-    (HydraMsg/sendGet_Tags socket))
+    (HydraProto/sendGet_Tags socket))
   (get-tags [this routing-id]
-    (HydraMsg/sendGet_Tags socket routing-id))
+    (HydraProto/sendGet_Tags socket routing-id))
   (get-tags-ok [this tags]
-    (HydraMsg/sendGet_Tags_Ok socket tags))
+    (HydraProto/sendGet_Tags_Ok socket tags))
   (get-tags-ok [this routing-id tags]
-    (HydraMsg/sendGet_Tags_Ok socket routing-id tags))
+    (HydraProto/sendGet_Tags_Ok socket routing-id tags))
   (get-tag [this tag]
-    (HydraMsg/sendGet_Tag socket tag))
+    (HydraProto/sendGet_Tag socket tag))
   (get-tag [this routing-id tag]
-    (HydraMsg/sendGet_Tag socket routing-id tag))
+    (HydraProto/sendGet_Tag socket routing-id tag))
   (get-tag-ok [this tag post-id]
-    (HydraMsg/sendGet_Tag_Ok socket tag post-id))
+    (HydraProto/sendGet_Tag_Ok socket tag post-id))
   (get-tag-ok [this routing-id tag post-id]
-    (HydraMsg/sendGet_Tag_Ok socket routing-id tag post-id))
+    (HydraProto/sendGet_Tag_Ok socket routing-id tag post-id))
   (goodbye [this]
-    (HydraMsg/sendGoodbye socket))
+    (HydraProto/sendGoodbye socket))
   (goodbye [this routing-id]
-    (HydraMsg/sendGoodbye socket routing-id))
+    (HydraProto/sendGoodbye socket routing-id))
   (goodbye-ok [this]
-    (HydraMsg/sendGoodbye_Ok socket))
+    (HydraProto/sendGoodbye_Ok socket))
   (goodbye-ok [this routing-id]
-    (HydraMsg/sendGoodbye_Ok socket routing-id))
-  (invalid [this]
-    (HydraMsg/sendInvalid socket))
-  (invalid [this routing-id]
-    (HydraMsg/sendInvalid socket routing-id))
-  (failed [this reason]
-    (HydraMsg/sendFailed socket reason))
-  (failed [this routing-id reason]
-    (HydraMsg/sendFailed socket routing-id reason)))
+    (HydraProto/sendGoodbye_Ok socket routing-id))
+  (error [this status reason]
+    (HydraProto/sendError socket status reason))
+  (error [this routing-id status reason]
+    (HydraProto/sendError socket routing-id status reason)))
 
 
 ;;
 ;; message setters
 ;;
 
-(defn id! [^HydraMsg msg id]
+(defn id! [^HydraProto msg id]
   (.setId msg id))
 
-(defn address! [^HydraMsg msg format & opts]
- (.setAddress msg format (object-array opts)))
+(defn identity! [^HydraProto msg format & opts]
+ (.setIdentity msg format (object-array opts)))
 
-(defn post-id! [^HydraMsg msg format & opts]
+(defn nickname! [^HydraProto msg format & opts]
+ (.setNickname msg format (object-array opts)))
+
+(defn post-id! [^HydraProto msg format & opts]
  (.setPost_Id msg format (object-array opts)))
 
-(defn reply-to! [^HydraMsg msg format & opts]
+(defn reply-to! [^HydraProto msg format & opts]
  (.setReply_To msg format (object-array opts)))
 
-(defn previous! [^HydraMsg msg format & opts]
+(defn previous! [^HydraProto msg format & opts]
  (.setPrevious msg format (object-array opts)))
 
-(defn tags! [^HydraMsg msg tags]
- (.setTags msg tags))
+(defn tags! [^HydraProto msg format & opts]
+ (.setTags msg format (object-array opts)))
 
-(defn timestamp! [^HydraMsg msg format & opts]
+(defn timestamp! [^HydraProto msg format & opts]
  (.setTimestamp msg format (object-array opts)))
 
-(defn digest! [^HydraMsg msg digest]
- (.setDigest msg digest))
+(defn digest! [^HydraProto msg format & opts]
+ (.setDigest msg format (object-array opts)))
 
-(defn type! [^HydraMsg msg format & opts]
+(defn type! [^HydraProto msg format & opts]
  (.setType msg format (object-array opts)))
 
-(defn content! [^HydraMsg msg content]
+(defn content! [^HydraProto msg content]
  (.setContent msg content))
 
-(defn tag! [^HydraMsg msg format & opts]
+(defn tag! [^HydraProto msg format & opts]
  (.setTag msg format (object-array opts)))
 
-(defn reason! [^HydraMsg msg format & opts]
+(defn status! [^HydraProto msg status]
+ (.setStatus msg status))
+
+(defn reason! [^HydraProto msg format & opts]
  (.setReason msg format (object-array opts)))
 
 (def context (zmq/context))
@@ -146,13 +146,13 @@
   (let [socket (doto (zmq/socket context :dealer)
                  (zmq/set-receive-timeout 1000)
                  (zmq/connect endpoint))]
-    (->HydraMsgSocket socket)))
+    (->HydraProtoSocket socket)))
 
 (defn server-socket [endpoint]
   (let [socket (doto (zmq/socket context :router)
                  (zmq/set-receive-timeout 1000)
                  (zmq/bind endpoint))]
-     (->HydraMsgSocket socket)))
+     (->HydraProtoSocket socket)))
 
 (defn recv [{:keys [socket]}]
-  (HydraMsg/recv socket))
+  (HydraProto/recv socket))

@@ -34,8 +34,11 @@ typedef struct {
     zsock_t *cmdpipe;           //  Command pipe to/from caller API
     zsock_t *msgpipe;           //  Message pipe to/from caller API
     zsock_t *dealer;            //  Socket to talk to server
-    hydra_msg_t *message;       //  Message from and to server
+    hydra_proto_t *message;     //  Message from and to server
     client_args_t *args;        //  Arguments from methods
+
+    //  Custom properties
+    zconfig_t *config;          //  Configuration tree
 } client_t;
 
 //  Include the generated client engine
@@ -47,6 +50,9 @@ typedef struct {
 static int
 client_initialize (client_t *self)
 {
+    //  Get node identity from config file, or generate new identity
+    self->config = zconfig_load ("hydra.cfg");
+    assert (self->config);
     return 0;
 }
 
@@ -55,20 +61,7 @@ client_initialize (client_t *self)
 static void
 client_terminate (client_t *self)
 {
-    //  Destroy properties here
-}
-
-
-
-
-//  ---------------------------------------------------------------------------
-//  set_client_address
-//
-
-static void
-set_client_address (client_t *self)
-{
-
+    zconfig_destroy (&self->config);
 }
 
 
@@ -98,13 +91,28 @@ connect_to_server_endpoint (client_t *self)
 
 
 //  ---------------------------------------------------------------------------
+//  set_client_identity
+//
+
+static void
+set_client_identity (client_t *self)
+{
+    char *identity = zconfig_resolve (self->config, "/hydra/identity", NULL);
+    char *nickname = zconfig_resolve (self->config, "/hydra/nickname", "");
+    assert (identity);
+    hydra_proto_set_identity (self->message, identity);
+    hydra_proto_set_nickname (self->message, nickname);
+}
+
+
+//  ---------------------------------------------------------------------------
 //  use_response_timeout
 //
 
 static void
 use_response_timeout (client_t *self)
 {
-
+    engine_set_timeout (self, 1000);
 }
 
 
@@ -115,7 +123,16 @@ use_response_timeout (client_t *self)
 static void
 prepare_to_get_last_post (client_t *self)
 {
-    engine_set_exception (self, have_post_event);
+    //  Check if we already have the post
+    const char *post_id = hydra_proto_post_id (self->message);
+    if (*post_id) {
+        char *filename = zsys_sprintf ("posts/%s", hydra_proto_post_id (self->message));
+        if (zsys_file_exists (filename))
+            engine_set_exception (self, have_post_event);
+        zstr_free (&filename);
+    }
+    else
+        engine_set_exception (self, got_nothing_event);
 }
 
 
@@ -126,7 +143,40 @@ prepare_to_get_last_post (client_t *self)
 static void
 store_the_post (client_t *self)
 {
+    zsys_info ("receiving post=%s", hydra_proto_post_id (self->message));
 
+    zconfig_t *post = zconfig_new ("root", NULL);
+    zconfig_put (post, "/post/reply_to",  hydra_proto_reply_to  (self->message));
+    zconfig_put (post, "/post/previous",  hydra_proto_previous  (self->message));
+    zconfig_put (post, "/post/tags",      hydra_proto_tags      (self->message));
+    zconfig_put (post, "/post/timestamp", hydra_proto_timestamp (self->message));
+    zconfig_put (post, "/post/digest",    hydra_proto_digest    (self->message));
+    zconfig_put (post, "/post/type",      hydra_proto_type      (self->message));
+    char *filename = zsys_sprintf ("posts/%s", hydra_proto_post_id (self->message));
+    if (zconfig_save (post, filename))
+        zsys_error ("can't write post to %s", filename);
+    zstr_free (&filename);
+
+    if (*hydra_proto_digest (self->message)) {
+        filename = zsys_sprintf ("content/%s", hydra_proto_digest (self->message));
+        FILE *handle = fopen (filename, "wb");
+        if (handle) {
+            zchunk_t *chunk = hydra_proto_content (self->message);
+            zsys_info (" - writing content size=%zd", zchunk_size (chunk));
+            zchunk_write (chunk, handle);
+            fclose (handle);
+        }
+        else
+            zsys_error ("can't write content to %s", filename);
+        zstr_free (&filename);
+    }
+    FILE *handle = fopen ("hydra.dat", "a");
+    if (handle) {
+        fprintf (handle, "%s\n", hydra_proto_post_id (self->message));
+        fclose (handle);
+    }
+    else
+        zsys_error ("can't write to hydra.dat: %s", strerror (errno));
 }
 
 
@@ -137,7 +187,8 @@ store_the_post (client_t *self)
 static void
 prepare_to_get_previous_post (client_t *self)
 {
-
+    //  XXX
+    engine_set_exception (self, have_post_event);
 }
 
 
@@ -211,14 +262,16 @@ hydra_client_test (bool verbose)
     zactor_t *server = zactor_new (hydra_server, "hydra_client_test");
     if (verbose)
         zstr_send (server, "VERBOSE");
+    zstr_sendx (server, "CONFIGURE", "hydra.cfg", NULL);
     zstr_sendx (server, "BIND", "ipc://@/hydra", NULL);
     
+    hydra_client_verbose = verbose;
     hydra_client_t *client = hydra_client_new ("ipc://@/hydra", 500);
-    if (verbose)
-        hydra_client_verbose (client);
+    hydra_client_fetch (client);
     hydra_client_destroy (&client);
     
     zactor_destroy (&server);
     //  @end
     printf ("OK\n");
 }
+

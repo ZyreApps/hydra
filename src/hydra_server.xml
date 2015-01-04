@@ -2,21 +2,23 @@
     name = "hydra_server"
     title = "Hydra Server (in C)"
     script = "zproto_server_c"
-    protocol_class = "hydra_msg"
+    protocol_class = "hydra_proto"
     package_dir = "../include"
     project_header = "hydra_classes.h"
     >
-    This is a server implementation of the Hydra Protocol
+    This is a server implementation of the Hydra Protocol; we do not fetch
+    content, only serve it. Fetching is done by a separate client instance.
     <include filename = "../license.xml" />
 
-    <state name = "start" inherit = "external">
+    <state name = "start" inherit = "defaults">
         <event name = "HELLO" next = "connected">
-            <action name = "get latest post" />
+            <action name = "set server identity" />
+            <action name = "get most recent post" />
             <action name = "send" message = "HELLO OK" />
         </event>
     </state>
 
-    <state name = "connected" inherit = "external">
+    <state name = "connected" inherit = "defaults">
         <event name = "GET TAGS">
             <action name = "get all tags" />
             <action name = "send" message = "GET TAGS OK" />
@@ -29,17 +31,41 @@
             <action name = "get single post" />
             <action name = "send" message = "GET POST OK" />
         </event>
-        <event name = "GOODBYE">
+    </state>
+
+    <state name = "defaults">
+        <event name = "GOODBYE" next = "settling">
             <action name = "send" message = "GOODBYE OK" />
-            <action name = "terminate" />
+            <action name = "allow time to settle" />
+        </event>
+        <!-- This built-in event hits on a client timeout -->
+        <event name = "expired" next = "settling">
+            <action name = "allow time to settle" />
+        </event>
+        <!-- Client tried to do something we don't allow yet -->
+        <event name = "exception" next = "settling">
+            <action name = "send" message = "ERROR" />
+            <action name = "allow time to settle" />
+        </event>
+        <!-- All other protocol messages are invalid -->
+        <event name = "*" next = "settling">
+            <action name = "signal command invalid" />
+            <action name = "send" message = "ERROR" />
+            <action name = "allow time to settle" />
         </event>
     </state>
 
-    <state name = "external">
-        <!-- All other protocol messages are invalid -->
-        <event name = "*">
-            <action name = "send" message = "INVALID" />
+    <state name = "settling">
+        <event name = "settled">
             <action name = "terminate" />
         </event>
-   </state>
+        <event name = "HELLO" next = "connected">
+            <action name = "set server identity" />
+            <action name = "get most recent post" />
+            <action name = "send" message = "HELLO OK" />
+        </event>
+        <event name = "*">
+            <!-- Ignore any other commands -->
+        </event>
+    </state>
 </class>

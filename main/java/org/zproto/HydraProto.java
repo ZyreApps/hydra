@@ -1,5 +1,5 @@
 /*  =========================================================================
-    HydraMsg - The Hydra Protocol
+    HydraProto - The Hydra Protocol
 
     ** WARNING *************************************************************
     THIS SOURCE FILE IS 100% GENERATED. If you edit this file, you will lose
@@ -7,7 +7,7 @@
     statements. DO NOT MAKE ANY CHANGES YOU WISH TO KEEP. The correct places
     for commits are:
 
-    * The XML model used for this code generation: hydra_msg.xml
+    * The XML model used for this code generation: hydra_proto.xml
     * The code generation script that built this file: zproto_codec_c
     ************************************************************************
     Copyright (c) the Contributors as noted in the AUTHORS file.       
@@ -19,13 +19,16 @@
     =========================================================================
 */
 
-/*  These are the HydraMsg messages:
+/*  These are the HydraProto messages:
 
     HELLO - Open new connection
-        address             string      Client address
+        identity            string      Client identity
+        nickname            string      Client nickname
 
-    HELLO_OK - Accept new connection and return most recent (last) post.
+    HELLO_OK - Accept new connection and return most recent post, if any.
         post_id             string      Post identifier
+        identity            string      Server identity
+        nickname            string      Server nickname
 
     GET_POST - Fetch a given post's content
         post_id             string      Post identifier
@@ -34,16 +37,16 @@
         post_id             string      Post identifier
         reply_to            string      Parent post, if any
         previous            string      Previous post, if any
-        tags                strings     Content tags
+        tags                string      Content tags, space delimited
         timestamp           string      Content date/time
-        digest              octets [20]  SHA1 content digest
+        digest              string      Content digest
         type                string      Content type
-        content             msg         Content body
+        content             chunk       Content body
 
-    GET_TAGS - Request list of tags known by peer
+    GET_TAGS - Request list of all tags known by peer
 
     GET_TAGS_OK - Return list of known tags
-        tags                strings     List of known tags
+        tags                string      Known tags, space delimited
 
     GET_TAG - Request summary for a given tag
         tag                 string      Name of tag
@@ -56,10 +59,9 @@
 
     GOODBYE_OK - Handshake a connection close
 
-    INVALID - Command was invalid at this time
-
-    FAILED - Command failed for some specific reason
-        reason              string      Reason for failure
+    ERROR - Command failed for some specific reason
+        status              number 2    3-digit status code
+        reason              string      Printable explanation
 */
 
 package org.zproto;
@@ -72,8 +74,21 @@ import org.zeromq.ZMsg;
 import org.zeromq.ZMQ;
 import org.zeromq.ZMQ.Socket;
 
-public class HydraMsg implements java.io.Closeable
+public class HydraProto implements java.io.Closeable
 {
+    public static final int HYDRA_PROTO_SUCCESS             = 200;
+    public static final int HYDRA_PROTO_STORED              = 201;
+    public static final int HYDRA_PROTO_DELIVERED           = 202;
+    public static final int HYDRA_PROTO_NOT_DELIVERED       = 300;
+    public static final int HYDRA_PROTO_CONTENT_TOO_LARGE   = 301;
+    public static final int HYDRA_PROTO_TIMEOUT_EXPIRED     = 302;
+    public static final int HYDRA_PROTO_CONNECTION_REFUSED  = 303;
+    public static final int HYDRA_PROTO_RESOURCE_LOCKED     = 400;
+    public static final int HYDRA_PROTO_ACCESS_REFUSED      = 401;
+    public static final int HYDRA_PROTO_NOT_FOUND           = 404;
+    public static final int HYDRA_PROTO_COMMAND_INVALID     = 500;
+    public static final int HYDRA_PROTO_NOT_IMPLEMENTED     = 501;
+    public static final int HYDRA_PROTO_INTERNAL_ERROR      = 502;
 
     public static final int HELLO                 = 1;
     public static final int HELLO_OK              = 2;
@@ -85,28 +100,28 @@ public class HydraMsg implements java.io.Closeable
     public static final int GET_TAG_OK            = 8;
     public static final int GOODBYE               = 9;
     public static final int GOODBYE_OK            = 10;
-    public static final int INVALID               = 11;
-    public static final int FAILED                = 12;
-    public static final int DIGEST_SIZE           = 20;
+    public static final int ERROR                 = 11;
 
     //  Structure of our class
     private ZFrame routingId;           // Routing_id from ROUTER, if any
-    private int id;                     //  HydraMsg message ID
+    private int id;                     //  HydraProto message ID
     private ByteBuffer needle;          //  Read/write pointer for serialization
 
-    private String address;
+    private String identity;
+    private String nickname;
     private String post_id;
     private String reply_to;
     private String previous;
-    private List <String> tags;
+    private String tags;
     private String timestamp;
-    private byte [] digest = new byte [20];
+    private String digest;
     private String type;
-    private ZMsg content;
+    private byte[] content;
     private String tag;
+    private int status;
     private String reason;
 
-    public HydraMsg( int id )
+    public HydraProto( int id )
     {
         this.id = id;
     }
@@ -233,13 +248,13 @@ public class HydraMsg implements java.io.Closeable
         return new String (value);
     }
     //  --------------------------------------------------------------------------
-    //  Receive and parse a HydraMsg from the socket. Returns new object or
+    //  Receive and parse a HydraProto from the socket. Returns new object or
     //  null if error. Will block if there's no message waiting.
 
-    public static HydraMsg recv (Socket input)
+    public static HydraProto recv (Socket input)
     {
         assert (input != null);
-        HydraMsg self = new HydraMsg (0);
+        HydraProto self = new HydraProto (0);
         ZFrame frame = null;
 
         try {
@@ -282,11 +297,14 @@ public class HydraMsg implements java.io.Closeable
 
             switch (self.id) {
             case HELLO:
-                self.address = self.getString ();
+                self.identity = self.getString ();
+                self.nickname = self.getString ();
                 break;
 
             case HELLO_OK:
                 self.post_id = self.getString ();
+                self.identity = self.getString ();
+                self.nickname = self.getString ();
                 break;
 
             case GET_POST:
@@ -297,30 +315,18 @@ public class HydraMsg implements java.io.Closeable
                 self.post_id = self.getString ();
                 self.reply_to = self.getString ();
                 self.previous = self.getString ();
-                listSize = (int) self.getNumber4 ();
-                self.tags = new ArrayList<String> ();
-                while (listSize-- > 0) {
-                    String string = self.getLongString ();
-                    self.tags.add (string);
-                }
+                self.tags = self.getString ();
                 self.timestamp = self.getString ();
-                self.digest = self.getBlock (20);
+                self.digest = self.getString ();
                 self.type = self.getString ();
-                self.content = new ZMsg();
-                if (input.hasReceiveMore ())
-                    self.content.add(ZFrame.recvFrame (input));
+                self.content = self.getBlock((int) self.getNumber4());
                 break;
 
             case GET_TAGS:
                 break;
 
             case GET_TAGS_OK:
-                listSize = (int) self.getNumber4 ();
-                self.tags = new ArrayList<String> ();
-                while (listSize-- > 0) {
-                    String string = self.getLongString ();
-                    self.tags.add (string);
-                }
+                self.tags = self.getString ();
                 break;
 
             case GET_TAG:
@@ -338,10 +344,8 @@ public class HydraMsg implements java.io.Closeable
             case GOODBYE_OK:
                 break;
 
-            case INVALID:
-                break;
-
-            case FAILED:
+            case ERROR:
+                self.status = self.getNumber2 ();
                 self.reason = self.getString ();
                 break;
 
@@ -363,7 +367,7 @@ public class HydraMsg implements java.io.Closeable
     }
 
     //  --------------------------------------------------------------------------
-    //  Send the HydraMsg to the socket, and destroy it
+    //  Send the HydraProto to the socket, and destroy it
 
     public boolean send (Socket socket)
     {
@@ -378,15 +382,24 @@ public class HydraMsg implements java.io.Closeable
         int frameSize = 2 + 1;          //  Signature and message ID
         switch (id) {
         case HELLO:
-            //  address is a string with 1-byte length
+            //  identity is a string with 1-byte length
             frameSize ++;
-            frameSize += (address != null) ? address.length() : 0;
+            frameSize += (identity != null) ? identity.length() : 0;
+            //  nickname is a string with 1-byte length
+            frameSize ++;
+            frameSize += (nickname != null) ? nickname.length() : 0;
             break;
 
         case HELLO_OK:
             //  post_id is a string with 1-byte length
             frameSize ++;
             frameSize += (post_id != null) ? post_id.length() : 0;
+            //  identity is a string with 1-byte length
+            frameSize ++;
+            frameSize += (identity != null) ? identity.length() : 0;
+            //  nickname is a string with 1-byte length
+            frameSize ++;
+            frameSize += (nickname != null) ? nickname.length() : 0;
             break;
 
         case GET_POST:
@@ -405,36 +418,30 @@ public class HydraMsg implements java.io.Closeable
             //  previous is a string with 1-byte length
             frameSize ++;
             frameSize += (previous != null) ? previous.length() : 0;
-            //  tags is an array of strings
-            frameSize += 4;
-            if (tags != null) {
-                for (String value : tags) {
-                    frameSize += 4;
-                    frameSize += value.length ();
-                }
-            }
+            //  tags is a string with 1-byte length
+            frameSize ++;
+            frameSize += (tags != null) ? tags.length() : 0;
             //  timestamp is a string with 1-byte length
             frameSize ++;
             frameSize += (timestamp != null) ? timestamp.length() : 0;
-            //  digest is a block of 20 bytes
-            frameSize += 20;
+            //  digest is a string with 1-byte length
+            frameSize ++;
+            frameSize += (digest != null) ? digest.length() : 0;
             //  type is a string with 1-byte length
             frameSize ++;
             frameSize += (type != null) ? type.length() : 0;
+            //  content is a chunk with 4-byte length
+            frameSize += 4;
+            frameSize += (content != null) ? content.length : 0;
             break;
 
         case GET_TAGS:
             break;
 
         case GET_TAGS_OK:
-            //  tags is an array of strings
-            frameSize += 4;
-            if (tags != null) {
-                for (String value : tags) {
-                    frameSize += 4;
-                    frameSize += value.length ();
-                }
-            }
+            //  tags is a string with 1-byte length
+            frameSize ++;
+            frameSize += (tags != null) ? tags.length() : 0;
             break;
 
         case GET_TAG:
@@ -458,10 +465,9 @@ public class HydraMsg implements java.io.Closeable
         case GOODBYE_OK:
             break;
 
-        case INVALID:
-            break;
-
-        case FAILED:
+        case ERROR:
+            //  status is a 2-byte integer
+            frameSize += 2;
             //  reason is a string with 1-byte length
             frameSize ++;
             frameSize += (reason != null) ? reason.length() : 0;
@@ -480,8 +486,12 @@ public class HydraMsg implements java.io.Closeable
 
         switch (id) {
         case HELLO:
-            if (address != null)
-                putString (address);
+            if (identity != null)
+                putString (identity);
+            else
+                putNumber1 ((byte) 0);      //  Empty string
+            if (nickname != null)
+                putString (nickname);
             else
                 putNumber1 ((byte) 0);      //  Empty string
             break;
@@ -489,6 +499,14 @@ public class HydraMsg implements java.io.Closeable
         case HELLO_OK:
             if (post_id != null)
                 putString (post_id);
+            else
+                putNumber1 ((byte) 0);      //  Empty string
+            if (identity != null)
+                putString (identity);
+            else
+                putNumber1 ((byte) 0);      //  Empty string
+            if (nickname != null)
+                putString (nickname);
             else
                 putNumber1 ((byte) 0);      //  Empty string
             break;
@@ -513,37 +531,38 @@ public class HydraMsg implements java.io.Closeable
                 putString (previous);
             else
                 putNumber1 ((byte) 0);      //  Empty string
-            if (tags != null) {
-                putNumber4 (tags.size ());
-                for (String value : tags) {
-                    putLongString (value);
-                }
-            }
+            if (tags != null)
+                putString (tags);
             else
-                putNumber4 (0);      //  Empty string array
+                putNumber1 ((byte) 0);      //  Empty string
             if (timestamp != null)
                 putString (timestamp);
             else
                 putNumber1 ((byte) 0);      //  Empty string
-            putBlock (digest, 20);
+            if (digest != null)
+                putString (digest);
+            else
+                putNumber1 ((byte) 0);      //  Empty string
             if (type != null)
                 putString (type);
             else
                 putNumber1 ((byte) 0);      //  Empty string
+              if(content != null) {
+                  putNumber4(content.length);
+                  needle.put(content, 0, content.length);
+              } else {
+                  putNumber4(0);
+              }
             break;
 
         case GET_TAGS:
             break;
 
         case GET_TAGS_OK:
-            if (tags != null) {
-                putNumber4 (tags.size ());
-                for (String value : tags) {
-                    putLongString (value);
-                }
-            }
+            if (tags != null)
+                putString (tags);
             else
-                putNumber4 (0);      //  Empty string array
+                putNumber1 ((byte) 0);      //  Empty string
             break;
 
         case GET_TAG:
@@ -570,10 +589,8 @@ public class HydraMsg implements java.io.Closeable
         case GOODBYE_OK:
             break;
 
-        case INVALID:
-            break;
-
-        case FAILED:
+        case ERROR:
+            putNumber2 (status);
             if (reason != null)
                 putString (reason);
             else
@@ -588,15 +605,8 @@ public class HydraMsg implements java.io.Closeable
         switch (id) {
         }
         switch (id) {
-        case GET_POST_OK:
-            if( content == null )
-                content = new ZMsg();
-            for (ZFrame contentPart : content) {
-                msg.add(contentPart);
-            }
-            break;
         }
-        //  Destroy HydraMsg object
+        //  Destroy HydraProto object
         msg.send(socket);
         destroy ();
         return true;
@@ -608,12 +618,14 @@ public class HydraMsg implements java.io.Closeable
 
     public static void sendHello (
         Socket output,
-        String address)
+        String identity,
+        String nickname)
     {
 	sendHello (
 		    output,
 		    null,
-		    address);
+		    identity,
+		    nickname);
     }
 
 //  --------------------------------------------------------------------------
@@ -622,14 +634,16 @@ public class HydraMsg implements java.io.Closeable
     public static void sendHello (
         Socket output,
 	ZFrame routingId,
-        String address)
+        String identity,
+        String nickname)
     {
-        HydraMsg self = new HydraMsg (HydraMsg.HELLO);
+        HydraProto self = new HydraProto (HydraProto.HELLO);
         if (routingId != null)
         {
 	        self.setRoutingId (routingId);
         }
-        self.setAddress (address);
+        self.setIdentity (identity);
+        self.setNickname (nickname);
         self.send (output);
     }
 
@@ -638,12 +652,16 @@ public class HydraMsg implements java.io.Closeable
 
     public static void sendHello_Ok (
         Socket output,
-        String post_id)
+        String post_id,
+        String identity,
+        String nickname)
     {
 	sendHello_Ok (
 		    output,
 		    null,
-		    post_id);
+		    post_id,
+		    identity,
+		    nickname);
     }
 
 //  --------------------------------------------------------------------------
@@ -652,14 +670,18 @@ public class HydraMsg implements java.io.Closeable
     public static void sendHello_Ok (
         Socket output,
 	ZFrame routingId,
-        String post_id)
+        String post_id,
+        String identity,
+        String nickname)
     {
-        HydraMsg self = new HydraMsg (HydraMsg.HELLO_OK);
+        HydraProto self = new HydraProto (HydraProto.HELLO_OK);
         if (routingId != null)
         {
 	        self.setRoutingId (routingId);
         }
         self.setPost_Id (post_id);
+        self.setIdentity (identity);
+        self.setNickname (nickname);
         self.send (output);
     }
 
@@ -684,7 +706,7 @@ public class HydraMsg implements java.io.Closeable
 	ZFrame routingId,
         String post_id)
     {
-        HydraMsg self = new HydraMsg (HydraMsg.GET_POST);
+        HydraProto self = new HydraProto (HydraProto.GET_POST);
         if (routingId != null)
         {
 	        self.setRoutingId (routingId);
@@ -701,11 +723,11 @@ public class HydraMsg implements java.io.Closeable
         String post_id,
         String reply_to,
         String previous,
-        List <String> tags,
+        String tags,
         String timestamp,
-        byte [] digest,
+        String digest,
         String type,
-        ZMsg content)
+        byte[] content)
     {
 	sendGet_Post_Ok (
 		    output,
@@ -729,13 +751,13 @@ public class HydraMsg implements java.io.Closeable
         String post_id,
         String reply_to,
         String previous,
-        List <String> tags,
+        String tags,
         String timestamp,
-        byte [] digest,
+        String digest,
         String type,
-        ZMsg content)
+        byte[] content)
     {
-        HydraMsg self = new HydraMsg (HydraMsg.GET_POST_OK);
+        HydraProto self = new HydraProto (HydraProto.GET_POST_OK);
         if (routingId != null)
         {
 	        self.setRoutingId (routingId);
@@ -743,11 +765,11 @@ public class HydraMsg implements java.io.Closeable
         self.setPost_Id (post_id);
         self.setReply_To (reply_to);
         self.setPrevious (previous);
-        self.setTags (new ArrayList <String> (tags));
+        self.setTags (tags);
         self.setTimestamp (timestamp);
         self.setDigest (digest);
         self.setType (type);
-        self.setContent (content.duplicate ());
+        self.setContent (content);
         self.send (output);
     }
 
@@ -769,7 +791,7 @@ public class HydraMsg implements java.io.Closeable
         Socket output,
 	ZFrame routingId)
     {
-        HydraMsg self = new HydraMsg (HydraMsg.GET_TAGS);
+        HydraProto self = new HydraProto (HydraProto.GET_TAGS);
         if (routingId != null)
         {
 	        self.setRoutingId (routingId);
@@ -782,7 +804,7 @@ public class HydraMsg implements java.io.Closeable
 
     public static void sendGet_Tags_Ok (
         Socket output,
-        List <String> tags)
+        String tags)
     {
 	sendGet_Tags_Ok (
 		    output,
@@ -796,14 +818,14 @@ public class HydraMsg implements java.io.Closeable
     public static void sendGet_Tags_Ok (
         Socket output,
 	ZFrame routingId,
-        List <String> tags)
+        String tags)
     {
-        HydraMsg self = new HydraMsg (HydraMsg.GET_TAGS_OK);
+        HydraProto self = new HydraProto (HydraProto.GET_TAGS_OK);
         if (routingId != null)
         {
 	        self.setRoutingId (routingId);
         }
-        self.setTags (new ArrayList <String> (tags));
+        self.setTags (tags);
         self.send (output);
     }
 
@@ -828,7 +850,7 @@ public class HydraMsg implements java.io.Closeable
 	ZFrame routingId,
         String tag)
     {
-        HydraMsg self = new HydraMsg (HydraMsg.GET_TAG);
+        HydraProto self = new HydraProto (HydraProto.GET_TAG);
         if (routingId != null)
         {
 	        self.setRoutingId (routingId);
@@ -861,7 +883,7 @@ public class HydraMsg implements java.io.Closeable
         String tag,
         String post_id)
     {
-        HydraMsg self = new HydraMsg (HydraMsg.GET_TAG_OK);
+        HydraProto self = new HydraProto (HydraProto.GET_TAG_OK);
         if (routingId != null)
         {
 	        self.setRoutingId (routingId);
@@ -889,7 +911,7 @@ public class HydraMsg implements java.io.Closeable
         Socket output,
 	ZFrame routingId)
     {
-        HydraMsg self = new HydraMsg (HydraMsg.GOODBYE);
+        HydraProto self = new HydraProto (HydraProto.GOODBYE);
         if (routingId != null)
         {
 	        self.setRoutingId (routingId);
@@ -915,7 +937,7 @@ public class HydraMsg implements java.io.Closeable
         Socket output,
 	ZFrame routingId)
     {
-        HydraMsg self = new HydraMsg (HydraMsg.GOODBYE_OK);
+        HydraProto self = new HydraProto (HydraProto.GOODBYE_OK);
         if (routingId != null)
         {
 	        self.setRoutingId (routingId);
@@ -924,76 +946,57 @@ public class HydraMsg implements java.io.Closeable
     }
 
 //  --------------------------------------------------------------------------
-//  Send the INVALID to the socket in one step
+//  Send the ERROR to the socket in one step
 
-    public static void sendInvalid (
-        Socket output)
-    {
-	sendInvalid (
-		    output,
-		    null);
-    }
-
-//  --------------------------------------------------------------------------
-//  Send the INVALID to a router socket in one step
-
-    public static void sendInvalid (
+    public static void sendError (
         Socket output,
-	ZFrame routingId)
-    {
-        HydraMsg self = new HydraMsg (HydraMsg.INVALID);
-        if (routingId != null)
-        {
-	        self.setRoutingId (routingId);
-        }
-        self.send (output);
-    }
-
-//  --------------------------------------------------------------------------
-//  Send the FAILED to the socket in one step
-
-    public static void sendFailed (
-        Socket output,
+        int status,
         String reason)
     {
-	sendFailed (
+	sendError (
 		    output,
 		    null,
+		    status,
 		    reason);
     }
 
 //  --------------------------------------------------------------------------
-//  Send the FAILED to a router socket in one step
+//  Send the ERROR to a router socket in one step
 
-    public static void sendFailed (
+    public static void sendError (
         Socket output,
 	ZFrame routingId,
+        int status,
         String reason)
     {
-        HydraMsg self = new HydraMsg (HydraMsg.FAILED);
+        HydraProto self = new HydraProto (HydraProto.ERROR);
         if (routingId != null)
         {
 	        self.setRoutingId (routingId);
         }
+        self.setStatus (status);
         self.setReason (reason);
         self.send (output);
     }
 
 
     //  --------------------------------------------------------------------------
-    //  Duplicate the HydraMsg message
+    //  Duplicate the HydraProto message
 
-    public HydraMsg dup ()
+    public HydraProto dup ()
     {
-        HydraMsg copy = new HydraMsg (this.id);
+        HydraProto copy = new HydraProto (this.id);
         if (this.routingId != null)
             copy.routingId = this.routingId.duplicate ();
         switch (this.id) {
         case HELLO:
-            copy.address = this.address;
+            copy.identity = this.identity;
+            copy.nickname = this.nickname;
         break;
         case HELLO_OK:
             copy.post_id = this.post_id;
+            copy.identity = this.identity;
+            copy.nickname = this.nickname;
         break;
         case GET_POST:
             copy.post_id = this.post_id;
@@ -1002,15 +1005,16 @@ public class HydraMsg implements java.io.Closeable
             copy.post_id = this.post_id;
             copy.reply_to = this.reply_to;
             copy.previous = this.previous;
-            copy.tags = new ArrayList <String> (this.tags);
+            copy.tags = this.tags;
             copy.timestamp = this.timestamp;
-            System.arraycopy (copy.digest, 0, this.digest, 0, 20);
+            copy.digest = this.digest;
             copy.type = this.type;
+            copy.content = this.content;
         break;
         case GET_TAGS:
         break;
         case GET_TAGS_OK:
-            copy.tags = new ArrayList <String> (this.tags);
+            copy.tags = this.tags;
         break;
         case GET_TAG:
             copy.tag = this.tag;
@@ -1023,9 +1027,8 @@ public class HydraMsg implements java.io.Closeable
         break;
         case GOODBYE_OK:
         break;
-        case INVALID:
-        break;
-        case FAILED:
+        case ERROR:
+            copy.status = this.status;
             copy.reason = this.reason;
         break;
         }
@@ -1041,10 +1044,14 @@ public class HydraMsg implements java.io.Closeable
         switch (id) {
         case HELLO:
             System.out.println ("HELLO:");
-            if (address != null)
-                System.out.printf ("    address='%s'\n", address);
+            if (identity != null)
+                System.out.printf ("    identity='%s'\n", identity);
             else
-                System.out.printf ("    address=\n");
+                System.out.printf ("    identity=\n");
+            if (nickname != null)
+                System.out.printf ("    nickname='%s'\n", nickname);
+            else
+                System.out.printf ("    nickname=\n");
             break;
 
         case HELLO_OK:
@@ -1053,6 +1060,14 @@ public class HydraMsg implements java.io.Closeable
                 System.out.printf ("    post_id='%s'\n", post_id);
             else
                 System.out.printf ("    post_id=\n");
+            if (identity != null)
+                System.out.printf ("    identity='%s'\n", identity);
+            else
+                System.out.printf ("    identity=\n");
+            if (nickname != null)
+                System.out.printf ("    nickname='%s'\n", nickname);
+            else
+                System.out.printf ("    nickname=\n");
             break;
 
         case GET_POST:
@@ -1077,25 +1092,18 @@ public class HydraMsg implements java.io.Closeable
                 System.out.printf ("    previous='%s'\n", previous);
             else
                 System.out.printf ("    previous=\n");
-            System.out.printf ("    tags={");
-            if (tags != null) {
-                for (String value : tags) {
-                    System.out.printf (" '%s'", value);
-                }
-            }
-            System.out.printf (" }\n");
+            if (tags != null)
+                System.out.printf ("    tags='%s'\n", tags);
+            else
+                System.out.printf ("    tags=\n");
             if (timestamp != null)
                 System.out.printf ("    timestamp='%s'\n", timestamp);
             else
                 System.out.printf ("    timestamp=\n");
-            System.out.printf ("    digest=");
-            int digestIndex;
-            for (digestIndex = 0; digestIndex < 20; digestIndex++) {
-                if (digestIndex != 0 && (digestIndex % 4 == 0))
-                    System.out.printf ("-");
-                System.out.printf ("%02X", digest [digestIndex]);
-            }
-            System.out.println();
+            if (digest != null)
+                System.out.printf ("    digest='%s'\n", digest);
+            else
+                System.out.printf ("    digest=\n");
             if (type != null)
                 System.out.printf ("    type='%s'\n", type);
             else
@@ -1108,13 +1116,10 @@ public class HydraMsg implements java.io.Closeable
 
         case GET_TAGS_OK:
             System.out.println ("GET_TAGS_OK:");
-            System.out.printf ("    tags={");
-            if (tags != null) {
-                for (String value : tags) {
-                    System.out.printf (" '%s'", value);
-                }
-            }
-            System.out.printf (" }\n");
+            if (tags != null)
+                System.out.printf ("    tags='%s'\n", tags);
+            else
+                System.out.printf ("    tags=\n");
             break;
 
         case GET_TAG:
@@ -1145,12 +1150,9 @@ public class HydraMsg implements java.io.Closeable
             System.out.println ("GOODBYE_OK:");
             break;
 
-        case INVALID:
-            System.out.println ("INVALID:");
-            break;
-
-        case FAILED:
-            System.out.println ("FAILED:");
+        case ERROR:
+            System.out.println ("ERROR:");
+            System.out.printf ("    status=%d\n", (long)status);
             if (reason != null)
                 System.out.printf ("    reason='%s'\n", reason);
             else
@@ -1178,7 +1180,7 @@ public class HydraMsg implements java.io.Closeable
 
 
     //  --------------------------------------------------------------------------
-    //  Get/set the hydra_msg id
+    //  Get/set the hydra_proto id
 
     public int id ()
     {
@@ -1191,17 +1193,31 @@ public class HydraMsg implements java.io.Closeable
     }
 
     //  --------------------------------------------------------------------------
-    //  Get/set the address field
+    //  Get/set the identity field
 
-    public String address ()
+    public String identity ()
     {
-        return address;
+        return identity;
     }
 
-    public void setAddress (String format, Object ... args)
+    public void setIdentity (String format, Object ... args)
     {
         //  Format into newly allocated string
-        address = String.format (format, args);
+        identity = String.format (format, args);
+    }
+
+    //  --------------------------------------------------------------------------
+    //  Get/set the nickname field
+
+    public String nickname ()
+    {
+        return nickname;
+    }
+
+    public void setNickname (String format, Object ... args)
+    {
+        //  Format into newly allocated string
+        nickname = String.format (format, args);
     }
 
     //  --------------------------------------------------------------------------
@@ -1247,27 +1263,17 @@ public class HydraMsg implements java.io.Closeable
     }
 
     //  --------------------------------------------------------------------------
-    //  Iterate through the tags field, and append a tags value
+    //  Get/set the tags field
 
-    public List <String> tags ()
+    public String tags ()
     {
         return tags;
     }
 
-    public void appendTags (String format, Object ... args)
+    public void setTags (String format, Object ... args)
     {
         //  Format into newly allocated string
-
-        String string = String.format (format, args);
-        //  Attach string to list
-        if (tags == null)
-            tags = new ArrayList <String> ();
-        tags.add (string);
-    }
-
-    public void setTags (List <String> value)
-    {
-        tags = new ArrayList (value);
+        tags = String.format (format, args);
     }
 
     //  --------------------------------------------------------------------------
@@ -1287,14 +1293,15 @@ public class HydraMsg implements java.io.Closeable
     //  --------------------------------------------------------------------------
     //  Get/set the digest field
 
-    public byte [] digest ()
+    public String digest ()
     {
         return digest;
     }
 
-    public void setDigest (byte [] digest)
+    public void setDigest (String format, Object ... args)
     {
-        System.arraycopy (digest, 0, this.digest, 0, 20);
+        //  Format into newly allocated string
+        digest = String.format (format, args);
     }
 
     //  --------------------------------------------------------------------------
@@ -1314,17 +1321,15 @@ public class HydraMsg implements java.io.Closeable
     //  --------------------------------------------------------------------------
     //  Get/set the content field
 
-    public ZMsg content ()
+    public byte[] content ()
     {
         return content;
     }
 
     //  Takes ownership of supplied frame
-    public void setContent (ZMsg frame)
+    public void setContent (byte[] content)
     {
-        if (content != null)
-            content.destroy ();
-        content = frame;
+        this.content = content;
     }
     //  --------------------------------------------------------------------------
     //  Get/set the tag field
@@ -1338,6 +1343,19 @@ public class HydraMsg implements java.io.Closeable
     {
         //  Format into newly allocated string
         tag = String.format (format, args);
+    }
+
+    //  --------------------------------------------------------------------------
+    //  Get/set the status field
+
+    public int status ()
+    {
+        return status;
+    }
+
+    public void setStatus (int status)
+    {
+        this.status = status;
     }
 
     //  --------------------------------------------------------------------------

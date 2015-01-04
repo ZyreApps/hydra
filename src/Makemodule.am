@@ -12,13 +12,13 @@ pkgconfig_DATA = src/libhydra.pc
 
 include_HEADERS = \
     include/hydra.h \
-    include/hydra_msg.h \
+    include/hydra_proto.h \
     include/hydra_server.h \
     include/hydra_client.h \
     include/hydra_library.h
 
 src_libhydra_la_SOURCES = \
-    src/hydra_msg.c \
+    src/hydra_proto.c \
     src/hydra_server.c \
     src/hydra_client.c \
     src/platform.h
@@ -55,9 +55,9 @@ src: src/libhydra.la src/hydra_selftest
 
 # Produce generated code from models in the src directory
 code:
-	cd $(srcdir)/src; gsl -q hydra_msg.xml
-	cd $(srcdir)/src; gsl -topdir:.. -script:zproto_codec_java.gsl -q hydra_msg.xml
-	cd $(srcdir)/src; gsl -topdir:.. -script:zproto_codec_clj.gsl -q hydra_msg.xml
+	cd $(srcdir)/src; gsl -q hydra_proto.xml
+	cd $(srcdir)/src; gsl -topdir:.. -script:zproto_codec_java.gsl -q hydra_proto.xml
+	cd $(srcdir)/src; gsl -topdir:.. -script:zproto_codec_clj.gsl -q hydra_proto.xml
 	cd $(srcdir)/src; gsl -q hydra_server.xml
 	cd $(srcdir)/src; gsl -topdir:.. -script:zproto_server_clj.gsl -q hydra_server.xml
 	cd $(srcdir)/src; gsl -q hydra_client.xml

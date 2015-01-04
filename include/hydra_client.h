@@ -37,15 +37,11 @@ typedef struct _hydra_client_t hydra_client_t;
 //  Connect to server endpoint, with specified timeout in msecs (zero means wait    
 //  forever). Constructor succeeds if connection is successful.                     
 hydra_client_t *
-    hydra_client_new (const char *endpoint, int timeout);
+    hydra_client_new (const char *endpoint, uint32_t timeout);
 
 //  Destroy the hydra_client
 void
     hydra_client_destroy (hydra_client_t **self_p);
-
-//  Enable verbose logging of client activity
-void
-    hydra_client_verbose (hydra_client_t *self);
 
 //  Return actor, when caller wants to work with multiple actors and/or
 //  input sockets asynchronously.
@@ -60,6 +56,13 @@ zactor_t *
 zsock_t *
     hydra_client_msgpipe (hydra_client_t *self);
 
+//  Fetch all available posts from server, starting with most recent, and working   
+//  backwards, until there are no more posts, or the server disappears. TODO: add   
+//  maximum posts to fetch.                                                         
+//  Returns >= 0 if successful, -1 if interrupted.
+int 
+    hydra_client_fetch (hydra_client_t *self);
+
 //  Return last received status
 int 
     hydra_client_status (hydra_client_t *self);
@@ -71,6 +74,11 @@ const char *
 //  Self test of this class
 void
     hydra_client_test (bool verbose);
+    
+//  To enable verbose tracing (animation) of hydra_client instances, set
+//  this to true. This lets you trace from and including construction.
+extern volatile int
+    hydra_client_verbose;
 //  @end
 
 #ifdef __cplusplus

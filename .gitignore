@@ -22,6 +22,7 @@ hydra_selftest
 *.app
 core
 hydrad
+hydra.cfg
 
 # Man pages
 doc/*.1
@@ -65,3 +66,9 @@ builds/android/czmq
 builds/android/e2fsprogs
 builds/android/zyre
 src/app/jni/output
+
+# Other working files
+.hydra
+notes.txt
+doit
+
