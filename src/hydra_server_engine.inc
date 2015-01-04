@@ -34,13 +34,11 @@ typedef enum {
     NULL_event = 0,
     terminate_event = 1,
     hello_event = 2,
-    get_tags_event = 3,
-    get_tag_event = 4,
-    get_post_event = 5,
-    goodbye_event = 6,
-    expired_event = 7,
-    exception_event = 8,
-    settled_event = 9
+    get_post_event = 3,
+    goodbye_event = 4,
+    expired_event = 5,
+    exception_event = 6,
+    settled_event = 7
 } event_t;
 
 //  Names for state machine logging and error reporting
@@ -58,8 +56,6 @@ s_event_name [] = {
     "(NONE)",
     "terminate",
     "HELLO",
-    "GET_TAGS",
-    "GET_TAG",
     "GET_POST",
     "GOODBYE",
     "expired",
@@ -129,10 +125,6 @@ static void
     set_server_identity (client_t *self);
 static void
     get_most_recent_post (client_t *self);
-static void
-    get_all_tags (client_t *self);
-static void
-    get_single_tag (client_t *self);
 static void
     get_single_post (client_t *self);
 static void
@@ -322,12 +314,6 @@ s_protocol_event (hydra_proto_t *message)
             break;
         case HYDRA_PROTO_GET_POST:
             return get_post_event;
-            break;
-        case HYDRA_PROTO_GET_TAGS:
-            return get_tags_event;
-            break;
-        case HYDRA_PROTO_GET_TAG:
-            return get_tag_event;
             break;
         case HYDRA_PROTO_GOODBYE:
             return goodbye_event;
@@ -525,42 +511,6 @@ s_client_execute (s_client_t *self, event_t event)
                 break;
 
             case connected_state:
-                if (self->event == get_tags_event) {
-                    if (!self->exception) {
-                        //  get all tags
-                        if (self->server->verbose)
-                            zsys_debug ("%s:         $ get all tags", self->log_prefix);
-                        get_all_tags (&self->client);
-                    }
-                    if (!self->exception) {
-                        //  send GET_TAGS_OK
-                        if (self->server->verbose)
-                            zsys_debug ("%s:         $ send GET_TAGS_OK",
-                                self->log_prefix);
-                        hydra_proto_set_id (self->server->message, HYDRA_PROTO_GET_TAGS_OK);
-                        hydra_proto_set_routing_id (self->server->message, self->routing_id);
-                        hydra_proto_send (self->server->message, self->server->router);
-                    }
-                }
-                else
-                if (self->event == get_tag_event) {
-                    if (!self->exception) {
-                        //  get single tag
-                        if (self->server->verbose)
-                            zsys_debug ("%s:         $ get single tag", self->log_prefix);
-                        get_single_tag (&self->client);
-                    }
-                    if (!self->exception) {
-                        //  send GET_TAG_OK
-                        if (self->server->verbose)
-                            zsys_debug ("%s:         $ send GET_TAG_OK",
-                                self->log_prefix);
-                        hydra_proto_set_id (self->server->message, HYDRA_PROTO_GET_TAG_OK);
-                        hydra_proto_set_routing_id (self->server->message, self->routing_id);
-                        hydra_proto_send (self->server->message, self->server->router);
-                    }
-                }
-                else
                 if (self->event == get_post_event) {
                     if (!self->exception) {
                         //  get single post

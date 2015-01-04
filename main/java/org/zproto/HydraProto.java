@@ -37,23 +37,10 @@
         post_id             string      Post identifier
         reply_to            string      Parent post, if any
         previous            string      Previous post, if any
-        tags                string      Content tags, space delimited
         timestamp           string      Content date/time
         digest              string      Content digest
         type                string      Content type
         content             chunk       Content body
-
-    GET_TAGS - Request list of all tags known by peer
-
-    GET_TAGS_OK - Return list of known tags
-        tags                string      Known tags, space delimited
-
-    GET_TAG - Request summary for a given tag
-        tag                 string      Name of tag
-
-    GET_TAG_OK - Return latest post ID for given tag
-        tag                 string      Name of tag
-        post_id             string      Post identifier
 
     GOODBYE - Close the connection politely
 
@@ -94,13 +81,9 @@ public class HydraProto implements java.io.Closeable
     public static final int HELLO_OK              = 2;
     public static final int GET_POST              = 3;
     public static final int GET_POST_OK           = 4;
-    public static final int GET_TAGS              = 5;
-    public static final int GET_TAGS_OK           = 6;
-    public static final int GET_TAG               = 7;
-    public static final int GET_TAG_OK            = 8;
-    public static final int GOODBYE               = 9;
-    public static final int GOODBYE_OK            = 10;
-    public static final int ERROR                 = 11;
+    public static final int GOODBYE               = 5;
+    public static final int GOODBYE_OK            = 6;
+    public static final int ERROR                 = 7;
 
     //  Structure of our class
     private ZFrame routingId;           // Routing_id from ROUTER, if any
@@ -112,12 +95,10 @@ public class HydraProto implements java.io.Closeable
     private String post_id;
     private String reply_to;
     private String previous;
-    private String tags;
     private String timestamp;
     private String digest;
     private String type;
     private byte[] content;
-    private String tag;
     private int status;
     private String reason;
 
@@ -315,27 +296,10 @@ public class HydraProto implements java.io.Closeable
                 self.post_id = self.getString ();
                 self.reply_to = self.getString ();
                 self.previous = self.getString ();
-                self.tags = self.getString ();
                 self.timestamp = self.getString ();
                 self.digest = self.getString ();
                 self.type = self.getString ();
                 self.content = self.getBlock((int) self.getNumber4());
-                break;
-
-            case GET_TAGS:
-                break;
-
-            case GET_TAGS_OK:
-                self.tags = self.getString ();
-                break;
-
-            case GET_TAG:
-                self.tag = self.getString ();
-                break;
-
-            case GET_TAG_OK:
-                self.tag = self.getString ();
-                self.post_id = self.getString ();
                 break;
 
             case GOODBYE:
@@ -418,9 +382,6 @@ public class HydraProto implements java.io.Closeable
             //  previous is a string with 1-byte length
             frameSize ++;
             frameSize += (previous != null) ? previous.length() : 0;
-            //  tags is a string with 1-byte length
-            frameSize ++;
-            frameSize += (tags != null) ? tags.length() : 0;
             //  timestamp is a string with 1-byte length
             frameSize ++;
             frameSize += (timestamp != null) ? timestamp.length() : 0;
@@ -433,30 +394,6 @@ public class HydraProto implements java.io.Closeable
             //  content is a chunk with 4-byte length
             frameSize += 4;
             frameSize += (content != null) ? content.length : 0;
-            break;
-
-        case GET_TAGS:
-            break;
-
-        case GET_TAGS_OK:
-            //  tags is a string with 1-byte length
-            frameSize ++;
-            frameSize += (tags != null) ? tags.length() : 0;
-            break;
-
-        case GET_TAG:
-            //  tag is a string with 1-byte length
-            frameSize ++;
-            frameSize += (tag != null) ? tag.length() : 0;
-            break;
-
-        case GET_TAG_OK:
-            //  tag is a string with 1-byte length
-            frameSize ++;
-            frameSize += (tag != null) ? tag.length() : 0;
-            //  post_id is a string with 1-byte length
-            frameSize ++;
-            frameSize += (post_id != null) ? post_id.length() : 0;
             break;
 
         case GOODBYE:
@@ -531,10 +468,6 @@ public class HydraProto implements java.io.Closeable
                 putString (previous);
             else
                 putNumber1 ((byte) 0);      //  Empty string
-            if (tags != null)
-                putString (tags);
-            else
-                putNumber1 ((byte) 0);      //  Empty string
             if (timestamp != null)
                 putString (timestamp);
             else
@@ -553,34 +486,6 @@ public class HydraProto implements java.io.Closeable
               } else {
                   putNumber4(0);
               }
-            break;
-
-        case GET_TAGS:
-            break;
-
-        case GET_TAGS_OK:
-            if (tags != null)
-                putString (tags);
-            else
-                putNumber1 ((byte) 0);      //  Empty string
-            break;
-
-        case GET_TAG:
-            if (tag != null)
-                putString (tag);
-            else
-                putNumber1 ((byte) 0);      //  Empty string
-            break;
-
-        case GET_TAG_OK:
-            if (tag != null)
-                putString (tag);
-            else
-                putNumber1 ((byte) 0);      //  Empty string
-            if (post_id != null)
-                putString (post_id);
-            else
-                putNumber1 ((byte) 0);      //  Empty string
             break;
 
         case GOODBYE:
@@ -723,7 +628,6 @@ public class HydraProto implements java.io.Closeable
         String post_id,
         String reply_to,
         String previous,
-        String tags,
         String timestamp,
         String digest,
         String type,
@@ -735,7 +639,6 @@ public class HydraProto implements java.io.Closeable
 		    post_id,
 		    reply_to,
 		    previous,
-		    tags,
 		    timestamp,
 		    digest,
 		    type,
@@ -751,7 +654,6 @@ public class HydraProto implements java.io.Closeable
         String post_id,
         String reply_to,
         String previous,
-        String tags,
         String timestamp,
         String digest,
         String type,
@@ -765,131 +667,10 @@ public class HydraProto implements java.io.Closeable
         self.setPost_Id (post_id);
         self.setReply_To (reply_to);
         self.setPrevious (previous);
-        self.setTags (tags);
         self.setTimestamp (timestamp);
         self.setDigest (digest);
         self.setType (type);
         self.setContent (content);
-        self.send (output);
-    }
-
-//  --------------------------------------------------------------------------
-//  Send the GET_TAGS to the socket in one step
-
-    public static void sendGet_Tags (
-        Socket output)
-    {
-	sendGet_Tags (
-		    output,
-		    null);
-    }
-
-//  --------------------------------------------------------------------------
-//  Send the GET_TAGS to a router socket in one step
-
-    public static void sendGet_Tags (
-        Socket output,
-	ZFrame routingId)
-    {
-        HydraProto self = new HydraProto (HydraProto.GET_TAGS);
-        if (routingId != null)
-        {
-	        self.setRoutingId (routingId);
-        }
-        self.send (output);
-    }
-
-//  --------------------------------------------------------------------------
-//  Send the GET_TAGS_OK to the socket in one step
-
-    public static void sendGet_Tags_Ok (
-        Socket output,
-        String tags)
-    {
-	sendGet_Tags_Ok (
-		    output,
-		    null,
-		    tags);
-    }
-
-//  --------------------------------------------------------------------------
-//  Send the GET_TAGS_OK to a router socket in one step
-
-    public static void sendGet_Tags_Ok (
-        Socket output,
-	ZFrame routingId,
-        String tags)
-    {
-        HydraProto self = new HydraProto (HydraProto.GET_TAGS_OK);
-        if (routingId != null)
-        {
-	        self.setRoutingId (routingId);
-        }
-        self.setTags (tags);
-        self.send (output);
-    }
-
-//  --------------------------------------------------------------------------
-//  Send the GET_TAG to the socket in one step
-
-    public static void sendGet_Tag (
-        Socket output,
-        String tag)
-    {
-	sendGet_Tag (
-		    output,
-		    null,
-		    tag);
-    }
-
-//  --------------------------------------------------------------------------
-//  Send the GET_TAG to a router socket in one step
-
-    public static void sendGet_Tag (
-        Socket output,
-	ZFrame routingId,
-        String tag)
-    {
-        HydraProto self = new HydraProto (HydraProto.GET_TAG);
-        if (routingId != null)
-        {
-	        self.setRoutingId (routingId);
-        }
-        self.setTag (tag);
-        self.send (output);
-    }
-
-//  --------------------------------------------------------------------------
-//  Send the GET_TAG_OK to the socket in one step
-
-    public static void sendGet_Tag_Ok (
-        Socket output,
-        String tag,
-        String post_id)
-    {
-	sendGet_Tag_Ok (
-		    output,
-		    null,
-		    tag,
-		    post_id);
-    }
-
-//  --------------------------------------------------------------------------
-//  Send the GET_TAG_OK to a router socket in one step
-
-    public static void sendGet_Tag_Ok (
-        Socket output,
-	ZFrame routingId,
-        String tag,
-        String post_id)
-    {
-        HydraProto self = new HydraProto (HydraProto.GET_TAG_OK);
-        if (routingId != null)
-        {
-	        self.setRoutingId (routingId);
-        }
-        self.setTag (tag);
-        self.setPost_Id (post_id);
         self.send (output);
     }
 
@@ -1005,23 +786,10 @@ public class HydraProto implements java.io.Closeable
             copy.post_id = this.post_id;
             copy.reply_to = this.reply_to;
             copy.previous = this.previous;
-            copy.tags = this.tags;
             copy.timestamp = this.timestamp;
             copy.digest = this.digest;
             copy.type = this.type;
             copy.content = this.content;
-        break;
-        case GET_TAGS:
-        break;
-        case GET_TAGS_OK:
-            copy.tags = this.tags;
-        break;
-        case GET_TAG:
-            copy.tag = this.tag;
-        break;
-        case GET_TAG_OK:
-            copy.tag = this.tag;
-            copy.post_id = this.post_id;
         break;
         case GOODBYE:
         break;
@@ -1092,10 +860,6 @@ public class HydraProto implements java.io.Closeable
                 System.out.printf ("    previous='%s'\n", previous);
             else
                 System.out.printf ("    previous=\n");
-            if (tags != null)
-                System.out.printf ("    tags='%s'\n", tags);
-            else
-                System.out.printf ("    tags=\n");
             if (timestamp != null)
                 System.out.printf ("    timestamp='%s'\n", timestamp);
             else
@@ -1108,38 +872,6 @@ public class HydraProto implements java.io.Closeable
                 System.out.printf ("    type='%s'\n", type);
             else
                 System.out.printf ("    type=\n");
-            break;
-
-        case GET_TAGS:
-            System.out.println ("GET_TAGS:");
-            break;
-
-        case GET_TAGS_OK:
-            System.out.println ("GET_TAGS_OK:");
-            if (tags != null)
-                System.out.printf ("    tags='%s'\n", tags);
-            else
-                System.out.printf ("    tags=\n");
-            break;
-
-        case GET_TAG:
-            System.out.println ("GET_TAG:");
-            if (tag != null)
-                System.out.printf ("    tag='%s'\n", tag);
-            else
-                System.out.printf ("    tag=\n");
-            break;
-
-        case GET_TAG_OK:
-            System.out.println ("GET_TAG_OK:");
-            if (tag != null)
-                System.out.printf ("    tag='%s'\n", tag);
-            else
-                System.out.printf ("    tag=\n");
-            if (post_id != null)
-                System.out.printf ("    post_id='%s'\n", post_id);
-            else
-                System.out.printf ("    post_id=\n");
             break;
 
         case GOODBYE:
@@ -1263,20 +995,6 @@ public class HydraProto implements java.io.Closeable
     }
 
     //  --------------------------------------------------------------------------
-    //  Get/set the tags field
-
-    public String tags ()
-    {
-        return tags;
-    }
-
-    public void setTags (String format, Object ... args)
-    {
-        //  Format into newly allocated string
-        tags = String.format (format, args);
-    }
-
-    //  --------------------------------------------------------------------------
     //  Get/set the timestamp field
 
     public String timestamp ()
@@ -1331,20 +1049,6 @@ public class HydraProto implements java.io.Closeable
     {
         this.content = content;
     }
-    //  --------------------------------------------------------------------------
-    //  Get/set the tag field
-
-    public String tag ()
-    {
-        return tag;
-    }
-
-    public void setTag (String format, Object ... args)
-    {
-        //  Format into newly allocated string
-        tag = String.format (format, args);
-    }
-
     //  --------------------------------------------------------------------------
     //  Get/set the status field
 

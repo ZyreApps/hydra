@@ -7,11 +7,9 @@
     <include filename = "../license.xml" />
 
     <grammar>
-    hydra = hello *( tags / tag / post ) [ goodbye ]
+    hydra = hello *( get-post ) [ goodbye ]
     hello = c:hello ( s:hello-ok / s:invalid / s:failed )
     get-post = c:get-post ( s:get-post-ok / s:invalid / s:failed )
-    get-tags = c:get-tags ( s:get-tags-ok / s:invalid / s:failed )
-    get-tag = c:get-tag ( s:get-tag-ok / s:invalid / s:failed )
     goodbye = c:goodbye ( s:goodbye-ok / s:invalid / s:failed )
     </grammar>
 
@@ -38,31 +36,10 @@
         <field name = "post-id" type = "string">Post identifier</field>
         <field name = "reply-to" type = "string">Parent post, if any</field>
         <field name = "previous" type = "string">Previous post, if any</field>
-        <field name = "tags" type = "string">Content tags, space delimited</field>
         <field name = "timestamp" type = "string">Content date/time</field>
         <field name = "digest" type = "string">Content digest</field>
         <field name = "type" type = "string">Content type</field>
         <field name = "content" type = "chunk">Content body</field>
-    </message>
-
-    <message name = "get tags">
-        Request list of all tags known by peer
-    </message>
-
-    <message name = "get tags ok">
-        Return list of known tags
-        <field name = "tags" type = "string">Known tags, space delimited</field>
-    </message>
-
-    <message name = "get tag">
-        Request summary for a given tag
-        <field name = "tag" type = "string">Name of tag</field>
-    </message>
-
-    <message name = "get tag ok">
-        Return latest post ID for given tag
-        <field name = "tag" type = "string">Name of tag</field>
-        <field name = "post-id" type = "string">Post identifier</field>
     </message>
 
     <message name = "goodbye">

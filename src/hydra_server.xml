@@ -19,14 +19,6 @@
     </state>
 
     <state name = "connected" inherit = "defaults">
-        <event name = "GET TAGS">
-            <action name = "get all tags" />
-            <action name = "send" message = "GET TAGS OK" />
-        </event>
-        <event name = "GET TAG">
-            <action name = "get single tag" />
-            <action name = "send" message = "GET TAG OK" />
-        </event>
         <event name = "GET POST">
             <action name = "get single post" />
             <action name = "send" message = "GET POST OK" />

@@ -148,7 +148,6 @@ store_the_post (client_t *self)
     zconfig_t *post = zconfig_new ("root", NULL);
     zconfig_put (post, "/post/reply_to",  hydra_proto_reply_to  (self->message));
     zconfig_put (post, "/post/previous",  hydra_proto_previous  (self->message));
-    zconfig_put (post, "/post/tags",      hydra_proto_tags      (self->message));
     zconfig_put (post, "/post/timestamp", hydra_proto_timestamp (self->message));
     zconfig_put (post, "/post/digest",    hydra_proto_digest    (self->message));
     zconfig_put (post, "/post/type",      hydra_proto_type      (self->message));
@@ -170,13 +169,13 @@ store_the_post (client_t *self)
             zsys_error ("can't write content to %s", filename);
         zstr_free (&filename);
     }
-    FILE *handle = fopen ("hydra.dat", "a");
+    FILE *handle = fopen ("ledger.txt", "a");
     if (handle) {
         fprintf (handle, "%s\n", hydra_proto_post_id (self->message));
         fclose (handle);
     }
     else
-        zsys_error ("can't write to hydra.dat: %s", strerror (errno));
+        zsys_error ("can't write to ledger.txt: %s", strerror (errno));
 }
 
 
@@ -187,8 +186,10 @@ store_the_post (client_t *self)
 static void
 prepare_to_get_previous_post (client_t *self)
 {
-    //  XXX
-    engine_set_exception (self, have_post_event);
+    if (*hydra_proto_previous (self->message))
+        hydra_proto_set_post_id (self->message, hydra_proto_previous (self->message));
+    else
+        engine_set_exception (self, have_post_event);
 }
 
 

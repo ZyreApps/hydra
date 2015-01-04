@@ -29,16 +29,8 @@
     [this routing-id post-id identity nickname])
   (get-post [this post-id]
     [this routing-id post-id])
-  (get-post-ok [this post-id reply-to previous tags timestamp digest type content]
-    [this routing-id post-id reply-to previous tags timestamp digest type content])
-  (get-tags [this]
-    [this routing-id])
-  (get-tags-ok [this tags]
-    [this routing-id tags])
-  (get-tag [this tag]
-    [this routing-id tag])
-  (get-tag-ok [this tag post-id]
-    [this routing-id tag post-id])
+  (get-post-ok [this post-id reply-to previous timestamp digest type content]
+    [this routing-id post-id reply-to previous timestamp digest type content])
   (goodbye [this]
     [this routing-id])
   (goodbye-ok [this]
@@ -60,26 +52,10 @@
     (HydraProto/sendGet_Post socket post-id))
   (get-post [this routing-id post-id]
     (HydraProto/sendGet_Post socket routing-id post-id))
-  (get-post-ok [this post-id reply-to previous tags timestamp digest type content]
-    (HydraProto/sendGet_Post_Ok socket post-id reply-to previous tags timestamp digest type content))
-  (get-post-ok [this routing-id post-id reply-to previous tags timestamp digest type content]
-    (HydraProto/sendGet_Post_Ok socket routing-id post-id reply-to previous tags timestamp digest type content))
-  (get-tags [this]
-    (HydraProto/sendGet_Tags socket))
-  (get-tags [this routing-id]
-    (HydraProto/sendGet_Tags socket routing-id))
-  (get-tags-ok [this tags]
-    (HydraProto/sendGet_Tags_Ok socket tags))
-  (get-tags-ok [this routing-id tags]
-    (HydraProto/sendGet_Tags_Ok socket routing-id tags))
-  (get-tag [this tag]
-    (HydraProto/sendGet_Tag socket tag))
-  (get-tag [this routing-id tag]
-    (HydraProto/sendGet_Tag socket routing-id tag))
-  (get-tag-ok [this tag post-id]
-    (HydraProto/sendGet_Tag_Ok socket tag post-id))
-  (get-tag-ok [this routing-id tag post-id]
-    (HydraProto/sendGet_Tag_Ok socket routing-id tag post-id))
+  (get-post-ok [this post-id reply-to previous timestamp digest type content]
+    (HydraProto/sendGet_Post_Ok socket post-id reply-to previous timestamp digest type content))
+  (get-post-ok [this routing-id post-id reply-to previous timestamp digest type content]
+    (HydraProto/sendGet_Post_Ok socket routing-id post-id reply-to previous timestamp digest type content))
   (goodbye [this]
     (HydraProto/sendGoodbye socket))
   (goodbye [this routing-id]
@@ -116,9 +92,6 @@
 (defn previous! [^HydraProto msg format & opts]
  (.setPrevious msg format (object-array opts)))
 
-(defn tags! [^HydraProto msg format & opts]
- (.setTags msg format (object-array opts)))
-
 (defn timestamp! [^HydraProto msg format & opts]
  (.setTimestamp msg format (object-array opts)))
 
@@ -130,9 +103,6 @@
 
 (defn content! [^HydraProto msg content]
  (.setContent msg content))
-
-(defn tag! [^HydraProto msg format & opts]
- (.setTag msg format (object-array opts)))
 
 (defn status! [^HydraProto msg status]
  (.setStatus msg status))

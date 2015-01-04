@@ -65,7 +65,7 @@ server_initialize (server_t *self)
 {
     //  Open ledger and read to end
     self->last_post_id = "";
-    self->ledger = zfile_new (".", "hydra.dat");
+    self->ledger = zfile_new (".", "ledger.txt");
     if (zfile_input (self->ledger) == 0) {
         const char *post_id = zfile_readln (self->ledger);
         while (post_id) {
@@ -147,31 +147,6 @@ get_most_recent_post (client_t *self)
 
 
 //  ---------------------------------------------------------------------------
-//  get_all_tags
-//
-
-static void
-get_all_tags (client_t *self)
-{
-    //  We don't implement tags yet
-//     zlist_t *tags = zlist_new ();
-//     zlist_append (tags, "people");
-//     hydra_proto_set_tags (self->message, &tags);
-}
-
-
-//  ---------------------------------------------------------------------------
-//  get_single_tag
-//
-
-static void
-get_single_tag (client_t *self)
-{
-    //  We don't implement tags yet
-}
-
-
-//  ---------------------------------------------------------------------------
 //  get_single_post
 //
 
@@ -186,7 +161,6 @@ get_single_post (client_t *self)
         //  Get post metadata into message
         hydra_proto_set_reply_to  (self->message, zconfig_resolve (post, "/post/reply_to", ""));
         hydra_proto_set_previous  (self->message, zconfig_resolve (post, "/post/previous", ""));
-        hydra_proto_set_tags      (self->message, zconfig_resolve (post, "/post/tags", ""));
         hydra_proto_set_timestamp (self->message, zconfig_resolve (post, "/post/timestamp", ""));
         hydra_proto_set_digest    (self->message, zconfig_resolve (post, "/post/digest", ""));
         hydra_proto_set_type      (self->message, zconfig_resolve (post, "/post/type", ""));

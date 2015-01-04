@@ -33,8 +33,6 @@
 (defprotocol HydraServerBackend
   (set-server-identity [this msg identity nickname])
   (get-most-recent-post [this msg identity nickname])
-  (get-all-tags [this msg])
-  (get-single-tag [this msg tag])
   (get-single-post [this msg post-id])
   (allow-time-to-settle [this msg])
   (signal-command-invalid [this msg]))
@@ -79,8 +77,6 @@
     :* [ (action signal-command-invalid) (send HydraProto/ERROR) (action allow-time-to-settle) (next-state :settling) ]
   }
   :connected {
-    HydraProto/GET_TAGS [ (action get-all-tags) (send HydraProto/GET_TAGS_OK) ]
-    HydraProto/GET_TAG [ (action get-single-tag .tag) (send HydraProto/GET_TAG_OK) ]
     HydraProto/GET_POST [ (action get-single-post .post_id) (send HydraProto/GET_POST_OK) ]
     HydraProto/GOODBYE [ (send HydraProto/GOODBYE_OK) (action allow-time-to-settle) (next-state :settling) ]
     HydraProto/EXPIRED [ (action allow-time-to-settle) (next-state :settling) ]

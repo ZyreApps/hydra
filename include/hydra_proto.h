@@ -42,23 +42,10 @@
         post_id             string      Post identifier
         reply_to            string      Parent post, if any
         previous            string      Previous post, if any
-        tags                string      Content tags, space delimited
         timestamp           string      Content date/time
         digest              string      Content digest
         type                string      Content type
         content             chunk       Content body
-
-    GET_TAGS - Request list of all tags known by peer
-
-    GET_TAGS_OK - Return list of known tags
-        tags                string      Known tags, space delimited
-
-    GET_TAG - Request summary for a given tag
-        tag                 string      Name of tag
-
-    GET_TAG_OK - Return latest post ID for given tag
-        tag                 string      Name of tag
-        post_id             string      Post identifier
 
     GOODBYE - Close the connection politely
 
@@ -87,13 +74,9 @@
 #define HYDRA_PROTO_HELLO_OK                2
 #define HYDRA_PROTO_GET_POST                3
 #define HYDRA_PROTO_GET_POST_OK             4
-#define HYDRA_PROTO_GET_TAGS                5
-#define HYDRA_PROTO_GET_TAGS_OK             6
-#define HYDRA_PROTO_GET_TAG                 7
-#define HYDRA_PROTO_GET_TAG_OK              8
-#define HYDRA_PROTO_GOODBYE                 9
-#define HYDRA_PROTO_GOODBYE_OK              10
-#define HYDRA_PROTO_ERROR                   11
+#define HYDRA_PROTO_GOODBYE                 5
+#define HYDRA_PROTO_GOODBYE_OK              6
+#define HYDRA_PROTO_ERROR                   7
 
 #include <czmq.h>
 
@@ -173,12 +156,6 @@ const char *
 void
     hydra_proto_set_previous (hydra_proto_t *self, const char *value);
 
-//  Get/set the tags field
-const char *
-    hydra_proto_tags (hydra_proto_t *self);
-void
-    hydra_proto_set_tags (hydra_proto_t *self, const char *value);
-
 //  Get/set the timestamp field
 const char *
     hydra_proto_timestamp (hydra_proto_t *self);
@@ -206,12 +183,6 @@ zchunk_t *
 //  Set the content field, transferring ownership from caller
 void
     hydra_proto_set_content (hydra_proto_t *self, zchunk_t **chunk_p);
-
-//  Get/set the tag field
-const char *
-    hydra_proto_tag (hydra_proto_t *self);
-void
-    hydra_proto_set_tag (hydra_proto_t *self, const char *value);
 
 //  Get/set the status field
 uint16_t

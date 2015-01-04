@@ -42,12 +42,10 @@ struct _hydra_proto_t {
     char post_id [256];                 //  Post identifier
     char reply_to [256];                //  Parent post, if any
     char previous [256];                //  Previous post, if any
-    char tags [256];                    //  Content tags, space delimited
     char timestamp [256];               //  Content date/time
     char digest [256];                  //  Content digest
     char type [256];                    //  Content type
     zchunk_t *content;                  //  Content body
-    char tag [256];                     //  Name of tag
     uint16_t status;                    //  3-digit status code
     char reason [256];                  //  Printable explanation
 };
@@ -293,7 +291,6 @@ hydra_proto_recv (hydra_proto_t *self, zsock_t *input)
             GET_STRING (self->post_id);
             GET_STRING (self->reply_to);
             GET_STRING (self->previous);
-            GET_STRING (self->tags);
             GET_STRING (self->timestamp);
             GET_STRING (self->digest);
             GET_STRING (self->type);
@@ -307,22 +304,6 @@ hydra_proto_recv (hydra_proto_t *self, zsock_t *input)
                 self->content = zchunk_new (self->needle, chunk_size);
                 self->needle += chunk_size;
             }
-            break;
-
-        case HYDRA_PROTO_GET_TAGS:
-            break;
-
-        case HYDRA_PROTO_GET_TAGS_OK:
-            GET_STRING (self->tags);
-            break;
-
-        case HYDRA_PROTO_GET_TAG:
-            GET_STRING (self->tag);
-            break;
-
-        case HYDRA_PROTO_GET_TAG_OK:
-            GET_STRING (self->tag);
-            GET_STRING (self->post_id);
             break;
 
         case HYDRA_PROTO_GOODBYE:
@@ -383,23 +364,12 @@ hydra_proto_send (hydra_proto_t *self, zsock_t *output)
             frame_size += 1 + strlen (self->post_id);
             frame_size += 1 + strlen (self->reply_to);
             frame_size += 1 + strlen (self->previous);
-            frame_size += 1 + strlen (self->tags);
             frame_size += 1 + strlen (self->timestamp);
             frame_size += 1 + strlen (self->digest);
             frame_size += 1 + strlen (self->type);
             frame_size += 4;            //  Size is 4 octets
             if (self->content)
                 frame_size += zchunk_size (self->content);
-            break;
-        case HYDRA_PROTO_GET_TAGS_OK:
-            frame_size += 1 + strlen (self->tags);
-            break;
-        case HYDRA_PROTO_GET_TAG:
-            frame_size += 1 + strlen (self->tag);
-            break;
-        case HYDRA_PROTO_GET_TAG_OK:
-            frame_size += 1 + strlen (self->tag);
-            frame_size += 1 + strlen (self->post_id);
             break;
         case HYDRA_PROTO_ERROR:
             frame_size += 2;            //  status
@@ -434,7 +404,6 @@ hydra_proto_send (hydra_proto_t *self, zsock_t *output)
             PUT_STRING (self->post_id);
             PUT_STRING (self->reply_to);
             PUT_STRING (self->previous);
-            PUT_STRING (self->tags);
             PUT_STRING (self->timestamp);
             PUT_STRING (self->digest);
             PUT_STRING (self->type);
@@ -447,19 +416,6 @@ hydra_proto_send (hydra_proto_t *self, zsock_t *output)
             }
             else
                 PUT_NUMBER4 (0);    //  Empty chunk
-            break;
-
-        case HYDRA_PROTO_GET_TAGS_OK:
-            PUT_STRING (self->tags);
-            break;
-
-        case HYDRA_PROTO_GET_TAG:
-            PUT_STRING (self->tag);
-            break;
-
-        case HYDRA_PROTO_GET_TAG_OK:
-            PUT_STRING (self->tag);
-            PUT_STRING (self->post_id);
             break;
 
         case HYDRA_PROTO_ERROR:
@@ -533,10 +489,6 @@ hydra_proto_print (hydra_proto_t *self)
                 zsys_debug ("    previous='%s'", self->previous);
             else
                 zsys_debug ("    previous=");
-            if (self->tags)
-                zsys_debug ("    tags='%s'", self->tags);
-            else
-                zsys_debug ("    tags=");
             if (self->timestamp)
                 zsys_debug ("    timestamp='%s'", self->timestamp);
             else
@@ -550,38 +502,6 @@ hydra_proto_print (hydra_proto_t *self)
             else
                 zsys_debug ("    type=");
             zsys_debug ("    content=[ ... ]");
-            break;
-            
-        case HYDRA_PROTO_GET_TAGS:
-            zsys_debug ("HYDRA_PROTO_GET_TAGS:");
-            break;
-            
-        case HYDRA_PROTO_GET_TAGS_OK:
-            zsys_debug ("HYDRA_PROTO_GET_TAGS_OK:");
-            if (self->tags)
-                zsys_debug ("    tags='%s'", self->tags);
-            else
-                zsys_debug ("    tags=");
-            break;
-            
-        case HYDRA_PROTO_GET_TAG:
-            zsys_debug ("HYDRA_PROTO_GET_TAG:");
-            if (self->tag)
-                zsys_debug ("    tag='%s'", self->tag);
-            else
-                zsys_debug ("    tag=");
-            break;
-            
-        case HYDRA_PROTO_GET_TAG_OK:
-            zsys_debug ("HYDRA_PROTO_GET_TAG_OK:");
-            if (self->tag)
-                zsys_debug ("    tag='%s'", self->tag);
-            else
-                zsys_debug ("    tag=");
-            if (self->post_id)
-                zsys_debug ("    post_id='%s'", self->post_id);
-            else
-                zsys_debug ("    post_id=");
             break;
             
         case HYDRA_PROTO_GOODBYE:
@@ -659,18 +579,6 @@ hydra_proto_command (hydra_proto_t *self)
             break;
         case HYDRA_PROTO_GET_POST_OK:
             return ("GET_POST_OK");
-            break;
-        case HYDRA_PROTO_GET_TAGS:
-            return ("GET_TAGS");
-            break;
-        case HYDRA_PROTO_GET_TAGS_OK:
-            return ("GET_TAGS_OK");
-            break;
-        case HYDRA_PROTO_GET_TAG:
-            return ("GET_TAG");
-            break;
-        case HYDRA_PROTO_GET_TAG_OK:
-            return ("GET_TAG_OK");
             break;
         case HYDRA_PROTO_GOODBYE:
             return ("GOODBYE");
@@ -796,28 +704,6 @@ hydra_proto_set_previous (hydra_proto_t *self, const char *value)
 
 
 //  --------------------------------------------------------------------------
-//  Get/set the tags field
-
-const char *
-hydra_proto_tags (hydra_proto_t *self)
-{
-    assert (self);
-    return self->tags;
-}
-
-void
-hydra_proto_set_tags (hydra_proto_t *self, const char *value)
-{
-    assert (self);
-    assert (value);
-    if (value == self->tags)
-        return;
-    strncpy (self->tags, value, 255);
-    self->tags [255] = 0;
-}
-
-
-//  --------------------------------------------------------------------------
 //  Get/set the timestamp field
 
 const char *
@@ -913,28 +799,6 @@ hydra_proto_set_content (hydra_proto_t *self, zchunk_t **chunk_p)
     zchunk_destroy (&self->content);
     self->content = *chunk_p;
     *chunk_p = NULL;
-}
-
-
-//  --------------------------------------------------------------------------
-//  Get/set the tag field
-
-const char *
-hydra_proto_tag (hydra_proto_t *self)
-{
-    assert (self);
-    return self->tag;
-}
-
-void
-hydra_proto_set_tag (hydra_proto_t *self, const char *value)
-{
-    assert (self);
-    assert (value);
-    if (value == self->tag)
-        return;
-    strncpy (self->tag, value, 255);
-    self->tag [255] = 0;
 }
 
 
@@ -1052,7 +916,6 @@ hydra_proto_test (bool verbose)
     hydra_proto_set_post_id (self, "Life is short but Now lasts for ever");
     hydra_proto_set_reply_to (self, "Life is short but Now lasts for ever");
     hydra_proto_set_previous (self, "Life is short but Now lasts for ever");
-    hydra_proto_set_tags (self, "Life is short but Now lasts for ever");
     hydra_proto_set_timestamp (self, "Life is short but Now lasts for ever");
     hydra_proto_set_digest (self, "Life is short but Now lasts for ever");
     hydra_proto_set_type (self, "Life is short but Now lasts for ever");
@@ -1068,59 +931,10 @@ hydra_proto_test (bool verbose)
         assert (streq (hydra_proto_post_id (self), "Life is short but Now lasts for ever"));
         assert (streq (hydra_proto_reply_to (self), "Life is short but Now lasts for ever"));
         assert (streq (hydra_proto_previous (self), "Life is short but Now lasts for ever"));
-        assert (streq (hydra_proto_tags (self), "Life is short but Now lasts for ever"));
         assert (streq (hydra_proto_timestamp (self), "Life is short but Now lasts for ever"));
         assert (streq (hydra_proto_digest (self), "Life is short but Now lasts for ever"));
         assert (streq (hydra_proto_type (self), "Life is short but Now lasts for ever"));
         assert (memcmp (zchunk_data (hydra_proto_content (self)), "Captcha Diem", 12) == 0);
-    }
-    hydra_proto_set_id (self, HYDRA_PROTO_GET_TAGS);
-
-    //  Send twice
-    hydra_proto_send (self, output);
-    hydra_proto_send (self, output);
-
-    for (instance = 0; instance < 2; instance++) {
-        hydra_proto_recv (self, input);
-        assert (hydra_proto_routing_id (self));
-    }
-    hydra_proto_set_id (self, HYDRA_PROTO_GET_TAGS_OK);
-
-    hydra_proto_set_tags (self, "Life is short but Now lasts for ever");
-    //  Send twice
-    hydra_proto_send (self, output);
-    hydra_proto_send (self, output);
-
-    for (instance = 0; instance < 2; instance++) {
-        hydra_proto_recv (self, input);
-        assert (hydra_proto_routing_id (self));
-        assert (streq (hydra_proto_tags (self), "Life is short but Now lasts for ever"));
-    }
-    hydra_proto_set_id (self, HYDRA_PROTO_GET_TAG);
-
-    hydra_proto_set_tag (self, "Life is short but Now lasts for ever");
-    //  Send twice
-    hydra_proto_send (self, output);
-    hydra_proto_send (self, output);
-
-    for (instance = 0; instance < 2; instance++) {
-        hydra_proto_recv (self, input);
-        assert (hydra_proto_routing_id (self));
-        assert (streq (hydra_proto_tag (self), "Life is short but Now lasts for ever"));
-    }
-    hydra_proto_set_id (self, HYDRA_PROTO_GET_TAG_OK);
-
-    hydra_proto_set_tag (self, "Life is short but Now lasts for ever");
-    hydra_proto_set_post_id (self, "Life is short but Now lasts for ever");
-    //  Send twice
-    hydra_proto_send (self, output);
-    hydra_proto_send (self, output);
-
-    for (instance = 0; instance < 2; instance++) {
-        hydra_proto_recv (self, input);
-        assert (hydra_proto_routing_id (self));
-        assert (streq (hydra_proto_tag (self), "Life is short but Now lasts for ever"));
-        assert (streq (hydra_proto_post_id (self), "Life is short but Now lasts for ever"));
     }
     hydra_proto_set_id (self, HYDRA_PROTO_GOODBYE);
 
