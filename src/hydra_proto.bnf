@@ -1,0 +1,61 @@
+The following ABNF grammar defines the The Hydra Protocol:
+
+    hydra = hello *( get-post ) [ goodbye ]
+    hello = c:hello ( s:hello-ok / s:invalid / s:failed )
+    get-post = c:get-post ( s:get-post-ok / s:invalid / s:failed )
+    goodbye = c:goodbye ( s:goodbye-ok / s:invalid / s:failed )
+
+    ;  Open new connection                                                   
+
+    HELLO           = signature %d1 identity nickname
+    signature       = %xAA %xA0             ; two octets
+    identity        = string                ; Client identity
+    nickname        = string                ; Client nickname
+
+    ;  Accept new connection and return most recent post, if any.            
+
+    HELLO-OK        = signature %d2 post_id identity nickname
+    post-id         = string                ; Post identifier
+    identity        = string                ; Server identity
+    nickname        = string                ; Server nickname
+
+    ;  Fetch a given post's content                                          
+
+    GET-POST        = signature %d3 post_id
+    post-id         = string                ; Post identifier
+
+    ;  Return a post's metadata and content                                  
+
+    GET-POST-OK     = signature %d4 post_id reply_to previous timestamp digest type content
+    post-id         = string                ; Post identifier
+    reply-to        = string                ; Parent post, if any
+    previous        = string                ; Previous post, if any
+    timestamp       = string                ; Content date/time
+    digest          = string                ; Content digest
+    type            = string                ; Content type
+    content         = chunk                 ; Content body
+
+    ;  Close the connection politely                                         
+
+    GOODBYE         = signature %d5
+
+    ;  Handshake a connection close                                          
+
+    GOODBYE-OK      = signature %d6
+
+    ;  Command failed for some specific reason                               
+
+    ERROR           = signature %d7 status reason
+    status          = number-2              ; 3-digit status code
+    reason          = string                ; Printable explanation
+
+    ; A chunk has 4-octet length + binary contents
+    chunk           = number-4 *OCTET
+
+    ; Strings are always length + text contents
+    string          = number-1 *VCHAR
+
+    ; Numbers are unsigned integers in network byte order
+    number-1        = 1OCTET
+    number-2        = 2OCTET
+    number-4        = 4OCTET

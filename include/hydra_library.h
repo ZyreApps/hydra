@@ -19,7 +19,7 @@
 #define __hydra_library_H_INCLUDED__
 
 //  External dependencies
-#include <czmq.h>
+#include <zyre.h>
 
 //  HYDRA version macros for compile-time API detection
 
@@ -45,8 +45,8 @@
 #endif
 
 //  Opaque class structures to allow forward references
-typedef struct _hydra_msg_t hydra_msg_t;
-#define HYDRA_MSG_T_DEFINED
+typedef struct _hydra_proto_t hydra_proto_t;
+#define HYDRA_PROTO_T_DEFINED
 typedef struct _hydra_server_t hydra_server_t;
 #define HYDRA_SERVER_T_DEFINED
 typedef struct _hydra_client_t hydra_client_t;
@@ -54,7 +54,7 @@ typedef struct _hydra_client_t hydra_client_t;
 
 
 //  Public API classes
-#include "hydra_msg.h"
+#include "hydra_proto.h"
 #include "hydra_server.h"
 #include "hydra_client.h"
 

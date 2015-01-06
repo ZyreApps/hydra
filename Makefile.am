@@ -8,21 +8,20 @@ ACLOCAL_AMFLAGS = -I config
 AM_CPPFLAGS = \
     ${zmq_CFLAGS} \
     ${czmq_CFLAGS} \
+    ${zyre_CFLAGS} \
     -I$(srcdir)/include
 
 project_libs = \
     ${zmq_LIBS} \
-    ${czmq_LIBS}
+    ${czmq_LIBS} \
+    ${zyre_LIBS}
 
 SUBDIRS =
 SUBDIRS += doc
 
 DIST_SUBDIRS =
-
 lib_LTLIBRARIES =
-
 bin_PROGRAMS =
-
 check_PROGRAMS =
 
 EXTRA_DIST = \

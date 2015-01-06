@@ -2,87 +2,83 @@
     name = "hydra_client"
     title = "Hydra Client"
     script = "zproto_client_c"
-    protocol_class = "hydra_msg"
+    protocol_class = "hydra_proto"
     package_dir = "../include"
     project_header = "hydra_classes.h"
     >
-    This is a client implementation of the Hydra Protocol
+    This a Hydra client implementation. It talks to the server peer,
+    synchronizes all posts, and then terminates.
     <include filename = "../license.xml" />
 
     <state name = "start">
-        <event name = "constructor" next = "connecting">
+        <event name = "constructor" next = "expect hello ok">
             <action name = "connect to server endpoint" />
+            <action name = "set client identity" />
             <action name = "use connect timeout" />
             <action name = "send" message = "HELLO" />
         </event>
-        <event name = "error">
+        <event name = "bad endpoint">
+            <action name = "signal bad endpoint" />
             <action name = "terminate" />
         </event>
     </state>
 
-    <state name = "connecting" inherit = "defaults">
+    <state name = "expect hello ok" inherit = "defaults">
         <event name = "HELLO OK" next = "connected">
+            <action name = "use response timeout" />
             <action name = "signal success" />
-        </event>
-        <event name = "expired">
-            <action name = "signal server not present" />
-            <action name = "terminate" />
         </event>
     </state>
 
     <state name = "connected" inherit = "defaults">
-        <event name = "get tags" next = "expect get tags ok">
-            <action name = "send" message = "GET TAGS" />
-        </event>
-        <event name = "get tag" next = "expect get tag ok">
-            <action name = "prepare to send get tag" />
-            <action name = "send" message = "GET TAG" />
-        </event>
-        <event name = "get post" next = "expect get post ok">
-            <action name = "prepare to send get post" />
+        <event name = "fetch" next = "expect get post ok">
+            <action name = "prepare to get last post" />
             <action name = "send" message = "GET POST" />
         </event>
-        <event name = "destructor" next = "expect goodbye ok">
-            <action name = "send" message = "GOODBYE" />
+        <event name = "have post" next = "finished">
+            <action name = "signal success" />
         </event>
-    </state>
-
-    <state name = "expect get tags ok" inherit = "defaults">
-        <event name = "GET TAGS OK" next = "connected">
-            <action name = "return tags to application" />
-        </event>
-    </state>
-
-    <state name = "expect get tag ok" inherit = "defaults">
-        <event name = "GET TAG OK" next = "connected">
-            <action name = "return tag to application" />
+        <event name = "got nothing" next = "finished">
+            <action name = "signal success" />
         </event>
     </state>
 
     <state name = "expect get post ok" inherit = "defaults">
-        <event name = "GET POST OK" next = "connected">
-            <action name = "return post to application" />
+        <event name = "GET POST OK">
+            <action name = "store the post" />
+            <action name = "prepare to get previous post" />
+            <action name = "send" message = "GET POST" />
         </event>
-    </state>
-
-    <state name = "expect goodbye ok" inherit = "defaults">
-        <event name = "GOODBYE OK" next = "connected">
+        <event name = "have post" next = "finished">
             <action name = "signal success" />
-            <action name = "terminate" />
-        </event>
-        <event name = "expired">
-            <action name = "signal failure" />
-            <action name = "terminate" />
         </event>
     </state>
 
     <state name = "defaults">
-        <event name = "INVALID" next = "connecting">
-            <action name = "use connect timeout" />
-            <action name = "send" message = "HELLO" />
+        <event name = "expired">
+            <action name = "signal server not present" />
+            <action name = "terminate" />
+        </event>
+        <event name = "destructor" next = "expect goodbye ok">
+            <action name = "send" message = "GOODBYE" />
         </event>
         <event name = "*">
-            <!-- Discard any other incoming events -->
+            <action name = "signal internal error" />
+            <action name = "terminate" />
+        </event>
+    </state>
+
+    <state name = "finished" inherit = "defaults">
+    </state>
+    
+    <state name = "expect goodbye ok" inherit = "defaults">
+        <event name = "GOODBYE OK">
+            <action name = "signal success" />
+            <action name = "terminate" />
+        </event>
+        <event name = "expired">
+            <action name = "signal incomplete" />
+            <action name = "terminate" />
         </event>
     </state>
 
@@ -103,48 +99,20 @@
         <accept reply = "FAILURE" />
     </method>
 
+    <method name = "fetch" return = "status">
+    Fetch all available posts from server, starting with most recent,
+    and working backwards, until there are no more posts, or the server
+    disappears. TODO: add maximum posts to fetch.
+        <accept reply = "SUCCESS" />
+        <accept reply = "FAILURE" />
+    </method>
+
     <reply name = "SUCCESS">
-        <field name = "status" type = "number" size = "1" />
+        <field name = "status" type = "integer" />
     </reply>
 
     <reply name = "FAILURE">
-        <field name = "status" type = "number" size = "1" />
+        <field name = "status" type = "integer" />
         <field name = "reason" type = "string" />
-    </reply>
-
-    <method name = "get tags" return = "status">
-    Get list of tags from peer
-        <accept reply = "TAGS" />
-    </method>
-
-    <reply name = "TAGS">
-        <field name = "tags" type = "string" />
-    </reply>
-
-    <method name = "get tag">
-    Fetch latest post for a given tag
-        <field name = "tag" type = "string" />
-        <accept reply = "TAG" />
-    </method>
-
-    <reply name = "TAG">
-        <field name = "tag" type = "string" />
-        <field name = "post-id" type = "string">Latest post</field>
-    </reply>
-
-    <method name = "get post">
-    Fetch a specific post byt ID
-        <field name = "post-id" type = "string" />
-        <accept reply = "POST" />
-    </method>
-
-    <reply name = "POST">
-        <field name = "post-id" type = "string">Post identifier</field>
-        <field name = "reply-to" type = "string">Parent post, if any</field>
-        <field name = "previous" type = "string">Previous post, if any</field>
-        <field name = "tags" type = "string">Post tags</field>
-        <field name = "timestamp" type = "number" size = "8">Post creation timestamp</field>
-        <field name = "type" type = "string">Content type</field>
-        <field name = "content" type = "string">Content body</field>
     </reply>
 </class>

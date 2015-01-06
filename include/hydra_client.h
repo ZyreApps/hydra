@@ -37,15 +37,16 @@ typedef struct _hydra_client_t hydra_client_t;
 //  Connect to server endpoint, with specified timeout in msecs (zero means wait    
 //  forever). Constructor succeeds if connection is successful.                     
 hydra_client_t *
-    hydra_client_new (const char *endpoint, int timeout);
+    hydra_client_new (const char *endpoint, uint32_t timeout);
 
 //  Destroy the hydra_client
 void
     hydra_client_destroy (hydra_client_t **self_p);
 
-//  Enable verbose logging of client activity
-void
-    hydra_client_verbose (hydra_client_t *self);
+//  Return actor, when caller wants to work with multiple actors and/or
+//  input sockets asynchronously.
+zactor_t *
+    hydra_client_actor (hydra_client_t *self);
 
 //  Return message pipe for asynchronous message I/O. In the high-volume case,
 //  we send methods and get replies to the actor, in a synchronous manner, and
@@ -55,64 +56,29 @@ void
 zsock_t *
     hydra_client_msgpipe (hydra_client_t *self);
 
-//  Get list of tags from peer                                                      
+//  Fetch all available posts from server, starting with most recent, and working   
+//  backwards, until there are no more posts, or the server disappears. TODO: add   
+//  maximum posts to fetch.                                                         
 //  Returns >= 0 if successful, -1 if interrupted.
-int
-    hydra_client_get_tags (hydra_client_t *self);
-
-//  Fetch latest post for a given tag                                               
-//  Returns >= 0 if successful, -1 if interrupted.
-int
-    hydra_client_get_tag (hydra_client_t *self, const char *tag);
-
-//  Fetch a specific post byt ID                                                    
-//  Returns >= 0 if successful, -1 if interrupted.
-int
-    hydra_client_get_post (hydra_client_t *self, const char *post_id);
+int 
+    hydra_client_fetch (hydra_client_t *self);
 
 //  Return last received status
 int 
     hydra_client_status (hydra_client_t *self);
 
 //  Return last received reason
-char *
+const char *
     hydra_client_reason (hydra_client_t *self);
-
-//  Return last received tags
-char *
-    hydra_client_tags (hydra_client_t *self);
-
-//  Return last received tag
-char *
-    hydra_client_tag (hydra_client_t *self);
-
-//  Return last received post_id
-char *
-    hydra_client_post_id (hydra_client_t *self);
-
-//  Return last received reply_to
-char *
-    hydra_client_reply_to (hydra_client_t *self);
-
-//  Return last received previous
-char *
-    hydra_client_previous (hydra_client_t *self);
-
-//  Return last received timestamp
-int 
-    hydra_client_timestamp (hydra_client_t *self);
-
-//  Return last received type
-char *
-    hydra_client_type (hydra_client_t *self);
-
-//  Return last received content
-char *
-    hydra_client_content (hydra_client_t *self);
 
 //  Self test of this class
 void
     hydra_client_test (bool verbose);
+    
+//  To enable verbose tracing (animation) of hydra_client instances, set
+//  this to true. This lets you trace from and including construction.
+extern volatile int
+    hydra_client_verbose;
 //  @end
 
 #ifdef __cplusplus

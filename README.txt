@@ -1,24 +1,13 @@
+.set GIT=https://github.com/edgenet/hydra
 
-<A name="toc1-2" title="Hydra" />
 # Hydra
 
 [![Build Status](https://travis-ci.org/edgenet/hydra.png)](https://travis-ci.org/edgenet/hydra)
 
-<A name="toc2-7" title="Contents" />
 ## Contents
 
+.toc 2
 
-**<a href="#toc2-12">Overview</a>**
-
-**<a href="#toc2-31">The Hydra Data Model</a>**
-
-**<a href="#toc2-49">Data Storage</a>**
-
-**<a href="#toc2-66">Building Hydra</a>**
-
-**<a href="#toc2-82">Ownership and Contributing</a>**
-
-<A name="toc2-12" title="Overview" />
 ## Overview
 
 Hydra is a simple protocol and stack for opportunistic sharing of events and content.
@@ -37,7 +26,6 @@ Not that Hydra is not a mesh network and does no forwarding or routing. This is 
 
 Hydra is aimed, in its current incarnation, at technical conferences, weddings, parties, and funerals. The participants are in rough proximity, for a period of hours or days. They share a strong set of interests. They implicitly trust each other, yet do not care about identities. They mainly want to share photos and comments on photos.
 
-<A name="toc2-31" title="The Hydra Data Model" />
 ## The Hydra Data Model
 
 In the Hydra model, an atom of information or content is a "post". A post has these properties:
@@ -55,7 +43,6 @@ Hydra uses an "opportunistic explorative" model for exchange. That is, rather th
 
 In this model, bandwidth and time are the limiting factors. Peers do not aim for consistency, though they may achieve this in some cases. Rather, peers try to exchange posts in order of priority, with increasing depth over time. The assumption is that the most recent posts are the most valuable.
 
-<A name="toc2-49" title="Data Storage" />
 ## Data Storage
 
 This section describes how the Hydra implementation stores its posts and content data. A Hydra service runs in a working directory and uses a lockfile (hydra.lock) to prevent multiple instances from running in the same directory.
@@ -72,7 +59,6 @@ For each peer we store:
 
 * to be defined.
 
-<A name="toc2-66" title="Building Hydra" />
 ## Building Hydra
 
 To build the Hydra C stack do the following:
@@ -88,7 +74,6 @@ To build the Hydra C stack do the following:
         cd ..
     done
 
-<A name="toc2-82" title="Ownership and Contributing" />
 ## Ownership and Contributing
 
 The contributors are listed in AUTHORS. This project uses the MPL v2 license, see LICENSE.

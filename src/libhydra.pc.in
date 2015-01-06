@@ -12,7 +12,7 @@ Name: libhydra
 Description: A protocol for sharing stuff
 Version: @VERSION@
 
-Requires:libzmq >= 2.2.0 libczmq
+Requires:libzmq >= 2.2.0 libczmq >= 3.0.0 libzyre
 
 Libs: -L${libdir} -lhydra
 Cflags: -I${includedir}

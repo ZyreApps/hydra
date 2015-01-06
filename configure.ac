@@ -87,44 +87,56 @@ fi
 
 was_czmq_check_lib_detected=no
 
-PKG_CHECK_MODULES([czmq], [libczmq],,
-    [
-        AC_ARG_WITH([libczmq],
-            [
-                AS_HELP_STRING([--with-libczmq],
-                [Specify libczmq prefix])
-            ],
-            [search_libczmq="yes"],
-            [])
-
-        czmq_synthetic_cflags=""
-        czmq_synthetic_libs="-lczmq"
-
-        if test "x$search_libczmq" = "xyes"; then
-            if test -r "${with_libczmq}/include/czmq.h"; then
-                czmq_synthetic_cflags="-I${with_libczmq}/include"
-                czmq_synthetic_libs="-L${with_libczmq}/lib -lczmq"
-            else
-                AC_MSG_ERROR([${with_libczmq}/include/czmq.h not found. Please check libczmq prefix])
-            fi
-        fi
-
-        CFLAGS="${czmq_synthetic_cflags} ${CFLAGS}"
-        LDFLAGS="${czmq_synthetic_libs} ${LDFLAGS}"
-        LIBS="${czmq_synthetic_libs} ${LIBS}"
-
-        AC_CHECK_LIB([czmq], [zctx_test],
-            [
-                AC_SUBST([czmq_CFLAGS],[${czmq_synthetic_cflags}])
-                AC_SUBST([czmq_LIBS],[${czmq_synthetic_libs}])
-                was_czmq_check_lib_detected=yes
-            ],
-            [AC_MSG_ERROR([cannot link with -lczmq, install libczmq.])])
-    ])
+PKG_CHECK_MODULES([czmq], [libczmq >= 3.0.0],,
+    [AC_MSG_ERROR([Cannot find required package for libczmq. Note, pkg-config is required due to specified version >= 3.0.0])
+  ])
 
 if test "x$was_czmq_check_lib_detected" = "xno"; then
     CFLAGS="${czmq_CFLAGS} ${CFLAGS}"
     LIBS="${czmq_LIBS} ${LIBS}"
+fi
+
+
+was_zyre_check_lib_detected=no
+
+PKG_CHECK_MODULES([zyre], [libzyre],,
+    [
+        AC_ARG_WITH([libzyre],
+            [
+                AS_HELP_STRING([--with-libzyre],
+                [Specify libzyre prefix])
+            ],
+            [search_libzyre="yes"],
+            [])
+
+        zyre_synthetic_cflags=""
+        zyre_synthetic_libs="-lzyre"
+
+        if test "x$search_libzyre" = "xyes"; then
+            if test -r "${with_libzyre}/include/zyre.h"; then
+                zyre_synthetic_cflags="-I${with_libzyre}/include"
+                zyre_synthetic_libs="-L${with_libzyre}/lib -lzyre"
+            else
+                AC_MSG_ERROR([${with_libzyre}/include/zyre.h not found. Please check libzyre prefix])
+            fi
+        fi
+
+        CFLAGS="${zyre_synthetic_cflags} ${CFLAGS}"
+        LDFLAGS="${zyre_synthetic_libs} ${LDFLAGS}"
+        LIBS="${zyre_synthetic_libs} ${LIBS}"
+
+        AC_CHECK_LIB([zyre], [zyre_test],
+            [
+                AC_SUBST([zyre_CFLAGS],[${zyre_synthetic_cflags}])
+                AC_SUBST([zyre_LIBS],[${zyre_synthetic_libs}])
+                was_zyre_check_lib_detected=yes
+            ],
+            [AC_MSG_ERROR([cannot link with -lzyre, install libzyre.])])
+    ])
+
+if test "x$was_zyre_check_lib_detected" = "xno"; then
+    CFLAGS="${zyre_CFLAGS} ${CFLAGS}"
+    LIBS="${zyre_LIBS} ${LIBS}"
 fi
 
 
@@ -275,7 +287,10 @@ AC_ARG_WITH([pkgconfigdir], AS_HELP_STRING([--with-pkgconfigdir=PATH],
 AC_SUBST([pkgconfigdir])
 
 # Specify output files
-AC_CONFIG_FILES([Makefile doc/Makefile src/libhydra.pc])
+AC_CONFIG_FILES([Makefile
+                 doc/Makefile
+                 src/libhydra.pc
+                 ])
 AC_OUTPUT
 
 ################################################################################

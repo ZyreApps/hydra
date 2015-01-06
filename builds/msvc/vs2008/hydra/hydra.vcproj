@@ -198,7 +198,7 @@
   <References />
   <Files>
     <Filter Name="Source Files" Filter="cpp;c;cxx;rc;def;r;odl;idl;hpj;bat">
-      <File RelativePath="..\..\..\..\src\hydra_msg.c">
+      <File RelativePath="..\..\..\..\src\hydra_proto.c">
         <FileConfiguration Name="Release|Win32">
           <Tool Name="VCCLCompilerTool" CompileAs="2" />
         </FileConfiguration>
@@ -297,7 +297,7 @@
     </Filter>
     <Filter Name="Header Files">
       <File RelativePath="..\..\..\..\builds\msvc\platform.h" />
-      <File RelativePath="..\..\..\..\include\hydra_msg.h" />
+      <File RelativePath="..\..\..\..\include\hydra_proto.h" />
       <File RelativePath="..\..\..\..\include\hydra_server.h" />
       <File RelativePath="..\..\..\..\include\hydra_client.h" />
       <File RelativePath="..\..\..\..\include\hydra_library.h" />

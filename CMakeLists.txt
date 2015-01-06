@@ -87,12 +87,19 @@ include_directories(${CZMQ_INCLUDE_DIRS})
 list(APPEND MORE_LIBRARIES ${CZMQ_LIBRARIES})
 
 ########################################################################
+# ZYRE dependency
+########################################################################
+find_package(Zyre REQUIRED)
+include_directories(${ZYRE_INCLUDE_DIRS})
+list(APPEND MORE_LIBRARIES ${ZYRE_LIBRARIES})
+
+########################################################################
 # includes
 ########################################################################
 set (hydra_headers
     include/hydra_library.h
     include/hydra.h
-    include/hydra_msg.h
+    include/hydra_proto.h
     include/hydra_server.h
     include/hydra_client.h
 )
@@ -105,7 +112,7 @@ install(FILES ${hydra_headers} DESTINATION include)
 include_directories(${BINARY_DIR})
 include_directories(${SOURCE_DIR}/include)
 set (hydra_sources
-    src/hydra_msg.c
+    src/hydra_proto.c
     src/hydra_server.c
     src/hydra_client.c
 )
