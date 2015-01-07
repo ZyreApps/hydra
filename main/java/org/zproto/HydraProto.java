@@ -21,26 +21,49 @@
 
 /*  These are the HydraProto messages:
 
-    HELLO - Open new connection
+    HELLO - Open new connection, provide client credentials.
         identity            string      Client identity
         nickname            string      Client nickname
 
-    HELLO_OK - Accept new connection and return most recent post, if any.
-        post_id             string      Post identifier
+    HELLO_OK - Accept new connection, provide server credentials.
         identity            string      Server identity
         nickname            string      Server nickname
 
-    GET_POST - Fetch a given post's content
-        post_id             string      Post identifier
+    STATUS - Client requests server status update, telling server the oldest and
+newest post that it knows for that server. If the client never
+received any posts from the server, these fields are empty.
+        oldest              string      Oldest post
+        newest              string      Newest post
 
-    GET_POST_OK - Return a post's metadata and content
-        post_id             string      Post identifier
-        reply_to            string      Parent post, if any
-        previous            string      Previous post, if any
-        timestamp           string      Content date/time
-        digest              string      Content digest
-        type                string      Content type
-        content             chunk       Content body
+    STATUS_OK - Server tells client how many posts it has, older and newer than the
+range the client already knows.
+        older               number 4    Number of older posts
+        newer               number 4    Newest of newer posts
+
+    HEADER - Client requests a post from the server, requesting either an older post
+(previous to the oldest post it already has), a newer post (following the
+newest post it has), or a fresh post (server's latest post, ignoring all
+status).
+        which               number 1    Which post to fetch
+
+    HEADER_OK - Return a post's metadata.
+        identifier          string      Post identifier
+        subject             longstr     Subject line
+        timestamp           string      Post creation timestamp
+        parent_post         string      Parent post ID, if any
+        content_digest      string      Content digest
+        content_type        string      Content type
+        content_size        number 8    Content size, octets
+
+    FETCH - Client fetches a chunk of content data from the server. This command
+always applies to the post returned by a HEADER-OK.
+        offset              number 8    File offset in content
+        octets              number 4    Number of octets to fetch
+
+    FETCH_OK - Return a chunk of post content.
+        offset              number 8    File offset in content
+        octets              number 4    Number of octets to fetch
+        content             chunk       Content data chunk
 
     GOODBYE - Close the connection politely
 
@@ -63,6 +86,9 @@ import org.zeromq.ZMQ.Socket;
 
 public class HydraProto implements java.io.Closeable
 {
+    public static final int HYDRA_PROTO_FETCH_OLDER         = 1;
+    public static final int HYDRA_PROTO_FETCH_NEWER         = 2;
+    public static final int HYDRA_PROTO_FETCH_FRESH         = 3;
     public static final int HYDRA_PROTO_SUCCESS             = 200;
     public static final int HYDRA_PROTO_STORED              = 201;
     public static final int HYDRA_PROTO_DELIVERED           = 202;
@@ -79,11 +105,15 @@ public class HydraProto implements java.io.Closeable
 
     public static final int HELLO                 = 1;
     public static final int HELLO_OK              = 2;
-    public static final int GET_POST              = 3;
-    public static final int GET_POST_OK           = 4;
-    public static final int GOODBYE               = 5;
-    public static final int GOODBYE_OK            = 6;
-    public static final int ERROR                 = 7;
+    public static final int STATUS                = 3;
+    public static final int STATUS_OK             = 4;
+    public static final int HEADER                = 5;
+    public static final int HEADER_OK             = 6;
+    public static final int FETCH                 = 7;
+    public static final int FETCH_OK              = 8;
+    public static final int GOODBYE               = 9;
+    public static final int GOODBYE_OK            = 10;
+    public static final int ERROR                 = 11;
 
     //  Structure of our class
     private ZFrame routingId;           // Routing_id from ROUTER, if any
@@ -92,12 +122,20 @@ public class HydraProto implements java.io.Closeable
 
     private String identity;
     private String nickname;
-    private String post_id;
-    private String reply_to;
-    private String previous;
+    private String oldest;
+    private String newest;
+    private long older;
+    private long newer;
+    private int which;
+    private String identifier;
+    private String subject;
     private String timestamp;
-    private String digest;
-    private String type;
+    private String parent_post;
+    private String content_digest;
+    private String content_type;
+    private long content_size;
+    private long offset;
+    private long octets;
     private byte[] content;
     private int status;
     private String reason;
@@ -283,22 +321,42 @@ public class HydraProto implements java.io.Closeable
                 break;
 
             case HELLO_OK:
-                self.post_id = self.getString ();
                 self.identity = self.getString ();
                 self.nickname = self.getString ();
                 break;
 
-            case GET_POST:
-                self.post_id = self.getString ();
+            case STATUS:
+                self.oldest = self.getString ();
+                self.newest = self.getString ();
                 break;
 
-            case GET_POST_OK:
-                self.post_id = self.getString ();
-                self.reply_to = self.getString ();
-                self.previous = self.getString ();
+            case STATUS_OK:
+                self.older = self.getNumber4 ();
+                self.newer = self.getNumber4 ();
+                break;
+
+            case HEADER:
+                self.which = self.getNumber1 ();
+                break;
+
+            case HEADER_OK:
+                self.identifier = self.getString ();
+                self.subject = self.getLongString ();
                 self.timestamp = self.getString ();
-                self.digest = self.getString ();
-                self.type = self.getString ();
+                self.parent_post = self.getString ();
+                self.content_digest = self.getString ();
+                self.content_type = self.getString ();
+                self.content_size = self.getNumber8 ();
+                break;
+
+            case FETCH:
+                self.offset = self.getNumber8 ();
+                self.octets = self.getNumber4 ();
+                break;
+
+            case FETCH_OK:
+                self.offset = self.getNumber8 ();
+                self.octets = self.getNumber4 ();
                 self.content = self.getBlock((int) self.getNumber4());
                 break;
 
@@ -355,9 +413,6 @@ public class HydraProto implements java.io.Closeable
             break;
 
         case HELLO_OK:
-            //  post_id is a string with 1-byte length
-            frameSize ++;
-            frameSize += (post_id != null) ? post_id.length() : 0;
             //  identity is a string with 1-byte length
             frameSize ++;
             frameSize += (identity != null) ? identity.length() : 0;
@@ -366,31 +421,62 @@ public class HydraProto implements java.io.Closeable
             frameSize += (nickname != null) ? nickname.length() : 0;
             break;
 
-        case GET_POST:
-            //  post_id is a string with 1-byte length
+        case STATUS:
+            //  oldest is a string with 1-byte length
             frameSize ++;
-            frameSize += (post_id != null) ? post_id.length() : 0;
+            frameSize += (oldest != null) ? oldest.length() : 0;
+            //  newest is a string with 1-byte length
+            frameSize ++;
+            frameSize += (newest != null) ? newest.length() : 0;
             break;
 
-        case GET_POST_OK:
-            //  post_id is a string with 1-byte length
+        case STATUS_OK:
+            //  older is a 4-byte integer
+            frameSize += 4;
+            //  newer is a 4-byte integer
+            frameSize += 4;
+            break;
+
+        case HEADER:
+            //  which is a 1-byte integer
+            frameSize += 1;
+            break;
+
+        case HEADER_OK:
+            //  identifier is a string with 1-byte length
             frameSize ++;
-            frameSize += (post_id != null) ? post_id.length() : 0;
-            //  reply_to is a string with 1-byte length
-            frameSize ++;
-            frameSize += (reply_to != null) ? reply_to.length() : 0;
-            //  previous is a string with 1-byte length
-            frameSize ++;
-            frameSize += (previous != null) ? previous.length() : 0;
+            frameSize += (identifier != null) ? identifier.length() : 0;
+            //  subject is a long string with 4-byte length
+            frameSize += 4;
+            frameSize += (subject != null) ? subject.length() : 0;
             //  timestamp is a string with 1-byte length
             frameSize ++;
             frameSize += (timestamp != null) ? timestamp.length() : 0;
-            //  digest is a string with 1-byte length
+            //  parent_post is a string with 1-byte length
             frameSize ++;
-            frameSize += (digest != null) ? digest.length() : 0;
-            //  type is a string with 1-byte length
+            frameSize += (parent_post != null) ? parent_post.length() : 0;
+            //  content_digest is a string with 1-byte length
             frameSize ++;
-            frameSize += (type != null) ? type.length() : 0;
+            frameSize += (content_digest != null) ? content_digest.length() : 0;
+            //  content_type is a string with 1-byte length
+            frameSize ++;
+            frameSize += (content_type != null) ? content_type.length() : 0;
+            //  content_size is a 8-byte integer
+            frameSize += 8;
+            break;
+
+        case FETCH:
+            //  offset is a 8-byte integer
+            frameSize += 8;
+            //  octets is a 4-byte integer
+            frameSize += 4;
+            break;
+
+        case FETCH_OK:
+            //  offset is a 8-byte integer
+            frameSize += 8;
+            //  octets is a 4-byte integer
+            frameSize += 4;
             //  content is a chunk with 4-byte length
             frameSize += 4;
             frameSize += (content != null) ? content.length : 0;
@@ -434,10 +520,6 @@ public class HydraProto implements java.io.Closeable
             break;
 
         case HELLO_OK:
-            if (post_id != null)
-                putString (post_id);
-            else
-                putNumber1 ((byte) 0);      //  Empty string
             if (identity != null)
                 putString (identity);
             else
@@ -448,38 +530,62 @@ public class HydraProto implements java.io.Closeable
                 putNumber1 ((byte) 0);      //  Empty string
             break;
 
-        case GET_POST:
-            if (post_id != null)
-                putString (post_id);
+        case STATUS:
+            if (oldest != null)
+                putString (oldest);
+            else
+                putNumber1 ((byte) 0);      //  Empty string
+            if (newest != null)
+                putString (newest);
             else
                 putNumber1 ((byte) 0);      //  Empty string
             break;
 
-        case GET_POST_OK:
-            if (post_id != null)
-                putString (post_id);
+        case STATUS_OK:
+            putNumber4 (older);
+            putNumber4 (newer);
+            break;
+
+        case HEADER:
+            putNumber1 (which);
+            break;
+
+        case HEADER_OK:
+            if (identifier != null)
+                putString (identifier);
             else
                 putNumber1 ((byte) 0);      //  Empty string
-            if (reply_to != null)
-                putString (reply_to);
+            if (subject != null)
+                putLongString (subject);
             else
-                putNumber1 ((byte) 0);      //  Empty string
-            if (previous != null)
-                putString (previous);
-            else
-                putNumber1 ((byte) 0);      //  Empty string
+                putNumber4 (0);      //  Empty string
             if (timestamp != null)
                 putString (timestamp);
             else
                 putNumber1 ((byte) 0);      //  Empty string
-            if (digest != null)
-                putString (digest);
+            if (parent_post != null)
+                putString (parent_post);
             else
                 putNumber1 ((byte) 0);      //  Empty string
-            if (type != null)
-                putString (type);
+            if (content_digest != null)
+                putString (content_digest);
             else
                 putNumber1 ((byte) 0);      //  Empty string
+            if (content_type != null)
+                putString (content_type);
+            else
+                putNumber1 ((byte) 0);      //  Empty string
+            putNumber8 (content_size);
+            break;
+
+        case FETCH:
+            putNumber8 (offset);
+            putNumber4 (octets);
+            break;
+
+        case FETCH_OK:
+            putNumber8 (offset);
+            putNumber4 (octets);
               if(content != null) {
                   putNumber4(content.length);
                   needle.put(content, 0, content.length);
@@ -557,14 +663,12 @@ public class HydraProto implements java.io.Closeable
 
     public static void sendHello_Ok (
         Socket output,
-        String post_id,
         String identity,
         String nickname)
     {
 	sendHello_Ok (
 		    output,
 		    null,
-		    post_id,
 		    identity,
 		    nickname);
     }
@@ -575,7 +679,6 @@ public class HydraProto implements java.io.Closeable
     public static void sendHello_Ok (
         Socket output,
 	ZFrame routingId,
-        String post_id,
         String identity,
         String nickname)
     {
@@ -584,92 +687,231 @@ public class HydraProto implements java.io.Closeable
         {
 	        self.setRoutingId (routingId);
         }
-        self.setPost_Id (post_id);
         self.setIdentity (identity);
         self.setNickname (nickname);
         self.send (output);
     }
 
 //  --------------------------------------------------------------------------
-//  Send the GET_POST to the socket in one step
+//  Send the STATUS to the socket in one step
 
-    public static void sendGet_Post (
+    public static void sendStatus (
         Socket output,
-        String post_id)
+        String oldest,
+        String newest)
     {
-	sendGet_Post (
+	sendStatus (
 		    output,
 		    null,
-		    post_id);
+		    oldest,
+		    newest);
     }
 
 //  --------------------------------------------------------------------------
-//  Send the GET_POST to a router socket in one step
+//  Send the STATUS to a router socket in one step
 
-    public static void sendGet_Post (
+    public static void sendStatus (
         Socket output,
 	ZFrame routingId,
-        String post_id)
+        String oldest,
+        String newest)
     {
-        HydraProto self = new HydraProto (HydraProto.GET_POST);
+        HydraProto self = new HydraProto (HydraProto.STATUS);
         if (routingId != null)
         {
 	        self.setRoutingId (routingId);
         }
-        self.setPost_Id (post_id);
+        self.setOldest (oldest);
+        self.setNewest (newest);
         self.send (output);
     }
 
 //  --------------------------------------------------------------------------
-//  Send the GET_POST_OK to the socket in one step
+//  Send the STATUS_OK to the socket in one step
 
-    public static void sendGet_Post_Ok (
+    public static void sendStatus_Ok (
         Socket output,
-        String post_id,
-        String reply_to,
-        String previous,
-        String timestamp,
-        String digest,
-        String type,
-        byte[] content)
+        long older,
+        long newer)
     {
-	sendGet_Post_Ok (
+	sendStatus_Ok (
 		    output,
 		    null,
-		    post_id,
-		    reply_to,
-		    previous,
-		    timestamp,
-		    digest,
-		    type,
-		    content);
+		    older,
+		    newer);
     }
 
 //  --------------------------------------------------------------------------
-//  Send the GET_POST_OK to a router socket in one step
+//  Send the STATUS_OK to a router socket in one step
 
-    public static void sendGet_Post_Ok (
+    public static void sendStatus_Ok (
         Socket output,
 	ZFrame routingId,
-        String post_id,
-        String reply_to,
-        String previous,
-        String timestamp,
-        String digest,
-        String type,
-        byte[] content)
+        long older,
+        long newer)
     {
-        HydraProto self = new HydraProto (HydraProto.GET_POST_OK);
+        HydraProto self = new HydraProto (HydraProto.STATUS_OK);
         if (routingId != null)
         {
 	        self.setRoutingId (routingId);
         }
-        self.setPost_Id (post_id);
-        self.setReply_To (reply_to);
-        self.setPrevious (previous);
+        self.setOlder (older);
+        self.setNewer (newer);
+        self.send (output);
+    }
+
+//  --------------------------------------------------------------------------
+//  Send the HEADER to the socket in one step
+
+    public static void sendHeader (
+        Socket output,
+        int which)
+    {
+	sendHeader (
+		    output,
+		    null,
+		    which);
+    }
+
+//  --------------------------------------------------------------------------
+//  Send the HEADER to a router socket in one step
+
+    public static void sendHeader (
+        Socket output,
+	ZFrame routingId,
+        int which)
+    {
+        HydraProto self = new HydraProto (HydraProto.HEADER);
+        if (routingId != null)
+        {
+	        self.setRoutingId (routingId);
+        }
+        self.setWhich (which);
+        self.send (output);
+    }
+
+//  --------------------------------------------------------------------------
+//  Send the HEADER_OK to the socket in one step
+
+    public static void sendHeader_Ok (
+        Socket output,
+        String identifier,
+        String subject,
+        String timestamp,
+        String parent_post,
+        String content_digest,
+        String content_type,
+        long content_size)
+    {
+	sendHeader_Ok (
+		    output,
+		    null,
+		    identifier,
+		    subject,
+		    timestamp,
+		    parent_post,
+		    content_digest,
+		    content_type,
+		    content_size);
+    }
+
+//  --------------------------------------------------------------------------
+//  Send the HEADER_OK to a router socket in one step
+
+    public static void sendHeader_Ok (
+        Socket output,
+	ZFrame routingId,
+        String identifier,
+        String subject,
+        String timestamp,
+        String parent_post,
+        String content_digest,
+        String content_type,
+        long content_size)
+    {
+        HydraProto self = new HydraProto (HydraProto.HEADER_OK);
+        if (routingId != null)
+        {
+	        self.setRoutingId (routingId);
+        }
+        self.setIdentifier (identifier);
+        self.setSubject (subject);
         self.setTimestamp (timestamp);
-        self.setDigest (digest);
-        self.setType (type);
+        self.setParent_Post (parent_post);
+        self.setContent_Digest (content_digest);
+        self.setContent_Type (content_type);
+        self.setContent_Size (content_size);
+        self.send (output);
+    }
+
+//  --------------------------------------------------------------------------
+//  Send the FETCH to the socket in one step
+
+    public static void sendFetch (
+        Socket output,
+        long offset,
+        long octets)
+    {
+	sendFetch (
+		    output,
+		    null,
+		    offset,
+		    octets);
+    }
+
+//  --------------------------------------------------------------------------
+//  Send the FETCH to a router socket in one step
+
+    public static void sendFetch (
+        Socket output,
+	ZFrame routingId,
+        long offset,
+        long octets)
+    {
+        HydraProto self = new HydraProto (HydraProto.FETCH);
+        if (routingId != null)
+        {
+	        self.setRoutingId (routingId);
+        }
+        self.setOffset (offset);
+        self.setOctets (octets);
+        self.send (output);
+    }
+
+//  --------------------------------------------------------------------------
+//  Send the FETCH_OK to the socket in one step
+
+    public static void sendFetch_Ok (
+        Socket output,
+        long offset,
+        long octets,
+        byte[] content)
+    {
+	sendFetch_Ok (
+		    output,
+		    null,
+		    offset,
+		    octets,
+		    content);
+    }
+
+//  --------------------------------------------------------------------------
+//  Send the FETCH_OK to a router socket in one step
+
+    public static void sendFetch_Ok (
+        Socket output,
+	ZFrame routingId,
+        long offset,
+        long octets,
+        byte[] content)
+    {
+        HydraProto self = new HydraProto (HydraProto.FETCH_OK);
+        if (routingId != null)
+        {
+	        self.setRoutingId (routingId);
+        }
+        self.setOffset (offset);
+        self.setOctets (octets);
         self.setContent (content);
         self.send (output);
     }
@@ -775,20 +1017,36 @@ public class HydraProto implements java.io.Closeable
             copy.nickname = this.nickname;
         break;
         case HELLO_OK:
-            copy.post_id = this.post_id;
             copy.identity = this.identity;
             copy.nickname = this.nickname;
         break;
-        case GET_POST:
-            copy.post_id = this.post_id;
+        case STATUS:
+            copy.oldest = this.oldest;
+            copy.newest = this.newest;
         break;
-        case GET_POST_OK:
-            copy.post_id = this.post_id;
-            copy.reply_to = this.reply_to;
-            copy.previous = this.previous;
+        case STATUS_OK:
+            copy.older = this.older;
+            copy.newer = this.newer;
+        break;
+        case HEADER:
+            copy.which = this.which;
+        break;
+        case HEADER_OK:
+            copy.identifier = this.identifier;
+            copy.subject = this.subject;
             copy.timestamp = this.timestamp;
-            copy.digest = this.digest;
-            copy.type = this.type;
+            copy.parent_post = this.parent_post;
+            copy.content_digest = this.content_digest;
+            copy.content_type = this.content_type;
+            copy.content_size = this.content_size;
+        break;
+        case FETCH:
+            copy.offset = this.offset;
+            copy.octets = this.octets;
+        break;
+        case FETCH_OK:
+            copy.offset = this.offset;
+            copy.octets = this.octets;
             copy.content = this.content;
         break;
         case GOODBYE:
@@ -824,10 +1082,6 @@ public class HydraProto implements java.io.Closeable
 
         case HELLO_OK:
             System.out.println ("HELLO_OK:");
-            if (post_id != null)
-                System.out.printf ("    post_id='%s'\n", post_id);
-            else
-                System.out.printf ("    post_id=\n");
             if (identity != null)
                 System.out.printf ("    identity='%s'\n", identity);
             else
@@ -838,40 +1092,68 @@ public class HydraProto implements java.io.Closeable
                 System.out.printf ("    nickname=\n");
             break;
 
-        case GET_POST:
-            System.out.println ("GET_POST:");
-            if (post_id != null)
-                System.out.printf ("    post_id='%s'\n", post_id);
+        case STATUS:
+            System.out.println ("STATUS:");
+            if (oldest != null)
+                System.out.printf ("    oldest='%s'\n", oldest);
             else
-                System.out.printf ("    post_id=\n");
+                System.out.printf ("    oldest=\n");
+            if (newest != null)
+                System.out.printf ("    newest='%s'\n", newest);
+            else
+                System.out.printf ("    newest=\n");
             break;
 
-        case GET_POST_OK:
-            System.out.println ("GET_POST_OK:");
-            if (post_id != null)
-                System.out.printf ("    post_id='%s'\n", post_id);
+        case STATUS_OK:
+            System.out.println ("STATUS_OK:");
+            System.out.printf ("    older=%d\n", (long)older);
+            System.out.printf ("    newer=%d\n", (long)newer);
+            break;
+
+        case HEADER:
+            System.out.println ("HEADER:");
+            System.out.printf ("    which=%d\n", (long)which);
+            break;
+
+        case HEADER_OK:
+            System.out.println ("HEADER_OK:");
+            if (identifier != null)
+                System.out.printf ("    identifier='%s'\n", identifier);
             else
-                System.out.printf ("    post_id=\n");
-            if (reply_to != null)
-                System.out.printf ("    reply_to='%s'\n", reply_to);
+                System.out.printf ("    identifier=\n");
+            if (subject != null)
+                System.out.printf ("    subject='%s'\n", subject);
             else
-                System.out.printf ("    reply_to=\n");
-            if (previous != null)
-                System.out.printf ("    previous='%s'\n", previous);
-            else
-                System.out.printf ("    previous=\n");
+                System.out.printf ("    subject=\n");
             if (timestamp != null)
                 System.out.printf ("    timestamp='%s'\n", timestamp);
             else
                 System.out.printf ("    timestamp=\n");
-            if (digest != null)
-                System.out.printf ("    digest='%s'\n", digest);
+            if (parent_post != null)
+                System.out.printf ("    parent_post='%s'\n", parent_post);
             else
-                System.out.printf ("    digest=\n");
-            if (type != null)
-                System.out.printf ("    type='%s'\n", type);
+                System.out.printf ("    parent_post=\n");
+            if (content_digest != null)
+                System.out.printf ("    content_digest='%s'\n", content_digest);
             else
-                System.out.printf ("    type=\n");
+                System.out.printf ("    content_digest=\n");
+            if (content_type != null)
+                System.out.printf ("    content_type='%s'\n", content_type);
+            else
+                System.out.printf ("    content_type=\n");
+            System.out.printf ("    content_size=%d\n", (long)content_size);
+            break;
+
+        case FETCH:
+            System.out.println ("FETCH:");
+            System.out.printf ("    offset=%d\n", (long)offset);
+            System.out.printf ("    octets=%d\n", (long)octets);
+            break;
+
+        case FETCH_OK:
+            System.out.println ("FETCH_OK:");
+            System.out.printf ("    offset=%d\n", (long)offset);
+            System.out.printf ("    octets=%d\n", (long)octets);
             break;
 
         case GOODBYE:
@@ -953,45 +1235,98 @@ public class HydraProto implements java.io.Closeable
     }
 
     //  --------------------------------------------------------------------------
-    //  Get/set the post_id field
+    //  Get/set the oldest field
 
-    public String post_id ()
+    public String oldest ()
     {
-        return post_id;
+        return oldest;
     }
 
-    public void setPost_Id (String format, Object ... args)
+    public void setOldest (String format, Object ... args)
     {
         //  Format into newly allocated string
-        post_id = String.format (format, args);
+        oldest = String.format (format, args);
     }
 
     //  --------------------------------------------------------------------------
-    //  Get/set the reply_to field
+    //  Get/set the newest field
 
-    public String reply_to ()
+    public String newest ()
     {
-        return reply_to;
+        return newest;
     }
 
-    public void setReply_To (String format, Object ... args)
+    public void setNewest (String format, Object ... args)
     {
         //  Format into newly allocated string
-        reply_to = String.format (format, args);
+        newest = String.format (format, args);
     }
 
     //  --------------------------------------------------------------------------
-    //  Get/set the previous field
+    //  Get/set the older field
 
-    public String previous ()
+    public long older ()
     {
-        return previous;
+        return older;
     }
 
-    public void setPrevious (String format, Object ... args)
+    public void setOlder (long older)
+    {
+        this.older = older;
+    }
+
+    //  --------------------------------------------------------------------------
+    //  Get/set the newer field
+
+    public long newer ()
+    {
+        return newer;
+    }
+
+    public void setNewer (long newer)
+    {
+        this.newer = newer;
+    }
+
+    //  --------------------------------------------------------------------------
+    //  Get/set the which field
+
+    public int which ()
+    {
+        return which;
+    }
+
+    public void setWhich (int which)
+    {
+        this.which = which;
+    }
+
+    //  --------------------------------------------------------------------------
+    //  Get/set the identifier field
+
+    public String identifier ()
+    {
+        return identifier;
+    }
+
+    public void setIdentifier (String format, Object ... args)
     {
         //  Format into newly allocated string
-        previous = String.format (format, args);
+        identifier = String.format (format, args);
+    }
+
+    //  --------------------------------------------------------------------------
+    //  Get/set the subject field
+
+    public String subject ()
+    {
+        return subject;
+    }
+
+    public void setSubject (String format, Object ... args)
+    {
+        //  Format into newly allocated string
+        subject = String.format (format, args);
     }
 
     //  --------------------------------------------------------------------------
@@ -1009,31 +1344,84 @@ public class HydraProto implements java.io.Closeable
     }
 
     //  --------------------------------------------------------------------------
-    //  Get/set the digest field
+    //  Get/set the parent_post field
 
-    public String digest ()
+    public String parent_post ()
     {
-        return digest;
+        return parent_post;
     }
 
-    public void setDigest (String format, Object ... args)
+    public void setParent_Post (String format, Object ... args)
     {
         //  Format into newly allocated string
-        digest = String.format (format, args);
+        parent_post = String.format (format, args);
     }
 
     //  --------------------------------------------------------------------------
-    //  Get/set the type field
+    //  Get/set the content_digest field
 
-    public String type ()
+    public String content_digest ()
     {
-        return type;
+        return content_digest;
     }
 
-    public void setType (String format, Object ... args)
+    public void setContent_Digest (String format, Object ... args)
     {
         //  Format into newly allocated string
-        type = String.format (format, args);
+        content_digest = String.format (format, args);
+    }
+
+    //  --------------------------------------------------------------------------
+    //  Get/set the content_type field
+
+    public String content_type ()
+    {
+        return content_type;
+    }
+
+    public void setContent_Type (String format, Object ... args)
+    {
+        //  Format into newly allocated string
+        content_type = String.format (format, args);
+    }
+
+    //  --------------------------------------------------------------------------
+    //  Get/set the content_size field
+
+    public long content_size ()
+    {
+        return content_size;
+    }
+
+    public void setContent_Size (long content_size)
+    {
+        this.content_size = content_size;
+    }
+
+    //  --------------------------------------------------------------------------
+    //  Get/set the offset field
+
+    public long offset ()
+    {
+        return offset;
+    }
+
+    public void setOffset (long offset)
+    {
+        this.offset = offset;
+    }
+
+    //  --------------------------------------------------------------------------
+    //  Get/set the octets field
+
+    public long octets ()
+    {
+        return octets;
+    }
+
+    public void setOctets (long octets)
+    {
+        this.octets = octets;
     }
 
     //  --------------------------------------------------------------------------

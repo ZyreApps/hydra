@@ -38,7 +38,7 @@ struct _server_t {
     //  and are set by the generated engine; do not modify them!
     zsock_t *pipe;              //  Actor pipe back to caller
     zconfig_t *config;          //  Current loaded configuration
-    
+
     zfile_t *ledger;            //  Post ledger
     const char *last_post_id;   //  Last post we stored
 };
@@ -63,23 +63,24 @@ struct _client_t {
 static int
 server_initialize (server_t *self)
 {
-    //  Open ledger and read to end
-    self->last_post_id = "";
-    self->ledger = zfile_new (".", "ledger.txt");
-    if (zfile_input (self->ledger) == 0) {
-        const char *post_id = zfile_readln (self->ledger);
-        while (post_id) {
-            //  Check post exists
-            char *filename = zsys_sprintf ("posts/%s", post_id);
-            if (!zsys_file_exists (filename))
-                zsys_error ("Post %s is missing", post_id);
-            zstr_free (&filename);
-            
-            self->last_post_id = post_id;
-            post_id = zfile_readln (self->ledger);
+    //  server property zhashx_t *posts;            //  Posts indexed by identifier
+    //  hydra_post_t    -- reload all from disk at startup
+    
+    zdir_t *dir = zdir_new ("posts", NULL);
+    zfile_t **files = zdir_flatten (dir);
+    uint index;
+    for (index = 0; files [index]; index++) {
+        zfile_t *file = files [index];
+        zconfig_t *post = zconfig_load (zfile_filename (file, NULL));
+        if (post) {
+            //  get post ID
+            //  store post IDs in memory table (N x 20 bytes)
+            //  
+            zconfig_destroy (&post);
         }
-        zfile_close (self->ledger);
     }
+    zdir_flatten_free (&files);
+    
     return 0;
 }
 
@@ -96,7 +97,47 @@ server_terminate (server_t *self)
 static zmsg_t *
 server_method (server_t *self, const char *method, zmsg_t *msg)
 {
-    return NULL;
+    char *subject = zmsg_popstr (msg);
+    char *parent_id = zmsg_popstr (msg);
+    hydra_post_t *post = hydra_post_new (subject);
+    hydra_post_set_parent_id (post, parent_id);
+    hydra_post_set_post_dir (post, "posts");
+    hydra_post_set_blob_dir (post, "blobs");
+    
+    if (streq (method, "POST")) {
+        char *content = zmsg_popstr (msg);
+        hydra_post_set_content (post, content);
+        zstr_free (&content);
+    }
+    else
+    if (streq (method, "POST FILE")) {
+        char *mime_type = zmsg_popstr (msg);
+        hydra_post_set_mime_type (post, mime_type);
+        zstr_free (&mime_type);
+        char *filename = zmsg_popstr (msg);
+        hydra_post_set_file (post, filename);
+        zstr_free (&filename);
+    }
+    else
+    if (streq (method, "POST DATA")) {
+        char *mime_type = zmsg_popstr (msg);
+        hydra_post_set_mime_type (post, mime_type);
+        zstr_free (&mime_type);
+        zframe_t *frame = zmsg_pop (msg);
+        hydra_post_set_data (post, zframe_data (frame), zframe_size (frame));
+        zframe_destroy (&frame);
+    }
+    zstr_free (&subject);
+    zstr_free (&parent_id);
+
+    zmsg_t *reply = zmsg_new ();
+    zmsg_addstr (reply, hydra_post_id (post));
+    static int counter = 0;
+    char filename [20];
+    sprintf (filename, "%04d.txt", ++counter);
+    hydra_post_save (post, filename);
+    hydra_post_destroy (&post);
+    return reply;
 }
 
 
@@ -134,64 +175,14 @@ set_server_identity (client_t *self)
 }
 
 
-
 //  ---------------------------------------------------------------------------
-//  get_most_recent_post
+//  calculate_status_for_client
 //
 
 static void
-get_most_recent_post (client_t *self)
+calculate_status_for_client (client_t *self)
 {
-    hydra_proto_set_post_id (self->message, self->server->last_post_id);
-}
 
-
-//  ---------------------------------------------------------------------------
-//  get_single_post
-//
-
-static void
-get_single_post (client_t *self)
-{
-    zsys_info ("sending post=%s", hydra_proto_post_id (self->message));
-    char *filename = zsys_sprintf ("posts/%s", hydra_proto_post_id (self->message));
-    zconfig_t *post = zconfig_load (filename);
-    zstr_free (&filename);
-    if (post) {
-        //  Get post metadata into message
-        hydra_proto_set_reply_to  (self->message, zconfig_resolve (post, "/post/reply_to", ""));
-        hydra_proto_set_previous  (self->message, zconfig_resolve (post, "/post/previous", ""));
-        hydra_proto_set_timestamp (self->message, zconfig_resolve (post, "/post/timestamp", ""));
-        hydra_proto_set_digest    (self->message, zconfig_resolve (post, "/post/digest", ""));
-        hydra_proto_set_type      (self->message, zconfig_resolve (post, "/post/type", ""));
-        
-        //  Get post content into message
-        if (*hydra_proto_digest (self->message)) {
-            filename = zsys_sprintf ("contents/%s", hydra_proto_digest (self->message));
-            zchunk_t *chunk = zchunk_slurp (filename, CONTENT_MAX_SIZE);
-            if (chunk) {
-                zsys_info (" - content size=%zd", zchunk_size (chunk));
-                hydra_proto_set_content (self->message, &chunk);
-            }
-            zstr_free (&filename);
-        }
-    }
-    else {
-        hydra_proto_set_status (self->message, HYDRA_PROTO_NOT_FOUND);
-        engine_set_exception (self, exception_event);
-    }
-}
-
-
-//  ---------------------------------------------------------------------------
-//  allow_time_to_settle
-//
-
-static void
-allow_time_to_settle (client_t *self)
-{
-    //  Give client to come back with HELLO if we restarted
-    engine_set_wakeup_event (self, 200, settled_event);
 }
 
 
@@ -220,7 +211,7 @@ hydra_server_test (bool verbose)
     zactor_t *server = zactor_new (hydra_server, "server");
     if (verbose)
         zstr_send (server, "VERBOSE");
-    zstr_sendx (server, "CONFIGURE", "hydra.cfg", NULL);
+    zstr_sendx (server, "LOAD", "hydra.cfg", NULL);
     zstr_sendx (server, "BIND", "ipc://@/hydra_server", NULL);
 
     zsock_t *client = zsock_new (ZMQ_DEALER);

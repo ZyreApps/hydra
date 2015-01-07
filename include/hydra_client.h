@@ -56,16 +56,17 @@ zactor_t *
 zsock_t *
     hydra_client_msgpipe (hydra_client_t *self);
 
-//  Fetch all available posts from server, starting with most recent, and working   
-//  backwards, until there are no more posts, or the server disappears. TODO: add   
-//  maximum posts to fetch.                                                         
-//  Returns >= 0 if successful, -1 if interrupted.
-int 
-    hydra_client_fetch (hydra_client_t *self);
-
 //  Return last received status
 int 
     hydra_client_status (hydra_client_t *self);
+
+//  Return last received older
+uint32_t 
+    hydra_client_older (hydra_client_t *self);
+
+//  Return last received newer
+uint32_t 
+    hydra_client_newer (hydra_client_t *self);
 
 //  Return last received reason
 const char *

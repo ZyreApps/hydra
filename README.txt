@@ -43,6 +43,8 @@ Hydra is aimed, in its current incarnation, at technical conferences, weddings, 
 
 ## The Hydra Data Model
 
+This section describes the Hydra Data model, which underpins the rest of the design.
+
 A Hydra network consists of a set of self-identified *nodes*, which produce and share *posts*. A post is a piece of content (typically a photo or some text) with metadata.
 
 Every node has a self-generated UUID. The node configuration is held in hydra.cfg, which has this format:
@@ -55,7 +57,7 @@ Every node has a self-generated UUID. The node configuration is held in hydra.cf
 
 Posts have a permanent unique identifier which is the SHA1 digest of the post metadata, calculated thus:
 
-    post_id = sha1 (subject ":" timestamp ":" parent_id ":" content_type ":" content_digest)
+    post_id = sha1 (subject ":" timestamp ":" parent_id ":" mime_type ":" digest)
 
 A post has these immutable properties, apart from its identifier:
 
@@ -76,6 +78,8 @@ Every post has a content of zero or more octets. Hydra does not support multipar
 A Hydra node can store posts and content in any format. That is, the protocol makes no assumptions about the storage model.
 
 ## The Hydra Protocol
+
+This section describes the Hydra Protocol, which governs how two nodes exchange state.
 
 The Hydra protocol is optimized for WiFi connections and prioritizes bandwidth and reliability over latency. So it is chatty, and does not try to push data opportunistically towards peers.
 
@@ -105,6 +109,14 @@ We assume that it is usually impossible to fetch all posts from a peer, within a
 
 .pull src/hydra_proto.bnf
 
+## The Hydra API
+
+This section describes the API provided by the current Hydra implementation, and is meant for developers who wish to use Hydra in their applications.
+
+
+
+
+
 ## Implementation Notes
 
 This Hydra implementation stores posts in a subdirectory called posts, with one text file per post, in ZPL format (ZeroMQ RFC 4). Post files are named yyyymmdd_hhmmss_nnnn, consisting of the date and time the post was created on disk (not the post timestamp), and a 4-digit sequence number.
@@ -116,12 +128,8 @@ The Hydra working directory has these files:
 * hydra.cfg -- a configuration file, generated the first time if needed.
 * ledger.txt -- a list of all posts held by the node. A post ID is a UUID, and the ledger holds one UUID per line.
 * posts/ -- a subdirectory holding all posts.
-* contents/ -- a subdirectory holding all contents. A content file is named by its SHA1 digest.
+* blobs/ -- a subdirectory holding content blobs (when posts don't refer to other existing files).
 * peers/ -- a subdirectory holding peer status files. A peer status file is named by the peer's unique ID and holds the peer meta data in SPL format.
-
-# Node state held in a directory tree
-
-This avoids the need for passing any configuration to the Hydra process. We can put a configuration file into that tree, if needed. The directory name defaults to ".hydra" in current working directory. When starting, server creates a lockfile 'hydrad.lock' that ensures only one instance runs at a time.
 
 ## Ownership and Contributing
 

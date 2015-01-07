@@ -10,7 +10,7 @@ INCDIR=-I$(PREFIX)/include -I.
 LIBDIR=-L$(PREFIX)/lib
 CFLAGS=-Wall -Os -g -DLIBHYDRA_EXPORTS $(INCDIR)
 
-OBJS = hydra_proto.o hydra_server.o hydra_client.o
+OBJS = hydra_proto.o hydra_server.o hydra_client.o hydra_post.o hydra_ledger.o
 %.o: ../../src/%.c
 	$(CC) -c -o $@ $< $(CFLAGS)
 

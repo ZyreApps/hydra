@@ -13,51 +13,42 @@
     <state name = "start" inherit = "defaults">
         <event name = "HELLO" next = "connected">
             <action name = "set server identity" />
-            <action name = "get most recent post" />
             <action name = "send" message = "HELLO OK" />
         </event>
     </state>
 
     <state name = "connected" inherit = "defaults">
-        <event name = "GET POST">
-            <action name = "get single post" />
-            <action name = "send" message = "GET POST OK" />
+        <event name = "STATUS">
+            <action name = "calculate status for client" />
+            <action name = "send" message = "STATUS OK" />
+        </event>
+        <event name = "HEADER">
+            <action name = "send" message = "HEADER OK" />
+        </event>
+        <event name = "FETCH">
+            <action name = "send" message = "FETCH OK" />
+        </event>
+        <event name = "GOODBYE">
+            <action name = "send" message = "GOODBYE OK" />
+            <action name = "terminate" />
         </event>
     </state>
 
     <state name = "defaults">
-        <event name = "GOODBYE" next = "settling">
-            <action name = "send" message = "GOODBYE OK" />
-            <action name = "allow time to settle" />
-        </event>
         <!-- This built-in event hits on a client timeout -->
-        <event name = "expired" next = "settling">
-            <action name = "allow time to settle" />
-        </event>
-        <!-- Client tried to do something we don't allow yet -->
-        <event name = "exception" next = "settling">
-            <action name = "send" message = "ERROR" />
-            <action name = "allow time to settle" />
-        </event>
-        <!-- All other protocol messages are invalid -->
-        <event name = "*" next = "settling">
-            <action name = "signal command invalid" />
-            <action name = "send" message = "ERROR" />
-            <action name = "allow time to settle" />
-        </event>
-    </state>
-
-    <state name = "settling">
-        <event name = "settled">
+        <event name = "expired">
             <action name = "terminate" />
         </event>
-        <event name = "HELLO" next = "connected">
-            <action name = "set server identity" />
-            <action name = "get most recent post" />
-            <action name = "send" message = "HELLO OK" />
+        <!-- Client tried to do something we don't allow yet -->
+        <event name = "exception">
+            <action name = "send" message = "ERROR" />
+            <action name = "terminate" />
         </event>
+        <!-- All other protocol messages are invalid -->
         <event name = "*">
-            <!-- Ignore any other commands -->
+            <action name = "signal command invalid" />
+            <action name = "send" message = "ERROR" />
+            <action name = "terminate" />
         </event>
     </state>
 </class>

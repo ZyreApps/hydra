@@ -30,7 +30,9 @@ s_handle_peer (char *endpoint, bool verbose)
     hydra_client_verbose = verbose;
     hydra_client_t *client = hydra_client_new (endpoint, 500);
     assert (client);
-    hydra_client_fetch (client);
+    zsys_info ("peer status older=%d newer=%d", 
+        hydra_client_older (client), hydra_client_newer (client));
+    
     hydra_client_destroy (&client);
 }
 
@@ -91,8 +93,9 @@ int main (int argc, char *argv [])
         zuuid_destroy (&uuid);
     }
     //  Create store structure, if necessary
-    zsys_dir_create ("content");
+    zsys_dir_create ("blobs");
     zsys_dir_create ("posts");
+    zsys_dir_create ("peers");
     
     //  Start server and bind to ephemeral TCP port. We can run many
     //  servers on the same box, for testing.
@@ -103,7 +106,7 @@ int main (int argc, char *argv [])
     //  Bind Hydra service to ephemeral port and get that port number
     char *command;
     int port_nbr;
-    zsock_send (server, "ss", "CONFIGURE", "hydra.cfg");
+    zsock_send (server, "ss", "LOAD", "hydra.cfg");
     zsock_send (server, "ss", "BIND", "tcp://*:*");
     zsock_send (server, "s", "PORT");
     zsock_recv (server, "si", &command, &port_nbr);
@@ -111,6 +114,22 @@ int main (int argc, char *argv [])
     assert (streq (command, "PORT"));
     free (command);
 
+    //  Here is how we set the node nickname, persistently
+    zsock_send (server, "sss", "SET", "/hydra/nickname", "Anonymous Coward");
+    zsock_send (server, "ss", "SAVE", "hydra.cfg");
+
+    //  Provision the Hydra server with some test posts in a tree
+    char *post_id;
+    zsock_send (server, "ssss", "POST", "This is a string", "", "Hello, World");
+    zsock_recv (server, "s", &post_id);
+    zsock_send (server, "sssss", "POST FILE", "This is a disk file", post_id, "text/zpl", "hydra.cfg");
+    zstr_free (&post_id);
+    zsock_recv (server, "s", &post_id);
+    zsock_send (server, "ssssb", "POST DATA", "This is a blob of data", post_id, "*/*", "ABCDEFGHIJ", 10);
+    zstr_free (&post_id);
+    zsock_recv (server, "s", &post_id);
+    zstr_free (&post_id);
+                        
     //  We're going to use Zyre for discovery and presence, and our own
     //  Hydra protocol for content exchange
     zyre_t *zyre = zyre_new (NULL);

@@ -1,308 +1,358 @@
-hydra_msg(3)
-============
+hydra_proto(3)
+==============
 
 NAME
 ----
-hydra_msg - The Hydra Protocol
+hydra_proto - The Hydra Protocol
 
 SYNOPSIS
 --------
 ----
-//  Create a new empty hydra_msg
-hydra_msg_t *
-    hydra_msg_new (void);
+//  Create a new empty hydra_proto
+hydra_proto_t *
+    hydra_proto_new (void);
 
-//  Destroy a hydra_msg instance
+//  Destroy a hydra_proto instance
 void
-    hydra_msg_destroy (hydra_msg_t **self_p);
+    hydra_proto_destroy (hydra_proto_t **self_p);
 
-//  Receive a hydra_msg from the socket. Returns 0 if OK, -1 if
+//  Receive a hydra_proto from the socket. Returns 0 if OK, -1 if
 //  there was an error. Blocks if there is no message waiting.
 int
-    hydra_msg_recv (hydra_msg_t *self, zsock_t *input);
+    hydra_proto_recv (hydra_proto_t *self, zsock_t *input);
 
-//  Send the hydra_msg to the output socket, does not destroy it
+//  Send the hydra_proto to the output socket, does not destroy it
 int
-    hydra_msg_send (hydra_msg_t *self, zsock_t *output);
+    hydra_proto_send (hydra_proto_t *self, zsock_t *output);
     
 //  Print contents of message to stdout
 void
-    hydra_msg_print (hydra_msg_t *self);
+    hydra_proto_print (hydra_proto_t *self);
 
 //  Get/set the message routing id
 zframe_t *
-    hydra_msg_routing_id (hydra_msg_t *self);
+    hydra_proto_routing_id (hydra_proto_t *self);
 void
-    hydra_msg_set_routing_id (hydra_msg_t *self, zframe_t *routing_id);
+    hydra_proto_set_routing_id (hydra_proto_t *self, zframe_t *routing_id);
 
-//  Get the hydra_msg id and printable command
+//  Get the hydra_proto id and printable command
 int
-    hydra_msg_id (hydra_msg_t *self);
+    hydra_proto_id (hydra_proto_t *self);
 void
-    hydra_msg_set_id (hydra_msg_t *self, int id);
+    hydra_proto_set_id (hydra_proto_t *self, int id);
 const char *
-    hydra_msg_command (hydra_msg_t *self);
+    hydra_proto_command (hydra_proto_t *self);
 
-//  Get/set the post_id field
+//  Get/set the identity field
 const char *
-    hydra_msg_post_id (hydra_msg_t *self);
+    hydra_proto_identity (hydra_proto_t *self);
 void
-    hydra_msg_set_post_id (hydra_msg_t *self, const char *value);
+    hydra_proto_set_identity (hydra_proto_t *self, const char *value);
 
-//  Get/set the tags field
+//  Get/set the nickname field
 const char *
-    hydra_msg_tags (hydra_msg_t *self);
+    hydra_proto_nickname (hydra_proto_t *self);
 void
-    hydra_msg_set_tags (hydra_msg_t *self, const char *value);
+    hydra_proto_set_nickname (hydra_proto_t *self, const char *value);
 
-//  Get/set the tag field
+//  Get/set the oldest field
 const char *
-    hydra_msg_tag (hydra_msg_t *self);
+    hydra_proto_oldest (hydra_proto_t *self);
 void
-    hydra_msg_set_tag (hydra_msg_t *self, const char *value);
+    hydra_proto_set_oldest (hydra_proto_t *self, const char *value);
 
-//  Get/set the reply_to field
+//  Get/set the newest field
 const char *
-    hydra_msg_reply_to (hydra_msg_t *self);
+    hydra_proto_newest (hydra_proto_t *self);
 void
-    hydra_msg_set_reply_to (hydra_msg_t *self, const char *value);
+    hydra_proto_set_newest (hydra_proto_t *self, const char *value);
 
-//  Get/set the previous field
-const char *
-    hydra_msg_previous (hydra_msg_t *self);
+//  Get/set the older field
+uint32_t
+    hydra_proto_older (hydra_proto_t *self);
 void
-    hydra_msg_set_previous (hydra_msg_t *self, const char *value);
+    hydra_proto_set_older (hydra_proto_t *self, uint32_t older);
+
+//  Get/set the newer field
+uint32_t
+    hydra_proto_newer (hydra_proto_t *self);
+void
+    hydra_proto_set_newer (hydra_proto_t *self, uint32_t newer);
+
+//  Get/set the which field
+byte
+    hydra_proto_which (hydra_proto_t *self);
+void
+    hydra_proto_set_which (hydra_proto_t *self, byte which);
+
+//  Get/set the identifier field
+const char *
+    hydra_proto_identifier (hydra_proto_t *self);
+void
+    hydra_proto_set_identifier (hydra_proto_t *self, const char *value);
+
+//  Get/set the subject field
+const char *
+    hydra_proto_subject (hydra_proto_t *self);
+void
+    hydra_proto_set_subject (hydra_proto_t *self, const char *value);
 
 //  Get/set the timestamp field
+const char *
+    hydra_proto_timestamp (hydra_proto_t *self);
+void
+    hydra_proto_set_timestamp (hydra_proto_t *self, const char *value);
+
+//  Get/set the parent_post field
+const char *
+    hydra_proto_parent_post (hydra_proto_t *self);
+void
+    hydra_proto_set_parent_post (hydra_proto_t *self, const char *value);
+
+//  Get/set the content_digest field
+const char *
+    hydra_proto_content_digest (hydra_proto_t *self);
+void
+    hydra_proto_set_content_digest (hydra_proto_t *self, const char *value);
+
+//  Get/set the content_type field
+const char *
+    hydra_proto_content_type (hydra_proto_t *self);
+void
+    hydra_proto_set_content_type (hydra_proto_t *self, const char *value);
+
+//  Get/set the content_size field
 uint64_t
-    hydra_msg_timestamp (hydra_msg_t *self);
+    hydra_proto_content_size (hydra_proto_t *self);
 void
-    hydra_msg_set_timestamp (hydra_msg_t *self, uint64_t timestamp);
+    hydra_proto_set_content_size (hydra_proto_t *self, uint64_t content_size);
 
-//  Get/set the type field
-const char *
-    hydra_msg_type (hydra_msg_t *self);
+//  Get/set the offset field
+uint64_t
+    hydra_proto_offset (hydra_proto_t *self);
 void
-    hydra_msg_set_type (hydra_msg_t *self, const char *value);
+    hydra_proto_set_offset (hydra_proto_t *self, uint64_t offset);
 
-//  Get/set the content field
-const char *
-    hydra_msg_content (hydra_msg_t *self);
+//  Get/set the octets field
+uint32_t
+    hydra_proto_octets (hydra_proto_t *self);
 void
-    hydra_msg_set_content (hydra_msg_t *self, const char *value);
+    hydra_proto_set_octets (hydra_proto_t *self, uint32_t octets);
+
+//  Get a copy of the content field
+zchunk_t *
+    hydra_proto_content (hydra_proto_t *self);
+//  Get the content field and transfer ownership to caller
+zchunk_t *
+    hydra_proto_get_content (hydra_proto_t *self);
+//  Set the content field, transferring ownership from caller
+void
+    hydra_proto_set_content (hydra_proto_t *self, zchunk_t **chunk_p);
+
+//  Get/set the status field
+uint16_t
+    hydra_proto_status (hydra_proto_t *self);
+void
+    hydra_proto_set_status (hydra_proto_t *self, uint16_t status);
 
 //  Get/set the reason field
 const char *
-    hydra_msg_reason (hydra_msg_t *self);
+    hydra_proto_reason (hydra_proto_t *self);
 void
-    hydra_msg_set_reason (hydra_msg_t *self, const char *value);
+    hydra_proto_set_reason (hydra_proto_t *self, const char *value);
 
 //  Self test of this class
 int
-    hydra_msg_test (bool verbose);
+    hydra_proto_test (bool verbose);
 ----
 
 DESCRIPTION
 -----------
 
-hydra_msg - The Hydra Protocol
+hydra_proto - The Hydra Protocol
 
-Please add @discuss section in ../src/hydra_msg.c.
+Please add @discuss section in ../src/hydra_proto.c.
 
 EXAMPLE
 -------
-.From hydra_msg_test method
+.From hydra_proto_test method
 ----
 //  Simple create/destroy test
-hydra_msg_t *self = hydra_msg_new ();
+hydra_proto_t *self = hydra_proto_new ();
 assert (self);
-hydra_msg_destroy (&self);
+hydra_proto_destroy (&self);
 
 //  Create pair of sockets we can send through
 zsock_t *input = zsock_new (ZMQ_ROUTER);
 assert (input);
-zsock_connect (input, "inproc://selftest-hydra_msg");
+zsock_connect (input, "inproc://selftest-hydra_proto");
 
 zsock_t *output = zsock_new (ZMQ_DEALER);
 assert (output);
-zsock_bind (output, "inproc://selftest-hydra_msg");
+zsock_bind (output, "inproc://selftest-hydra_proto");
 
 //  Encode/send/decode and verify each message type
 int instance;
-self = hydra_msg_new ();
-hydra_msg_set_id (self, HYDRA_MSG_HELLO);
+self = hydra_proto_new ();
+hydra_proto_set_id (self, HYDRA_PROTO_HELLO);
 
+hydra_proto_set_identity (self, "Life is short but Now lasts for ever");
+hydra_proto_set_nickname (self, "Life is short but Now lasts for ever");
 //  Send twice
-hydra_msg_send (self, output);
-hydra_msg_send (self, output);
+hydra_proto_send (self, output);
+hydra_proto_send (self, output);
 
 for (instance = 0; instance < 2; instance++) {
-    hydra_msg_destroy (&self);
-    self = hydra_msg_new ();
-    hydra_msg_recv (self, input);
-    assert (hydra_msg_routing_id (self));
+    hydra_proto_recv (self, input);
+    assert (hydra_proto_routing_id (self));
+    assert (streq (hydra_proto_identity (self), "Life is short but Now lasts for ever"));
+    assert (streq (hydra_proto_nickname (self), "Life is short but Now lasts for ever"));
 }
-hydra_msg_set_id (self, HYDRA_MSG_HELLO_OK);
+hydra_proto_set_id (self, HYDRA_PROTO_HELLO_OK);
 
-hydra_msg_set_post_id (self, "Life is short but Now lasts for ever");
+hydra_proto_set_identity (self, "Life is short but Now lasts for ever");
+hydra_proto_set_nickname (self, "Life is short but Now lasts for ever");
 //  Send twice
-hydra_msg_send (self, output);
-hydra_msg_send (self, output);
+hydra_proto_send (self, output);
+hydra_proto_send (self, output);
 
 for (instance = 0; instance < 2; instance++) {
-    hydra_msg_destroy (&self);
-    self = hydra_msg_new ();
-    hydra_msg_recv (self, input);
-    assert (hydra_msg_routing_id (self));
-    assert (streq (hydra_msg_post_id (self), "Life is short but Now lasts for ever"));
+    hydra_proto_recv (self, input);
+    assert (hydra_proto_routing_id (self));
+    assert (streq (hydra_proto_identity (self), "Life is short but Now lasts for ever"));
+    assert (streq (hydra_proto_nickname (self), "Life is short but Now lasts for ever"));
 }
-hydra_msg_set_id (self, HYDRA_MSG_GET_TAGS);
+hydra_proto_set_id (self, HYDRA_PROTO_STATUS);
 
+hydra_proto_set_oldest (self, "Life is short but Now lasts for ever");
+hydra_proto_set_newest (self, "Life is short but Now lasts for ever");
 //  Send twice
-hydra_msg_send (self, output);
-hydra_msg_send (self, output);
+hydra_proto_send (self, output);
+hydra_proto_send (self, output);
 
 for (instance = 0; instance < 2; instance++) {
-    hydra_msg_destroy (&self);
-    self = hydra_msg_new ();
-    hydra_msg_recv (self, input);
-    assert (hydra_msg_routing_id (self));
+    hydra_proto_recv (self, input);
+    assert (hydra_proto_routing_id (self));
+    assert (streq (hydra_proto_oldest (self), "Life is short but Now lasts for ever"));
+    assert (streq (hydra_proto_newest (self), "Life is short but Now lasts for ever"));
 }
-hydra_msg_set_id (self, HYDRA_MSG_GET_TAGS_OK);
+hydra_proto_set_id (self, HYDRA_PROTO_STATUS_OK);
 
-hydra_msg_set_tags (self, "Life is short but Now lasts for ever");
+hydra_proto_set_older (self, 123);
+hydra_proto_set_newer (self, 123);
 //  Send twice
-hydra_msg_send (self, output);
-hydra_msg_send (self, output);
+hydra_proto_send (self, output);
+hydra_proto_send (self, output);
 
 for (instance = 0; instance < 2; instance++) {
-    hydra_msg_destroy (&self);
-    self = hydra_msg_new ();
-    hydra_msg_recv (self, input);
-    assert (hydra_msg_routing_id (self));
-    assert (streq (hydra_msg_tags (self), "Life is short but Now lasts for ever"));
+    hydra_proto_recv (self, input);
+    assert (hydra_proto_routing_id (self));
+    assert (hydra_proto_older (self) == 123);
+    assert (hydra_proto_newer (self) == 123);
 }
-hydra_msg_set_id (self, HYDRA_MSG_GET_TAG);
+hydra_proto_set_id (self, HYDRA_PROTO_HEADER);
 
-hydra_msg_set_tag (self, "Life is short but Now lasts for ever");
+hydra_proto_set_which (self, 123);
 //  Send twice
-hydra_msg_send (self, output);
-hydra_msg_send (self, output);
+hydra_proto_send (self, output);
+hydra_proto_send (self, output);
 
 for (instance = 0; instance < 2; instance++) {
-    hydra_msg_destroy (&self);
-    self = hydra_msg_new ();
-    hydra_msg_recv (self, input);
-    assert (hydra_msg_routing_id (self));
-    assert (streq (hydra_msg_tag (self), "Life is short but Now lasts for ever"));
+    hydra_proto_recv (self, input);
+    assert (hydra_proto_routing_id (self));
+    assert (hydra_proto_which (self) == 123);
 }
-hydra_msg_set_id (self, HYDRA_MSG_GET_TAG_OK);
+hydra_proto_set_id (self, HYDRA_PROTO_HEADER_OK);
 
-hydra_msg_set_tag (self, "Life is short but Now lasts for ever");
-hydra_msg_set_post_id (self, "Life is short but Now lasts for ever");
+hydra_proto_set_identifier (self, "Life is short but Now lasts for ever");
+hydra_proto_set_subject (self, "Life is short but Now lasts for ever");
+hydra_proto_set_timestamp (self, "Life is short but Now lasts for ever");
+hydra_proto_set_parent_post (self, "Life is short but Now lasts for ever");
+hydra_proto_set_content_digest (self, "Life is short but Now lasts for ever");
+hydra_proto_set_content_type (self, "Life is short but Now lasts for ever");
+hydra_proto_set_content_size (self, 123);
 //  Send twice
-hydra_msg_send (self, output);
-hydra_msg_send (self, output);
+hydra_proto_send (self, output);
+hydra_proto_send (self, output);
 
 for (instance = 0; instance < 2; instance++) {
-    hydra_msg_destroy (&self);
-    self = hydra_msg_new ();
-    hydra_msg_recv (self, input);
-    assert (hydra_msg_routing_id (self));
-    assert (streq (hydra_msg_tag (self), "Life is short but Now lasts for ever"));
-    assert (streq (hydra_msg_post_id (self), "Life is short but Now lasts for ever"));
+    hydra_proto_recv (self, input);
+    assert (hydra_proto_routing_id (self));
+    assert (streq (hydra_proto_identifier (self), "Life is short but Now lasts for ever"));
+    assert (streq (hydra_proto_subject (self), "Life is short but Now lasts for ever"));
+    assert (streq (hydra_proto_timestamp (self), "Life is short but Now lasts for ever"));
+    assert (streq (hydra_proto_parent_post (self), "Life is short but Now lasts for ever"));
+    assert (streq (hydra_proto_content_digest (self), "Life is short but Now lasts for ever"));
+    assert (streq (hydra_proto_content_type (self), "Life is short but Now lasts for ever"));
+    assert (hydra_proto_content_size (self) == 123);
 }
-hydra_msg_set_id (self, HYDRA_MSG_GET_POST);
+hydra_proto_set_id (self, HYDRA_PROTO_FETCH);
 
-hydra_msg_set_post_id (self, "Life is short but Now lasts for ever");
+hydra_proto_set_offset (self, 123);
+hydra_proto_set_octets (self, 123);
 //  Send twice
-hydra_msg_send (self, output);
-hydra_msg_send (self, output);
+hydra_proto_send (self, output);
+hydra_proto_send (self, output);
 
 for (instance = 0; instance < 2; instance++) {
-    hydra_msg_destroy (&self);
-    self = hydra_msg_new ();
-    hydra_msg_recv (self, input);
-    assert (hydra_msg_routing_id (self));
-    assert (streq (hydra_msg_post_id (self), "Life is short but Now lasts for ever"));
+    hydra_proto_recv (self, input);
+    assert (hydra_proto_routing_id (self));
+    assert (hydra_proto_offset (self) == 123);
+    assert (hydra_proto_octets (self) == 123);
 }
-hydra_msg_set_id (self, HYDRA_MSG_GET_POST_OK);
+hydra_proto_set_id (self, HYDRA_PROTO_FETCH_OK);
 
-hydra_msg_set_post_id (self, "Life is short but Now lasts for ever");
-hydra_msg_set_reply_to (self, "Life is short but Now lasts for ever");
-hydra_msg_set_previous (self, "Life is short but Now lasts for ever");
-hydra_msg_set_tags (self, "Life is short but Now lasts for ever");
-hydra_msg_set_timestamp (self, 123);
-hydra_msg_set_type (self, "Life is short but Now lasts for ever");
-hydra_msg_set_content (self, "Life is short but Now lasts for ever");
+hydra_proto_set_offset (self, 123);
+hydra_proto_set_octets (self, 123);
+zchunk_t *fetch_ok_content = zchunk_new ("Captcha Diem", 12);
+hydra_proto_set_content (self, &fetch_ok_content);
 //  Send twice
-hydra_msg_send (self, output);
-hydra_msg_send (self, output);
+hydra_proto_send (self, output);
+hydra_proto_send (self, output);
 
 for (instance = 0; instance < 2; instance++) {
-    hydra_msg_destroy (&self);
-    self = hydra_msg_new ();
-    hydra_msg_recv (self, input);
-    assert (hydra_msg_routing_id (self));
-    assert (streq (hydra_msg_post_id (self), "Life is short but Now lasts for ever"));
-    assert (streq (hydra_msg_reply_to (self), "Life is short but Now lasts for ever"));
-    assert (streq (hydra_msg_previous (self), "Life is short but Now lasts for ever"));
-    assert (streq (hydra_msg_tags (self), "Life is short but Now lasts for ever"));
-    assert (hydra_msg_timestamp (self) == 123);
-    assert (streq (hydra_msg_type (self), "Life is short but Now lasts for ever"));
-    assert (streq (hydra_msg_content (self), "Life is short but Now lasts for ever"));
+    hydra_proto_recv (self, input);
+    assert (hydra_proto_routing_id (self));
+    assert (hydra_proto_offset (self) == 123);
+    assert (hydra_proto_octets (self) == 123);
+    assert (memcmp (zchunk_data (hydra_proto_content (self)), "Captcha Diem", 12) == 0);
 }
-hydra_msg_set_id (self, HYDRA_MSG_GOODBYE);
+hydra_proto_set_id (self, HYDRA_PROTO_GOODBYE);
 
 //  Send twice
-hydra_msg_send (self, output);
-hydra_msg_send (self, output);
+hydra_proto_send (self, output);
+hydra_proto_send (self, output);
 
 for (instance = 0; instance < 2; instance++) {
-    hydra_msg_destroy (&self);
-    self = hydra_msg_new ();
-    hydra_msg_recv (self, input);
-    assert (hydra_msg_routing_id (self));
+    hydra_proto_recv (self, input);
+    assert (hydra_proto_routing_id (self));
 }
-hydra_msg_set_id (self, HYDRA_MSG_GOODBYE_OK);
+hydra_proto_set_id (self, HYDRA_PROTO_GOODBYE_OK);
 
 //  Send twice
-hydra_msg_send (self, output);
-hydra_msg_send (self, output);
+hydra_proto_send (self, output);
+hydra_proto_send (self, output);
 
 for (instance = 0; instance < 2; instance++) {
-    hydra_msg_destroy (&self);
-    self = hydra_msg_new ();
-    hydra_msg_recv (self, input);
-    assert (hydra_msg_routing_id (self));
+    hydra_proto_recv (self, input);
+    assert (hydra_proto_routing_id (self));
 }
-hydra_msg_set_id (self, HYDRA_MSG_INVALID);
+hydra_proto_set_id (self, HYDRA_PROTO_ERROR);
 
+hydra_proto_set_status (self, 123);
+hydra_proto_set_reason (self, "Life is short but Now lasts for ever");
 //  Send twice
-hydra_msg_send (self, output);
-hydra_msg_send (self, output);
+hydra_proto_send (self, output);
+hydra_proto_send (self, output);
 
 for (instance = 0; instance < 2; instance++) {
-    hydra_msg_destroy (&self);
-    self = hydra_msg_new ();
-    hydra_msg_recv (self, input);
-    assert (hydra_msg_routing_id (self));
-}
-hydra_msg_set_id (self, HYDRA_MSG_FAILED);
-
-hydra_msg_set_reason (self, "Life is short but Now lasts for ever");
-//  Send twice
-hydra_msg_send (self, output);
-hydra_msg_send (self, output);
-
-for (instance = 0; instance < 2; instance++) {
-    hydra_msg_destroy (&self);
-    self = hydra_msg_new ();
-    hydra_msg_recv (self, input);
-    assert (hydra_msg_routing_id (self));
-    assert (streq (hydra_msg_reason (self), "Life is short but Now lasts for ever"));
+    hydra_proto_recv (self, input);
+    assert (hydra_proto_routing_id (self));
+    assert (hydra_proto_status (self) == 123);
+    assert (streq (hydra_proto_reason (self), "Life is short but Now lasts for ever"));
 }
 
+hydra_proto_destroy (&self);
 zsock_destroy (&input);
 zsock_destroy (&output);
 ----

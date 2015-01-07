@@ -24,14 +24,23 @@
     </state>
 
     <state name = "expect hello ok" inherit = "defaults">
-        <event name = "HELLO OK" next = "connected">
+        <event name = "HELLO OK" next = "expect status ok">
             <action name = "use response timeout" />
-            <action name = "signal success" />
+            <action name = "load peer config data" />
+            <action name = "send" message = "STATUS" />
+        </event>
+    </state>
+
+    <state name = "expect status ok" inherit = "defaults">
+        <event name = "STATUS OK" next = "connected">
+            <action name = "signal connected" />
         </event>
     </state>
 
     <state name = "connected" inherit = "defaults">
-        <event name = "fetch" next = "expect get post ok">
+    </state>
+    
+<!--        <event name = "fetch" next = "expect get post ok">
             <action name = "prepare to get last post" />
             <action name = "send" message = "GET POST" />
         </event>
@@ -53,7 +62,12 @@
             <action name = "signal success" />
         </event>
     </state>
-
+-->
+<!--
+    <state name = "finished" inherit = "defaults">
+    </state>
+    -->
+    
     <state name = "defaults">
         <event name = "expired">
             <action name = "signal server not present" />
@@ -66,9 +80,6 @@
             <action name = "signal internal error" />
             <action name = "terminate" />
         </event>
-    </state>
-
-    <state name = "finished" inherit = "defaults">
     </state>
     
     <state name = "expect goodbye ok" inherit = "defaults">
@@ -88,9 +99,15 @@
     wait forever). Constructor succeeds if connection is successful.
         <field name = "endpoint" type = "string" />
         <field name = "timeout" type = "number" size = "4" />
-        <accept reply = "SUCCESS" />
+        <accept reply = "CONNECTED" />
         <accept reply = "FAILURE" />
     </method>
+
+    <reply name = "CONNECTED">
+        <field name = "status" type = "integer" />
+        <field name = "older" type = "number" size = "4" />
+        <field name = "newer" type = "number" size = "4" />
+    </reply>
 
     <method name = "destructor" return = "status">
     Disconnect from server. Waits for a short timeout for confirmation from
@@ -99,14 +116,14 @@
         <accept reply = "FAILURE" />
     </method>
 
-    <method name = "fetch" return = "status">
+<!--    <method name = "fetch" return = "status">
     Fetch all available posts from server, starting with most recent,
     and working backwards, until there are no more posts, or the server
-    disappears. TODO: add maximum posts to fetch.
+    disappears.
         <accept reply = "SUCCESS" />
         <accept reply = "FAILURE" />
     </method>
-
+-->
     <reply name = "SUCCESS">
         <field name = "status" type = "integer" />
     </reply>

@@ -15,12 +15,16 @@ include_HEADERS = \
     include/hydra_proto.h \
     include/hydra_server.h \
     include/hydra_client.h \
+    include/hydra_post.h \
+    include/hydra_ledger.h \
     include/hydra_library.h
 
 src_libhydra_la_SOURCES = \
     src/hydra_proto.c \
     src/hydra_server.c \
     src/hydra_client.c \
+    src/hydra_post.c \
+    src/hydra_ledger.c \
     src/platform.h
 
 src_libhydra_la_CPPFLAGS = ${AM_CPPFLAGS}

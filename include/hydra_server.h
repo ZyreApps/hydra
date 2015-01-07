@@ -57,12 +57,16 @@ extern "C" {
 //  Specify configuration file to load, overwriting any previous loaded
 //  configuration file or options:
 //
-//      zstr_sendx (hydra_server, "CONFIGURE", filename, NULL);
+//      zstr_sendx (hydra_server, "LOAD", filename, NULL);
 //
 //  Set configuration path value:
 //
 //      zstr_sendx (hydra_server, "SET", path, value, NULL);
 //    
+//  Save configuration data to config file on disk:
+//
+//      zstr_sendx (hydra_server, "SAVE", filename, NULL);
+//
 //  Send zmsg_t instance to hydra_server:
 //
 //      zactor_send (hydra_server, &msg);

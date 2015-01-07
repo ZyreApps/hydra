@@ -26,19 +26,19 @@
 typedef enum {
     start_state = 1,
     connected_state = 2,
-    defaults_state = 3,
-    settling_state = 4
+    defaults_state = 3
 } state_t;
 
 typedef enum {
     NULL_event = 0,
     terminate_event = 1,
     hello_event = 2,
-    get_post_event = 3,
-    goodbye_event = 4,
-    expired_event = 5,
-    exception_event = 6,
-    settled_event = 7
+    status_event = 3,
+    header_event = 4,
+    fetch_event = 5,
+    goodbye_event = 6,
+    expired_event = 7,
+    exception_event = 8
 } event_t;
 
 //  Names for state machine logging and error reporting
@@ -47,8 +47,7 @@ s_state_name [] = {
     "(NONE)",
     "start",
     "connected",
-    "defaults",
-    "settling"
+    "defaults"
 };
 
 static char *
@@ -56,11 +55,12 @@ s_event_name [] = {
     "(NONE)",
     "terminate",
     "HELLO",
-    "GET_POST",
+    "STATUS",
+    "HEADER",
+    "FETCH",
     "GOODBYE",
     "expired",
-    "exception",
-    "settled"
+    "exception"
 };
 
 //  ---------------------------------------------------------------------------
@@ -124,11 +124,7 @@ static int
 static void
     set_server_identity (client_t *self);
 static void
-    get_most_recent_post (client_t *self);
-static void
-    get_single_post (client_t *self);
-static void
-    allow_time_to_settle (client_t *self);
+    calculate_status_for_client (client_t *self);
 static void
     signal_command_invalid (client_t *self);
 
@@ -312,8 +308,14 @@ s_protocol_event (hydra_proto_t *message)
         case HYDRA_PROTO_HELLO:
             return hello_event;
             break;
-        case HYDRA_PROTO_GET_POST:
-            return get_post_event;
+        case HYDRA_PROTO_STATUS:
+            return status_event;
+            break;
+        case HYDRA_PROTO_HEADER:
+            return header_event;
+            break;
+        case HYDRA_PROTO_FETCH:
+            return fetch_event;
             break;
         case HYDRA_PROTO_GOODBYE:
             return goodbye_event;
@@ -414,12 +416,6 @@ s_client_execute (s_client_t *self, event_t event)
                         set_server_identity (&self->client);
                     }
                     if (!self->exception) {
-                        //  get most recent post
-                        if (self->server->verbose)
-                            zsys_debug ("%s:         $ get most recent post", self->log_prefix);
-                        get_most_recent_post (&self->client);
-                    }
-                    if (!self->exception) {
                         //  send HELLO_OK
                         if (self->server->verbose)
                             zsys_debug ("%s:         $ send HELLO_OK",
@@ -432,262 +428,7 @@ s_client_execute (s_client_t *self, event_t event)
                         self->state = connected_state;
                 }
                 else
-                if (self->event == goodbye_event) {
-                    if (!self->exception) {
-                        //  send GOODBYE_OK
-                        if (self->server->verbose)
-                            zsys_debug ("%s:         $ send GOODBYE_OK",
-                                self->log_prefix);
-                        hydra_proto_set_id (self->server->message, HYDRA_PROTO_GOODBYE_OK);
-                        hydra_proto_set_routing_id (self->server->message, self->routing_id);
-                        hydra_proto_send (self->server->message, self->server->router);
-                    }
-                    if (!self->exception) {
-                        //  allow time to settle
-                        if (self->server->verbose)
-                            zsys_debug ("%s:         $ allow time to settle", self->log_prefix);
-                        allow_time_to_settle (&self->client);
-                    }
-                    if (!self->exception)
-                        self->state = settling_state;
-                }
-                else
                 if (self->event == expired_event) {
-                    if (!self->exception) {
-                        //  allow time to settle
-                        if (self->server->verbose)
-                            zsys_debug ("%s:         $ allow time to settle", self->log_prefix);
-                        allow_time_to_settle (&self->client);
-                    }
-                    if (!self->exception)
-                        self->state = settling_state;
-                }
-                else
-                if (self->event == exception_event) {
-                    if (!self->exception) {
-                        //  send ERROR
-                        if (self->server->verbose)
-                            zsys_debug ("%s:         $ send ERROR",
-                                self->log_prefix);
-                        hydra_proto_set_id (self->server->message, HYDRA_PROTO_ERROR);
-                        hydra_proto_set_routing_id (self->server->message, self->routing_id);
-                        hydra_proto_send (self->server->message, self->server->router);
-                    }
-                    if (!self->exception) {
-                        //  allow time to settle
-                        if (self->server->verbose)
-                            zsys_debug ("%s:         $ allow time to settle", self->log_prefix);
-                        allow_time_to_settle (&self->client);
-                    }
-                    if (!self->exception)
-                        self->state = settling_state;
-                }
-                else {
-                    //  Handle unexpected protocol events
-                    if (!self->exception) {
-                        //  signal command invalid
-                        if (self->server->verbose)
-                            zsys_debug ("%s:         $ signal command invalid", self->log_prefix);
-                        signal_command_invalid (&self->client);
-                    }
-                    if (!self->exception) {
-                        //  send ERROR
-                        if (self->server->verbose)
-                            zsys_debug ("%s:         $ send ERROR",
-                                self->log_prefix);
-                        hydra_proto_set_id (self->server->message, HYDRA_PROTO_ERROR);
-                        hydra_proto_set_routing_id (self->server->message, self->routing_id);
-                        hydra_proto_send (self->server->message, self->server->router);
-                    }
-                    if (!self->exception) {
-                        //  allow time to settle
-                        if (self->server->verbose)
-                            zsys_debug ("%s:         $ allow time to settle", self->log_prefix);
-                        allow_time_to_settle (&self->client);
-                    }
-                    if (!self->exception)
-                        self->state = settling_state;
-                }
-                break;
-
-            case connected_state:
-                if (self->event == get_post_event) {
-                    if (!self->exception) {
-                        //  get single post
-                        if (self->server->verbose)
-                            zsys_debug ("%s:         $ get single post", self->log_prefix);
-                        get_single_post (&self->client);
-                    }
-                    if (!self->exception) {
-                        //  send GET_POST_OK
-                        if (self->server->verbose)
-                            zsys_debug ("%s:         $ send GET_POST_OK",
-                                self->log_prefix);
-                        hydra_proto_set_id (self->server->message, HYDRA_PROTO_GET_POST_OK);
-                        hydra_proto_set_routing_id (self->server->message, self->routing_id);
-                        hydra_proto_send (self->server->message, self->server->router);
-                    }
-                }
-                else
-                if (self->event == goodbye_event) {
-                    if (!self->exception) {
-                        //  send GOODBYE_OK
-                        if (self->server->verbose)
-                            zsys_debug ("%s:         $ send GOODBYE_OK",
-                                self->log_prefix);
-                        hydra_proto_set_id (self->server->message, HYDRA_PROTO_GOODBYE_OK);
-                        hydra_proto_set_routing_id (self->server->message, self->routing_id);
-                        hydra_proto_send (self->server->message, self->server->router);
-                    }
-                    if (!self->exception) {
-                        //  allow time to settle
-                        if (self->server->verbose)
-                            zsys_debug ("%s:         $ allow time to settle", self->log_prefix);
-                        allow_time_to_settle (&self->client);
-                    }
-                    if (!self->exception)
-                        self->state = settling_state;
-                }
-                else
-                if (self->event == expired_event) {
-                    if (!self->exception) {
-                        //  allow time to settle
-                        if (self->server->verbose)
-                            zsys_debug ("%s:         $ allow time to settle", self->log_prefix);
-                        allow_time_to_settle (&self->client);
-                    }
-                    if (!self->exception)
-                        self->state = settling_state;
-                }
-                else
-                if (self->event == exception_event) {
-                    if (!self->exception) {
-                        //  send ERROR
-                        if (self->server->verbose)
-                            zsys_debug ("%s:         $ send ERROR",
-                                self->log_prefix);
-                        hydra_proto_set_id (self->server->message, HYDRA_PROTO_ERROR);
-                        hydra_proto_set_routing_id (self->server->message, self->routing_id);
-                        hydra_proto_send (self->server->message, self->server->router);
-                    }
-                    if (!self->exception) {
-                        //  allow time to settle
-                        if (self->server->verbose)
-                            zsys_debug ("%s:         $ allow time to settle", self->log_prefix);
-                        allow_time_to_settle (&self->client);
-                    }
-                    if (!self->exception)
-                        self->state = settling_state;
-                }
-                else {
-                    //  Handle unexpected protocol events
-                    if (!self->exception) {
-                        //  signal command invalid
-                        if (self->server->verbose)
-                            zsys_debug ("%s:         $ signal command invalid", self->log_prefix);
-                        signal_command_invalid (&self->client);
-                    }
-                    if (!self->exception) {
-                        //  send ERROR
-                        if (self->server->verbose)
-                            zsys_debug ("%s:         $ send ERROR",
-                                self->log_prefix);
-                        hydra_proto_set_id (self->server->message, HYDRA_PROTO_ERROR);
-                        hydra_proto_set_routing_id (self->server->message, self->routing_id);
-                        hydra_proto_send (self->server->message, self->server->router);
-                    }
-                    if (!self->exception) {
-                        //  allow time to settle
-                        if (self->server->verbose)
-                            zsys_debug ("%s:         $ allow time to settle", self->log_prefix);
-                        allow_time_to_settle (&self->client);
-                    }
-                    if (!self->exception)
-                        self->state = settling_state;
-                }
-                break;
-
-            case defaults_state:
-                if (self->event == goodbye_event) {
-                    if (!self->exception) {
-                        //  send GOODBYE_OK
-                        if (self->server->verbose)
-                            zsys_debug ("%s:         $ send GOODBYE_OK",
-                                self->log_prefix);
-                        hydra_proto_set_id (self->server->message, HYDRA_PROTO_GOODBYE_OK);
-                        hydra_proto_set_routing_id (self->server->message, self->routing_id);
-                        hydra_proto_send (self->server->message, self->server->router);
-                    }
-                    if (!self->exception) {
-                        //  allow time to settle
-                        if (self->server->verbose)
-                            zsys_debug ("%s:         $ allow time to settle", self->log_prefix);
-                        allow_time_to_settle (&self->client);
-                    }
-                    if (!self->exception)
-                        self->state = settling_state;
-                }
-                else
-                if (self->event == expired_event) {
-                    if (!self->exception) {
-                        //  allow time to settle
-                        if (self->server->verbose)
-                            zsys_debug ("%s:         $ allow time to settle", self->log_prefix);
-                        allow_time_to_settle (&self->client);
-                    }
-                    if (!self->exception)
-                        self->state = settling_state;
-                }
-                else
-                if (self->event == exception_event) {
-                    if (!self->exception) {
-                        //  send ERROR
-                        if (self->server->verbose)
-                            zsys_debug ("%s:         $ send ERROR",
-                                self->log_prefix);
-                        hydra_proto_set_id (self->server->message, HYDRA_PROTO_ERROR);
-                        hydra_proto_set_routing_id (self->server->message, self->routing_id);
-                        hydra_proto_send (self->server->message, self->server->router);
-                    }
-                    if (!self->exception) {
-                        //  allow time to settle
-                        if (self->server->verbose)
-                            zsys_debug ("%s:         $ allow time to settle", self->log_prefix);
-                        allow_time_to_settle (&self->client);
-                    }
-                    if (!self->exception)
-                        self->state = settling_state;
-                }
-                else {
-                    //  Handle unexpected protocol events
-                    if (!self->exception) {
-                        //  signal command invalid
-                        if (self->server->verbose)
-                            zsys_debug ("%s:         $ signal command invalid", self->log_prefix);
-                        signal_command_invalid (&self->client);
-                    }
-                    if (!self->exception) {
-                        //  send ERROR
-                        if (self->server->verbose)
-                            zsys_debug ("%s:         $ send ERROR",
-                                self->log_prefix);
-                        hydra_proto_set_id (self->server->message, HYDRA_PROTO_ERROR);
-                        hydra_proto_set_routing_id (self->server->message, self->routing_id);
-                        hydra_proto_send (self->server->message, self->server->router);
-                    }
-                    if (!self->exception) {
-                        //  allow time to settle
-                        if (self->server->verbose)
-                            zsys_debug ("%s:         $ allow time to settle", self->log_prefix);
-                        allow_time_to_settle (&self->client);
-                    }
-                    if (!self->exception)
-                        self->state = settling_state;
-                }
-                break;
-
-            case settling_state:
-                if (self->event == settled_event) {
                     if (!self->exception) {
                         //  terminate
                         if (self->server->verbose)
@@ -696,33 +437,212 @@ s_client_execute (s_client_t *self, event_t event)
                     }
                 }
                 else
-                if (self->event == hello_event) {
+                if (self->event == exception_event) {
                     if (!self->exception) {
-                        //  set server identity
+                        //  send ERROR
                         if (self->server->verbose)
-                            zsys_debug ("%s:         $ set server identity", self->log_prefix);
-                        set_server_identity (&self->client);
-                    }
-                    if (!self->exception) {
-                        //  get most recent post
-                        if (self->server->verbose)
-                            zsys_debug ("%s:         $ get most recent post", self->log_prefix);
-                        get_most_recent_post (&self->client);
-                    }
-                    if (!self->exception) {
-                        //  send HELLO_OK
-                        if (self->server->verbose)
-                            zsys_debug ("%s:         $ send HELLO_OK",
+                            zsys_debug ("%s:         $ send ERROR",
                                 self->log_prefix);
-                        hydra_proto_set_id (self->server->message, HYDRA_PROTO_HELLO_OK);
+                        hydra_proto_set_id (self->server->message, HYDRA_PROTO_ERROR);
                         hydra_proto_set_routing_id (self->server->message, self->routing_id);
                         hydra_proto_send (self->server->message, self->server->router);
                     }
-                    if (!self->exception)
-                        self->state = connected_state;
+                    if (!self->exception) {
+                        //  terminate
+                        if (self->server->verbose)
+                            zsys_debug ("%s:         $ terminate", self->log_prefix);
+                        self->next_event = terminate_event;
+                    }
                 }
                 else {
                     //  Handle unexpected protocol events
+                    if (!self->exception) {
+                        //  signal command invalid
+                        if (self->server->verbose)
+                            zsys_debug ("%s:         $ signal command invalid", self->log_prefix);
+                        signal_command_invalid (&self->client);
+                    }
+                    if (!self->exception) {
+                        //  send ERROR
+                        if (self->server->verbose)
+                            zsys_debug ("%s:         $ send ERROR",
+                                self->log_prefix);
+                        hydra_proto_set_id (self->server->message, HYDRA_PROTO_ERROR);
+                        hydra_proto_set_routing_id (self->server->message, self->routing_id);
+                        hydra_proto_send (self->server->message, self->server->router);
+                    }
+                    if (!self->exception) {
+                        //  terminate
+                        if (self->server->verbose)
+                            zsys_debug ("%s:         $ terminate", self->log_prefix);
+                        self->next_event = terminate_event;
+                    }
+                }
+                break;
+
+            case connected_state:
+                if (self->event == status_event) {
+                    if (!self->exception) {
+                        //  calculate status for client
+                        if (self->server->verbose)
+                            zsys_debug ("%s:         $ calculate status for client", self->log_prefix);
+                        calculate_status_for_client (&self->client);
+                    }
+                    if (!self->exception) {
+                        //  send STATUS_OK
+                        if (self->server->verbose)
+                            zsys_debug ("%s:         $ send STATUS_OK",
+                                self->log_prefix);
+                        hydra_proto_set_id (self->server->message, HYDRA_PROTO_STATUS_OK);
+                        hydra_proto_set_routing_id (self->server->message, self->routing_id);
+                        hydra_proto_send (self->server->message, self->server->router);
+                    }
+                }
+                else
+                if (self->event == header_event) {
+                    if (!self->exception) {
+                        //  send HEADER_OK
+                        if (self->server->verbose)
+                            zsys_debug ("%s:         $ send HEADER_OK",
+                                self->log_prefix);
+                        hydra_proto_set_id (self->server->message, HYDRA_PROTO_HEADER_OK);
+                        hydra_proto_set_routing_id (self->server->message, self->routing_id);
+                        hydra_proto_send (self->server->message, self->server->router);
+                    }
+                }
+                else
+                if (self->event == fetch_event) {
+                    if (!self->exception) {
+                        //  send FETCH_OK
+                        if (self->server->verbose)
+                            zsys_debug ("%s:         $ send FETCH_OK",
+                                self->log_prefix);
+                        hydra_proto_set_id (self->server->message, HYDRA_PROTO_FETCH_OK);
+                        hydra_proto_set_routing_id (self->server->message, self->routing_id);
+                        hydra_proto_send (self->server->message, self->server->router);
+                    }
+                }
+                else
+                if (self->event == goodbye_event) {
+                    if (!self->exception) {
+                        //  send GOODBYE_OK
+                        if (self->server->verbose)
+                            zsys_debug ("%s:         $ send GOODBYE_OK",
+                                self->log_prefix);
+                        hydra_proto_set_id (self->server->message, HYDRA_PROTO_GOODBYE_OK);
+                        hydra_proto_set_routing_id (self->server->message, self->routing_id);
+                        hydra_proto_send (self->server->message, self->server->router);
+                    }
+                    if (!self->exception) {
+                        //  terminate
+                        if (self->server->verbose)
+                            zsys_debug ("%s:         $ terminate", self->log_prefix);
+                        self->next_event = terminate_event;
+                    }
+                }
+                else
+                if (self->event == expired_event) {
+                    if (!self->exception) {
+                        //  terminate
+                        if (self->server->verbose)
+                            zsys_debug ("%s:         $ terminate", self->log_prefix);
+                        self->next_event = terminate_event;
+                    }
+                }
+                else
+                if (self->event == exception_event) {
+                    if (!self->exception) {
+                        //  send ERROR
+                        if (self->server->verbose)
+                            zsys_debug ("%s:         $ send ERROR",
+                                self->log_prefix);
+                        hydra_proto_set_id (self->server->message, HYDRA_PROTO_ERROR);
+                        hydra_proto_set_routing_id (self->server->message, self->routing_id);
+                        hydra_proto_send (self->server->message, self->server->router);
+                    }
+                    if (!self->exception) {
+                        //  terminate
+                        if (self->server->verbose)
+                            zsys_debug ("%s:         $ terminate", self->log_prefix);
+                        self->next_event = terminate_event;
+                    }
+                }
+                else {
+                    //  Handle unexpected protocol events
+                    if (!self->exception) {
+                        //  signal command invalid
+                        if (self->server->verbose)
+                            zsys_debug ("%s:         $ signal command invalid", self->log_prefix);
+                        signal_command_invalid (&self->client);
+                    }
+                    if (!self->exception) {
+                        //  send ERROR
+                        if (self->server->verbose)
+                            zsys_debug ("%s:         $ send ERROR",
+                                self->log_prefix);
+                        hydra_proto_set_id (self->server->message, HYDRA_PROTO_ERROR);
+                        hydra_proto_set_routing_id (self->server->message, self->routing_id);
+                        hydra_proto_send (self->server->message, self->server->router);
+                    }
+                    if (!self->exception) {
+                        //  terminate
+                        if (self->server->verbose)
+                            zsys_debug ("%s:         $ terminate", self->log_prefix);
+                        self->next_event = terminate_event;
+                    }
+                }
+                break;
+
+            case defaults_state:
+                if (self->event == expired_event) {
+                    if (!self->exception) {
+                        //  terminate
+                        if (self->server->verbose)
+                            zsys_debug ("%s:         $ terminate", self->log_prefix);
+                        self->next_event = terminate_event;
+                    }
+                }
+                else
+                if (self->event == exception_event) {
+                    if (!self->exception) {
+                        //  send ERROR
+                        if (self->server->verbose)
+                            zsys_debug ("%s:         $ send ERROR",
+                                self->log_prefix);
+                        hydra_proto_set_id (self->server->message, HYDRA_PROTO_ERROR);
+                        hydra_proto_set_routing_id (self->server->message, self->routing_id);
+                        hydra_proto_send (self->server->message, self->server->router);
+                    }
+                    if (!self->exception) {
+                        //  terminate
+                        if (self->server->verbose)
+                            zsys_debug ("%s:         $ terminate", self->log_prefix);
+                        self->next_event = terminate_event;
+                    }
+                }
+                else {
+                    //  Handle unexpected protocol events
+                    if (!self->exception) {
+                        //  signal command invalid
+                        if (self->server->verbose)
+                            zsys_debug ("%s:         $ signal command invalid", self->log_prefix);
+                        signal_command_invalid (&self->client);
+                    }
+                    if (!self->exception) {
+                        //  send ERROR
+                        if (self->server->verbose)
+                            zsys_debug ("%s:         $ send ERROR",
+                                self->log_prefix);
+                        hydra_proto_set_id (self->server->message, HYDRA_PROTO_ERROR);
+                        hydra_proto_set_routing_id (self->server->message, self->routing_id);
+                        hydra_proto_send (self->server->message, self->server->router);
+                    }
+                    if (!self->exception) {
+                        //  terminate
+                        if (self->server->verbose)
+                            zsys_debug ("%s:         $ terminate", self->log_prefix);
+                        self->next_event = terminate_event;
+                    }
                 }
                 break;
         }
@@ -920,20 +840,20 @@ s_server_handle_pipe (zloop_t *loop, zsock_t *reader, void *argument)
         zstr_sendm (self->pipe, "PORT");
         zstr_sendf (self->pipe, "%d", self->port);
     }
-    else
-    if (streq (method, "CONFIGURE")) {
-        char *config_file = zmsg_popstr (msg);
+    else                       //  Deprecated method name
+    if (streq (method, "LOAD") || streq (method, "CONFIGURE")) {
+        char *filename = zmsg_popstr (msg);
         zconfig_destroy (&self->config);
-        self->config = zconfig_load (config_file);
+        self->config = zconfig_load (filename);
         if (self->config) {
             s_server_config_service (self);
             self->server.config = self->config;
         }
         else {
-            zsys_warning ("cannot load config file '%s'\n", config_file);
+            zsys_warning ("cannot load config file '%s'", filename);
             self->config = zconfig_new ("root", NULL);
         }
-        free (config_file);
+        free (filename);
     }
     else
     if (streq (method, "SET")) {
@@ -947,6 +867,13 @@ s_server_handle_pipe (zloop_t *loop, zsock_t *reader, void *argument)
         s_server_config_global (self);
         free (path);
         free (value);
+    }
+    else
+    if (streq (method, "SAVE")) {
+        char *filename = zmsg_popstr (msg);
+        if (zconfig_save (self->config, filename))
+            zsys_warning ("cannot save config file '%s'", filename);
+        free (filename);
     }
     else {
         //  Execute custom method

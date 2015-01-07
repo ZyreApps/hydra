@@ -14,32 +14,68 @@
     </grammar>
 
     <message name = "hello">
-        Open new connection
+        Open new connection, provide client credentials.
         <field name = "identity" type = "string">Client identity</field>
         <field name = "nickname" type = "string">Client nickname</field>
     </message>
 
     <message name = "hello ok">
-        Accept new connection and return most recent post, if any.
-        <field name = "post-id" type = "string">Post identifier</field>
+        Accept new connection, provide server credentials.
         <field name = "identity" type = "string">Server identity</field>
         <field name = "nickname" type = "string">Server nickname</field>
     </message>
 
-    <message name = "get post">
-        Fetch a given post's content
-        <field name = "post-id" type = "string">Post identifier</field>
+    <message name = "status">
+        Client requests server status update, telling server the oldest and
+        newest post that it knows for that server. If the client never
+        received any posts from the server, these fields are empty.
+        <field name = "oldest" type = "string">Oldest post</field>
+        <field name = "newest" type = "string">Newest post</field>
     </message>
 
-    <message name = "get post ok">
-        Return a post's metadata and content
-        <field name = "post-id" type = "string">Post identifier</field>
-        <field name = "reply-to" type = "string">Parent post, if any</field>
-        <field name = "previous" type = "string">Previous post, if any</field>
-        <field name = "timestamp" type = "string">Content date/time</field>
-        <field name = "digest" type = "string">Content digest</field>
-        <field name = "type" type = "string">Content type</field>
-        <field name = "content" type = "chunk">Content body</field>
+    <message name = "status ok">
+        Server tells client how many posts it has, older and newer than the
+        range the client already knows.
+        <field name = "older" type = "number" size = "4">Number of older posts</field>
+        <field name = "newer" type = "number" size = "4">Newest of newer posts</field>
+    </message>
+
+    <!-- Position requests -->
+    <define name = "FETCH OLDER" value = "1" />
+    <define name = "FETCH NEWER" value = "2" />
+    <define name = "FETCH FRESH" value = "3" />
+    
+    <message name = "header">
+        Client requests a post from the server, requesting either an older post
+        (previous to the oldest post it already has), a newer post (following the
+        newest post it has), or a fresh post (server's latest post, ignoring all
+        status).
+        <field name = "which" type = "number" size = "1">Which post to fetch</field>
+    </message>
+
+    <message name = "header ok">
+        Return a post's metadata.
+        <field name = "identifier" type = "string">Post identifier</field>
+        <field name = "subject" type = "longstr">Subject line</field>
+        <field name = "timestamp" type = "string">Post creation timestamp</field>
+        <field name = "parent post" type = "string">Parent post ID, if any</field>
+        <field name = "content digest" type = "string">Content digest</field>
+        <field name = "content type" type = "string">Content type</field>
+        <field name = "content size" type = "number" size = "8">Content size, octets</field>
+    </message>
+
+    <message name = "fetch">
+        Client fetches a chunk of content data from the server. This command
+        always applies to the post returned by a HEADER-OK.
+        <field name = "offset" type = "number" size = "8">File offset in content</field>
+        <field name = "octets" type = "number" size = "4">Number of octets to fetch</field>
+    </message>
+
+    <message name = "fetch ok">
+        Return a chunk of post content.
+        <field name = "offset" type = "number" size = "8">File offset in content</field>
+        <field name = "octets" type = "number" size = "4">Number of octets to fetch</field>
+        <field name = "content" type = "chunk">Content data chunk</field>
     </message>
 
     <message name = "goodbye">

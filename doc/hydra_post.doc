@@ -1,0 +1,31 @@
+#### hydra_post - work with a single Hydra post
+
+Work with a Hydra post in memory.
+
+Please add @discuss section in ../src/hydra_post.c.
+
+This is the class interface:
+
+    //  Create a new hydra_post
+    HYDRA_EXPORT hydra_post_t *
+        hydra_post_new (void);
+    
+    //  Destroy the hydra_post
+    HYDRA_EXPORT void
+        hydra_post_destroy (hydra_post_t **self_p);
+    
+    //  Print properties of object
+    HYDRA_EXPORT void
+        hydra_post_print (hydra_post_t *self);
+    
+    //  Self test of this class
+    HYDRA_EXPORT int
+        hydra_post_test (bool verbose);
+
+This is the class self test code:
+
+    //  Simple create/destroy test
+    hydra_post_t *self = hydra_post_new ("Test post");
+    assert (self);
+    hydra_post_destroy (&self);
+
