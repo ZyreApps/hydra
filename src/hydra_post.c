@@ -34,9 +34,6 @@ struct _hydra_post_t {
     zchunk_t *content;          //  Content chunk
     char digest [ID_SIZE + 1];  //  Content SHA1 digest
     size_t content_size;        //  Content size
-    //  Directory constants
-    const char *blob_dir;       //  For content blobs
-    const char *post_dir;       //  For post properties
 };
 
 
@@ -145,6 +142,17 @@ hydra_post_mime_type (hydra_post_t *self)
 
 
 //  --------------------------------------------------------------------------
+//  Return the post content size
+
+size_t
+hydra_post_content_size (hydra_post_t *self)
+{
+    assert (self);
+    return self->content_size;
+}
+
+
+//  --------------------------------------------------------------------------
 //  Set the post parent id, which must be a valid post ID
 
 void
@@ -200,7 +208,8 @@ hydra_post_set_data (hydra_post_t *self, const void *data, size_t size)
 //  --------------------------------------------------------------------------
 //  Set the post content to point to a specified file. The file must exist.
 //  Recalculates the post digest from the file contents. Returns 0 if OK, -1
-//  if the file was unreadable.
+//  if the file was unreadable. The location may be relative to the current
+//  working, or it may be an absolute file path.
 
 int
 hydra_post_set_file (hydra_post_t *self, const char *location)
@@ -225,66 +234,126 @@ hydra_post_set_file (hydra_post_t *self, const char *location)
 
 
 //  --------------------------------------------------------------------------
-//  Set the posts directory, creates the directory if it doesn't exist.
-
-void
-hydra_post_set_post_dir (hydra_post_t *self, const char *post_dir)
-{
-    assert (self);
-    self->post_dir = post_dir;
-    zsys_dir_create (self->post_dir);
-}
-
-
-//  --------------------------------------------------------------------------
-//  Set the blobs directory, creates the directory if it doesn't exist.
-
-void
-hydra_post_set_blob_dir (hydra_post_t *self, const char *blob_dir)
-{
-    assert (self);
-    self->blob_dir = blob_dir;
-    zsys_dir_create (self->blob_dir);
-}
-
-
-//  --------------------------------------------------------------------------
 //  Save the post to disk under the specified filename. Returns 0 if OK, -1
-//  if the file could not be created.
+//  if the file could not be created. Posts are always stored in the "posts"
+//  subdirectory of the current working directory.
 
 int
 hydra_post_save (hydra_post_t *self, const char *filename)
 {
     assert (self);
+    assert (filename);
 
-    //  If post content isn't yet serialised, write it to disk
+    //  Creeate subdirectories if necessary
+    zsys_dir_create ("posts");
+    zsys_dir_create ("posts/blobs");
+
+    //  If post content hasn't yet been serialised, write it to disk in the
+    //  blobs directory and set the location property to point to it.
     if (self->content) {
         assert (!self->location);
-        if (self->blob_dir)
-            self->location = zsys_sprintf ("%s/%s", self->blob_dir, self->digest);
-        else
-            self->location = strdup (self->digest);
-        
+        self->location = zsys_sprintf ("posts/blobs/%s", self->digest);
         FILE *output = fopen (self->location, "wb");
         zchunk_write (self->content, output);
         zchunk_destroy (&self->content);
         fclose (output);
     }
-    zconfig_t *config = zconfig_new ("root", NULL);
-    zconfig_put (config, "/post/id", self->id);
-    zconfig_put (config, "/post/subject", self->subject);
-    zconfig_put (config, "/post/timestamp", self->timestamp);
-    zconfig_put (config, "/post/parent-id", self->parent_id);
-    zconfig_put (config, "/post/mime-type", self->mime_type);
-    zconfig_put (config, "/post/digest", self->digest);
-    zconfig_put (config, "/post/location", self->location);
-    zconfig_putf (config, "/post/content-size", "%ld", self->content_size);
-    if (self->post_dir)
-        zconfig_savef (config, "%s/%s", self->post_dir, filename);
-    else
-        zconfig_save (config, filename);
-    zconfig_destroy (&config);
-    return -1;
+    zconfig_t *root = zconfig_new ("root", NULL);
+    zconfig_put (root, "/post/id", hydra_post_id (self));
+    zconfig_put (root, "/post/subject", self->subject);
+    zconfig_put (root, "/post/timestamp", self->timestamp);
+    zconfig_put (root, "/post/parent-id", self->parent_id);
+    zconfig_put (root, "/post/mime-type", self->mime_type);
+    zconfig_put (root, "/post/digest", self->digest);
+    zconfig_put (root, "/post/location", self->location);
+    zconfig_putf (root, "/post/content-size", "%ld", self->content_size);
+    zconfig_savef (root, "posts/%s", filename);
+    zconfig_destroy (&root);
+    return 0;
+}
+
+
+//  --------------------------------------------------------------------------
+//  Load post from the specified filename. Posts are always read from the
+//  "posts" subdirectory of the current working directory. Returns a new post
+//  instance if the file could be loaded, else returns null.
+
+hydra_post_t *
+hydra_post_load (const char *filename)
+{
+    assert (filename);
+    zconfig_t *root = zconfig_loadf ("posts/%s", filename);
+    if (!root)
+        return NULL;            //  No such file
+
+    hydra_post_t *self = NULL;
+    char *id = zconfig_resolve (root, "/post/id", "");
+    char *subject = zconfig_resolve (root, "/post/subject", NULL);
+    char *timestamp = zconfig_resolve (root, "/post/timestamp", NULL);
+    char *parent_id = zconfig_resolve (root, "/post/parent-id", "");
+    char *mime_type = zconfig_resolve (root, "/post/mime-type", NULL);
+    char *digest = zconfig_resolve (root, "/post/digest", NULL);
+    char *location = zconfig_resolve (root, "/post/location", NULL);
+    
+    if (subject && timestamp && mime_type && digest && location
+    && (strlen (id) == ID_SIZE)
+    && (strlen (parent_id) == 0 || strlen (parent_id) == ID_SIZE)
+    && (strlen (timestamp) == 20)
+    && (strlen (digest) == ID_SIZE)) {
+        self = hydra_post_new (subject);
+        strcpy (self->id, id);
+        strcpy (self->timestamp, timestamp);
+        strcpy (self->parent_id, parent_id);
+        self->mime_type = strdup (mime_type);
+        self->location = strdup (location);
+        strcpy (self->digest, digest);
+        self->content_size = atoll (zconfig_resolve (root, "/post/content-size", "0"));
+    }
+    zconfig_destroy (&root);
+    return self;
+}
+
+
+//  --------------------------------------------------------------------------
+//  Fetch a chunk of content for the post. The caller specifies the size and
+//  offset of the chunk. A size of 0 means all content, which will fail if
+//  there is insufficient memory available. The caller must destroy the chunk
+//  when finished with it.
+
+zchunk_t *
+hydra_post_fetch (hydra_post_t *self, size_t size, size_t offset)
+{
+    assert (self);
+
+    if (self->content)
+        return zchunk_dup (self->content);
+    else {
+        zfile_t *file = zfile_new (NULL, self->location);
+        if (zfile_input (file) == 0) {
+            zchunk_t *chunk = zfile_read (file, size, offset);
+            zfile_destroy (&file);
+            return chunk;
+        }
+    }
+    return NULL;
+}
+
+
+//  --------------------------------------------------------------------------
+//  Print the post file to stdout
+
+void
+hydra_post_print (hydra_post_t *self)
+{
+    assert (self);
+    printf ("POST post-id: %s\n", self->id);
+    printf ("     subject: %s\n", self->subject);
+    printf ("   timestamp: %s\n", self->timestamp);
+    printf ("   parent-id: %s\n", self->parent_id);
+    printf ("   MIME-type: %s\n", self->mime_type);
+    printf ("    location: %s\n", self->location);
+    printf ("      digest: %s\n", self->digest);
+    printf ("content-size: %zd\n", self->content_size);
 }
 
 
@@ -295,20 +364,37 @@ int
 hydra_post_test (bool verbose)
 {
     printf (" * hydra_post: ");
+    if (verbose)
+        printf ("\n");
 
     //  @selftest
     //  Simple create/destroy test
+    zsys_dir_create (".hydra_test");
+    zsys_dir_change (".hydra_test");
+        
     hydra_post_t *post = hydra_post_new ("Test post");
     assert (post);
-    hydra_post_set_post_dir (post, ".hydra_post_test/posts");
-    hydra_post_set_blob_dir (post, ".hydra_post_test/blobs");
-    hydra_post_set_mime_type (post, "text/plain");
     hydra_post_set_content (post, "Hello, World");
-    hydra_post_save (post, "testpost");
+    assert (streq (hydra_post_mime_type (post), "text/plain"));
+    int rc = hydra_post_save (post, "testpost");
+    assert (rc == 0);
     hydra_post_destroy (&post);
 
-    //  Delete all test files
-    zdir_t *dir = zdir_new (".hydra_post_test", NULL);
+    post = hydra_post_load ("testpost");
+    assert (post);
+    assert (hydra_post_content_size (post) == 12);
+    if (verbose)
+        hydra_post_print (post);
+    zchunk_t *chunk = hydra_post_fetch (
+        post, hydra_post_content_size (post), 0);
+    assert (chunk);
+    assert (zchunk_size (chunk) == 12);
+    zchunk_destroy (&chunk);
+    hydra_post_destroy (&post);
+
+    //  Delete the test directory
+    zsys_dir_change ("..");
+    zdir_t *dir = zdir_new (".hydra_test", NULL);
     assert (dir);
     zdir_remove (dir, true);
     zdir_destroy (&dir);

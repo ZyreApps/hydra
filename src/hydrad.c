@@ -93,8 +93,6 @@ int main (int argc, char *argv [])
         zuuid_destroy (&uuid);
     }
     //  Create store structure, if necessary
-    zsys_dir_create ("blobs");
-    zsys_dir_create ("posts");
     zsys_dir_create ("peers");
     
     //  Start server and bind to ephemeral TCP port. We can run many

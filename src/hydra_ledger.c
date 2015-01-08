@@ -12,36 +12,37 @@
 
 /*
 @header
-    hydra_ledger - 
+    Works with a ledger of posts. The ledger is the database of all posts
+    held by a node.
 @discuss
 @end
 */
 
-#include "../include/hydra.h"
+#include "hydra_classes.h"
 
 //  Structure of our class
 
 struct _hydra_ledger_t {
-    int filler;
+    zhash_t *posts_hash;    //  Hash table containing all post IDs
 };
 
+
 //  --------------------------------------------------------------------------
-//  Create a new hydra_ledger
+//  Create a new ledger instance. You must specify the directory that holds
+//  post files.
 
 hydra_ledger_t *
 hydra_ledger_new (void)
 {
     hydra_ledger_t *self = (hydra_ledger_t *) zmalloc (sizeof (hydra_ledger_t));
-    assert (self);
-
-    //  TODO: Initialize properties
-
+    if (self)
+        self->posts_hash = zhash_new ();
     return self;
 }
 
 
 //  --------------------------------------------------------------------------
-//  Destroy the hydra_ledger
+//  Destroy the ledger instance
 
 void
 hydra_ledger_destroy (hydra_ledger_t **self_p)
@@ -49,10 +50,7 @@ hydra_ledger_destroy (hydra_ledger_t **self_p)
     assert (self_p);
     if (*self_p) {
         hydra_ledger_t *self = *self_p;
-
-        //  Free class properties
-
-        //  Free object itself
+        zhash_destroy (&self->posts_hash);
         free (self);
         *self_p = NULL;
     }
@@ -60,12 +58,34 @@ hydra_ledger_destroy (hydra_ledger_t **self_p)
 
 
 //  --------------------------------------------------------------------------
-//  Print properties of object
+//  Load the ledger data from disk, from the specified directory. Returns the
+//  number of posts loaded, or -1 if there was an error reading the directory.
 
-void
-hydra_ledger_print (hydra_ledger_t *self)
+int
+hydra_ledger_load (hydra_ledger_t *self)
 {
-    assert (self);
+    //  Load a list of all post files in the posts directory
+    zdir_t *dir = zdir_new ("posts", "-");
+    zfile_t **files = zdir_flatten (dir);
+    int nbr_posts = 0;
+    
+    //  Now check each post file, and load post IDs into posts_hash
+    uint index;
+    for (index = 0; files [index]; index++) {
+        zfile_t *file = files [index];
+        char *filename = zfile_filename (file, NULL);
+        assert (memcmp (filename, "posts/", 6) == 0);
+        hydra_post_t *post = hydra_post_load (filename + 6);
+        if (post) {
+            //  We track posts ? how? filename, ID? array?
+            zhash_insert (self->posts_hash, hydra_post_id (post), NULL);
+            hydra_post_destroy (&post);
+            nbr_posts++;
+        }
+    }
+    zdir_flatten_free (&files);
+    zdir_destroy (&dir);
+    return nbr_posts;
 }
 
 
@@ -79,9 +99,26 @@ hydra_ledger_test (bool verbose)
 
     //  @selftest
     //  Simple create/destroy test
-    hydra_ledger_t *self = hydra_ledger_new ();
-    assert (self);
-    hydra_ledger_destroy (&self);
+    zsys_dir_create (".hydra_test");
+    zsys_dir_change (".hydra_test");
+
+    hydra_post_t *post = hydra_post_new ("Test post 1");
+    hydra_post_set_content (post, "Hello, World");
+    hydra_post_save (post, "testpost");
+    hydra_post_destroy (&post);
+    
+    hydra_ledger_t *ledger = hydra_ledger_new ();
+    assert (ledger);
+    int rc = hydra_ledger_load (ledger);
+    assert (rc == 1);
+    hydra_ledger_destroy (&ledger);
+
+    //  Delete the test directory
+    zsys_dir_change ("..");
+    zdir_t *dir = zdir_new (".hydra_test", NULL);
+    assert (dir);
+    zdir_remove (dir, true);
+    zdir_destroy (&dir);
     //  @end
 
     printf ("OK\n");

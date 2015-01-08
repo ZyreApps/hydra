@@ -330,6 +330,7 @@ hydra_proto_recv (hydra_proto_t *self, zsock_t *input)
                     zsys_warning ("hydra_proto: content is missing data");
                     goto malformed;
                 }
+                zchunk_destroy (&self->content);
                 self->content = zchunk_new (self->needle, chunk_size);
                 self->needle += chunk_size;
             }

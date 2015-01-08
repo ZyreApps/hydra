@@ -19,7 +19,7 @@ extern "C" {
 
 
 //  @interface
-//  Create a new hydra_ledger
+//  Create a new empty ledger instance.
 HYDRA_EXPORT hydra_ledger_t *
     hydra_ledger_new (void);
 
@@ -27,10 +27,11 @@ HYDRA_EXPORT hydra_ledger_t *
 HYDRA_EXPORT void
     hydra_ledger_destroy (hydra_ledger_t **self_p);
 
-//  Print properties of object
-HYDRA_EXPORT void
-    hydra_ledger_print (hydra_ledger_t *self);
-
+//  Load the ledger data from disk, from the specified directory. Returns the
+//  number of posts loaded, or -1 if there was an error reading the directory.
+HYDRA_EXPORT int
+    hydra_ledger_load (hydra_ledger_t *self);
+    
 //  Self test of this class
 HYDRA_EXPORT int
     hydra_ledger_test (bool verbose);

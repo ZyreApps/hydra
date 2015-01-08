@@ -48,6 +48,10 @@ HYDRA_EXPORT const char *
 HYDRA_EXPORT const char *
     hydra_post_mime_type (hydra_post_t *self);
     
+//  Return the post content size
+HYDRA_EXPORT size_t
+    hydra_post_content_size (hydra_post_t *self);
+    
 //  Set the post parent id, which must be a valid post ID
 HYDRA_EXPORT void
     hydra_post_set_parent_id (hydra_post_t *self, const char *parent_id);
@@ -72,19 +76,29 @@ HYDRA_EXPORT void
 HYDRA_EXPORT int
     hydra_post_set_file (hydra_post_t *self, const char *location);
     
-//  Set the posts directory, creates the directory if it doesn't exist.
-HYDRA_EXPORT void
-    hydra_post_set_post_dir (hydra_post_t *self, const char *post_dir);
-    
-//  Set the blobs directory, creates the directory if it doesn't exist.
-HYDRA_EXPORT void
-    hydra_post_set_blob_dir (hydra_post_t *self, const char *blob_dir);
-
 //  Save the post to disk under the specified filename. Returns 0 if OK, -1
-//  if the file could not be created.
+//  if the file could not be created. Posts are always stored in the "posts"
+//  subdirectory of the current working directory.
 HYDRA_EXPORT int
     hydra_post_save (hydra_post_t *self, const char *filename);
 
+//  Load post from the specified filename. Posts are always read from the
+//  "posts" subdirectory of the current working directory. Returns a new post
+//  instance if the file could be loaded, else returns null.
+HYDRA_EXPORT hydra_post_t *
+    hydra_post_load (const char *filename);
+    
+//  Fetch a chunk of content for the post. The caller specifies the size and
+//  offset of the chunk. A size of 0 means all content, which will fail if
+//  there is insufficient memory available. The caller must destroy the chunk
+//  when finished with it.
+HYDRA_EXPORT zchunk_t *
+    hydra_post_fetch (hydra_post_t *self, size_t size, size_t offset);
+    
+//  Print the post file to stdout
+HYDRA_EXPORT void
+    hydra_post_print (hydra_post_t *self);
+    
 //  Self test of this class
 HYDRA_EXPORT int
     hydra_post_test (bool verbose);

@@ -34,13 +34,9 @@ typedef struct _client_t client_t;
 //  whatever properties and structures you need for the server.
 
 struct _server_t {
-    //  These properties must always be present in the server_t
-    //  and are set by the generated engine; do not modify them!
     zsock_t *pipe;              //  Actor pipe back to caller
     zconfig_t *config;          //  Current loaded configuration
-
-    zfile_t *ledger;            //  Post ledger
-    const char *last_post_id;   //  Last post we stored
+    hydra_ledger_t *ledger;     //  Posts ledger
 };
 
 //  ---------------------------------------------------------------------------
@@ -48,8 +44,6 @@ struct _server_t {
 //  be passed to each action in the 'self' argument.
 
 struct _client_t {
-    //  These properties must always be present in the client_t
-    //  and are set by the generated engine; do not modify them!
     server_t *server;           //  Reference to parent server
     hydra_proto_t *message;     //  Message from and to client
 };
@@ -63,24 +57,8 @@ struct _client_t {
 static int
 server_initialize (server_t *self)
 {
-    //  server property zhashx_t *posts;            //  Posts indexed by identifier
-    //  hydra_post_t    -- reload all from disk at startup
-    
-    zdir_t *dir = zdir_new ("posts", NULL);
-    zfile_t **files = zdir_flatten (dir);
-    uint index;
-    for (index = 0; files [index]; index++) {
-        zfile_t *file = files [index];
-        zconfig_t *post = zconfig_load (zfile_filename (file, NULL));
-        if (post) {
-            //  get post ID
-            //  store post IDs in memory table (N x 20 bytes)
-            //  
-            zconfig_destroy (&post);
-        }
-    }
-    zdir_flatten_free (&files);
-    
+    self->ledger = hydra_ledger_new ();
+//     int posts = hydra_ledger_load (self->ledger);
     return 0;
 }
 
@@ -89,7 +67,7 @@ server_initialize (server_t *self)
 static void
 server_terminate (server_t *self)
 {
-    zfile_destroy (&self->ledger);
+    hydra_ledger_destroy (&self->ledger);
 }
 
 //  Process server API method, return reply message if any
@@ -101,8 +79,6 @@ server_method (server_t *self, const char *method, zmsg_t *msg)
     char *parent_id = zmsg_popstr (msg);
     hydra_post_t *post = hydra_post_new (subject);
     hydra_post_set_parent_id (post, parent_id);
-    hydra_post_set_post_dir (post, "posts");
-    hydra_post_set_blob_dir (post, "blobs");
     
     if (streq (method, "POST")) {
         char *content = zmsg_popstr (msg);
@@ -127,11 +103,17 @@ server_method (server_t *self, const char *method, zmsg_t *msg)
         hydra_post_set_data (post, zframe_data (frame), zframe_size (frame));
         zframe_destroy (&frame);
     }
+    else {
+        zsys_error ("unknown server method '%s' - failure", method);
+        assert (false);
+    }
     zstr_free (&subject);
     zstr_free (&parent_id);
 
     zmsg_t *reply = zmsg_new ();
     zmsg_addstr (reply, hydra_post_id (post));
+
+    //  add file to ledger and get new filename
     static int counter = 0;
     char filename [20];
     sprintf (filename, "%04d.txt", ++counter);
