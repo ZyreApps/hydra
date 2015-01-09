@@ -107,6 +107,7 @@ hydra_ledger_load (hydra_ledger_t *self)
 {
     assert (self);
     assert (self->size == 0);
+    zsys_info ("load ledger");
     
     //  Load a list of all post files in the posts directory
     zdir_t *dir = zdir_new ("posts", "-");
@@ -114,7 +115,7 @@ hydra_ledger_load (hydra_ledger_t *self)
 
     //  Get yyyy-mm-dd string for checking today's files
     char *today = zclock_timestr ();
-    today [11] = 0;
+    today [10] = 0;
     
     zrex_t *rex = zrex_new ("^(\\d\\d\\d\\d-\\d\\d-\\d\\d)\\((\\d+)\\)$");
     assert (rex && zrex_valid (rex));
@@ -126,10 +127,13 @@ hydra_ledger_load (hydra_ledger_t *self)
         char *filename = zfile_filename (file, NULL);
         assert (memcmp (filename, "posts/", 6) == 0);
         filename += 6;
+        zsys_info ("have post in filename=%s", filename);
         hydra_post_t *post = hydra_post_load (filename);
         if (post) {
+            zsys_info ("post loaded, id=%s", hydra_post_id (post));
             if (zrex_matches (rex, filename) && streq (zrex_hit (rex, 1), today)) {
                 int post_seq = atoi (zrex_hit (rex, 2));
+                zsys_info ("load new post name=%s seq=%d", filename, post_seq);
                 if (self->post_seq < post_seq)
                     self->post_seq = post_seq;
             }
@@ -160,6 +164,7 @@ hydra_ledger_save_post (hydra_ledger_t *self, hydra_post_t **post_p)
     char *today = zclock_timestr ();
     today [10] = 0;
     char *filename = zsys_sprintf ("%s(%08d)", today, ++self->post_seq);
+    zsys_info ("create post via API filename=%s", filename);
     int rc = hydra_post_save (*post_p, filename);
     s_have_new_post (self, *post_p);
     hydra_post_destroy (post_p);

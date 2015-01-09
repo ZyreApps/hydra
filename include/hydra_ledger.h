@@ -36,6 +36,12 @@ HYDRA_EXPORT size_t
 HYDRA_EXPORT int
     hydra_ledger_load (hydra_ledger_t *self);
     
+//  Save a post via the ledger. This saves the post to disk, adds the post to
+//  the ledger, and then destroys the post. Use in place of hydra_post_save
+//  to ensure post filenames are correctly generated.
+HYDRA_EXPORT int
+    hydra_ledger_save_post (hydra_ledger_t *self, hydra_post_t **post_p);
+    
 //  Self test of this class
 HYDRA_EXPORT int
     hydra_ledger_test (bool verbose);

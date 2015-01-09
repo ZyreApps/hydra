@@ -113,22 +113,18 @@ We assume that it is usually impossible to fetch all posts from a peer, within a
 
 This section describes the API provided by the current Hydra implementation, and is meant for developers who wish to use Hydra in their applications.
 
-
-
-
+TBD.
 
 ## Implementation Notes
 
-This Hydra implementation stores posts in a subdirectory called posts, with one text file per post, in ZPL format (ZeroMQ RFC 4). Post files are named "yyyy-mm-dd(nnnnnnnnn)", consisting of the date the post was created on disk (not the post timestamp), and a 9-digit sequence number (the most decimal digits that will fit into a 32-bit integer).
-
 A Hydra service runs in a working directory and uses a lockfile (hydra.lock) to prevent multiple instances from running in the same directory.
+
+This Hydra implementation stores posts in a subdirectory called posts, with one text file per post, in ZPL format (ZeroMQ RFC 4). Post files are named "yyyy-mm-dd(nnnnnnnnn)", consisting of the date the post was created on disk (not the post timestamp), and a 9-digit sequence number (the most decimal digits that will fit into a 32-bit integer).
 
 The Hydra working directory has these files:
 
 * hydra.cfg -- a configuration file, generated the first time if needed.
-* ledger.txt -- a list of all posts held by the node. A post ID is a UUID, and the ledger holds one UUID per line.
 * posts/ -- a subdirectory holding all posts.
-* blobs/ -- a subdirectory holding content blobs (when posts don't refer to other existing files).
 * peers/ -- a subdirectory holding peer status files. A peer status file is named by the peer's unique ID and holds the peer meta data in SPL format.
 
 ## Ownership and Contributing

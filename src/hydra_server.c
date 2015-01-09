@@ -15,6 +15,13 @@
     This is a simple client API for the Hydra protocol.
 @discuss
     Detailed discussion of the class, if any.
+    todo
+    - create PULL socket for receiving posts
+    - bind to some inproc endpoint, passed to each client
+    - all clients create PUSH socket and connect to this
+    - clients send incoming posts to this socket
+    - saved by server
+    
 @end
 */
 
@@ -58,7 +65,10 @@ static int
 server_initialize (server_t *self)
 {
     self->ledger = hydra_ledger_new ();
-//     int posts = hydra_ledger_load (self->ledger);
+    hydra_ledger_load (self->ledger);
+    //  Create store structure, if necessary
+    zsys_dir_create ("peers");
+
     return 0;
 }
 
@@ -112,13 +122,7 @@ server_method (server_t *self, const char *method, zmsg_t *msg)
 
     zmsg_t *reply = zmsg_new ();
     zmsg_addstr (reply, hydra_post_id (post));
-
-    //  add file to ledger and get new filename
-    static int counter = 0;
-    char filename [20];
-    sprintf (filename, "%04d.txt", ++counter);
-    hydra_post_save (post, filename);
-    hydra_post_destroy (&post);
+    hydra_ledger_save_post (self->ledger, &post);
     return reply;
 }
 
