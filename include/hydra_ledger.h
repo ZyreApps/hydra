@@ -27,6 +27,10 @@ HYDRA_EXPORT hydra_ledger_t *
 HYDRA_EXPORT void
     hydra_ledger_destroy (hydra_ledger_t **self_p);
 
+//  Return ledger size.
+HYDRA_EXPORT size_t
+    hydra_ledger_size (hydra_ledger_t *self);
+    
 //  Load the ledger data from disk, from the specified directory. Returns the
 //  number of posts loaded, or -1 if there was an error reading the directory.
 HYDRA_EXPORT int

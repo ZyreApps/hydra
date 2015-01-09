@@ -119,7 +119,7 @@ This section describes the API provided by the current Hydra implementation, and
 
 ## Implementation Notes
 
-This Hydra implementation stores posts in a subdirectory called posts, with one text file per post, in ZPL format (ZeroMQ RFC 4). Post files are named yyyymmdd_hhmmss_nnnn, consisting of the date and time the post was created on disk (not the post timestamp), and a 4-digit sequence number.
+This Hydra implementation stores posts in a subdirectory called posts, with one text file per post, in ZPL format (ZeroMQ RFC 4). Post files are named "yyyy-mm-dd(nnnnnnnnn)", consisting of the date the post was created on disk (not the post timestamp), and a 9-digit sequence number (the most decimal digits that will fit into a 32-bit integer).
 
 A Hydra service runs in a working directory and uses a lockfile (hydra.lock) to prevent multiple instances from running in the same directory.
 
