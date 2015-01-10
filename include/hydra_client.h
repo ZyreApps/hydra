@@ -35,9 +35,10 @@ typedef struct _hydra_client_t hydra_client_t;
 //  @interface
 //  Create a new hydra_client
 //  Connect to server endpoint, with specified timeout in msecs (zero means wait    
-//  forever). Constructor succeeds if connection is successful.                     
+//  forever). Constructor succeeds if connection is successful. The sink endpoint is
+//  provided by the node's own server, for storing received posts.                  
 hydra_client_t *
-    hydra_client_new (const char *endpoint, uint32_t timeout);
+    hydra_client_new (const char *peer_endpoint, const char *sink_endpoint, uint32_t timeout);
 
 //  Destroy the hydra_client
 void

@@ -43,6 +43,7 @@ typedef struct {
     zconfig_t *peer_config;     //  Peer configuration data
     hydra_post_t *post;         //  Current post we're receiving
     size_t chunk_offset;        //  For fetching post content in chunks
+    zsock_t *sink;              //  Where we send posts to be stored
 } client_t;
 
 //  Include the generated client engine
@@ -63,6 +64,7 @@ client_initialize (client_t *self)
     self->identity = zconfig_resolve (self->config, "/hydra/identity", NULL);
     assert (self->identity);        //  Must be checked by caller
     self->nickname = zconfig_resolve (self->config, "/hydra/nickname", "");
+    self->sink = zsock_new (ZMQ_PUSH);
     return 0;
 }
 
@@ -74,6 +76,7 @@ client_terminate (client_t *self)
     zconfig_destroy (&self->config);
     zconfig_destroy (&self->peer_config);
     hydra_post_destroy (&self->post);
+    zsock_destroy (&self->sink);
 }
 
 
@@ -95,10 +98,12 @@ use_connect_timeout (client_t *self)
 static void
 connect_to_server_endpoint (client_t *self)
 {
-    if (zsock_connect (self->dealer, "%s", self->args->endpoint)) {
+    if (zsock_connect (self->dealer, "%s", self->args->peer_endpoint)) {
         engine_set_exception (self, bad_endpoint_event);
-        zsys_warning ("could not connect to %s", self->args->endpoint);
+        zsys_warning ("could not connect to %s", self->args->peer_endpoint);
     }
+    int rc = zsock_connect (self->sink, "%s", self->args->sink_endpoint);
+    assert (rc == 0);
 }
 
 
@@ -249,7 +254,6 @@ store_post_data_chunk (client_t *self)
 static void
 prepare_to_get_next_chunk (client_t *self)
 {
-    zsys_info ("client: received %zd bytes and finished", hydra_post_content_size (self->post));
     engine_set_exception (self, finished_event);
 }
 
@@ -262,13 +266,24 @@ static void
 signal_post_fetched (client_t *self)
 {
     zsock_send (self->cmdpipe, "sisssss8", "FETCHED", 0,
-        hydra_proto_ident (self->message),
-        hydra_proto_subject (self->message),
-        hydra_proto_timestamp (self->message),
-        hydra_proto_parent_id (self->message),
-        hydra_proto_mime_type (self->message),
-        hydra_proto_content_size (self->message));
-//         hydra_proto_location (self->message));
+        hydra_post_ident (self->post),
+        hydra_post_subject (self->post),
+        hydra_post_timestamp (self->post),
+        hydra_post_parent_id (self->post),
+        hydra_post_mime_type (self->post),
+        hydra_post_content_size (self->post));
+}
+
+
+//  ---------------------------------------------------------------------------
+//  store_the_post_in_ledger
+//
+
+static void
+store_the_post_in_ledger (client_t *self)
+{
+    zsock_send (self->sink, "p", self->post);
+    self->post = NULL;
 }
 
 
@@ -370,8 +385,9 @@ hydra_client_test (bool verbose)
     zstr_sendx (server, "BIND", "ipc://@/hydra", NULL);
     
     hydra_client_verbose = verbose;
-    hydra_client_t *client = hydra_client_new ("ipc://@/hydra", 500);
-//     hydra_client_fetch (client);
+    hydra_client_t *client = hydra_client_new ("ipc://@/hydra", "inproc://sometest", 500);
+    int rc = hydra_client_fetch (client, HYDRA_PROTO_FETCH_RESET);
+    assert (rc == -1);
     hydra_client_destroy (&client);
     
     zactor_destroy (&server);
@@ -384,14 +400,4 @@ hydra_client_test (bool verbose)
     zdir_destroy (&dir);
     //  @end
     printf ("OK\n");
-}
-
-
-//  ---------------------------------------------------------------------------
-//  store_the_post_in_ledger
-//
-
-static void
-store_the_post_in_ledger (client_t *self)
-{
 }

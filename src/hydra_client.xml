@@ -103,8 +103,10 @@
     <!-- API methods -->
     <method name = "constructor" return = "status">
     Connect to server endpoint, with specified timeout in msecs (zero means
-    wait forever). Constructor succeeds if connection is successful.
-        <field name = "endpoint" type = "string" />
+    wait forever). Constructor succeeds if connection is successful. The sink
+    endpoint is provided by the node's own server, for storing received posts.
+        <field name = "peer endpoint" type = "string" />
+        <field name = "sink endpoint" type = "string" />
         <field name = "timeout" type = "number" size = "4" />
         <accept reply = "CONNECTED" />
         <accept reply = "FAILURE" />
@@ -150,6 +152,5 @@
         <field name = "parent id" type = "string">Parent post ID, if any</field>
         <field name = "mime type" type = "string">Content type</field>
         <field name = "content size" type = "number" size = "8">Content size, octets</field>
-<!--         <field name = "location" type = "string">Content file location</field> -->
     </reply>
 </class>

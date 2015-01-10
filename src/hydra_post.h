@@ -53,6 +53,10 @@ HYDRA_EXPORT const char *
 HYDRA_EXPORT const char *
     hydra_post_digest (hydra_post_t *self);
 
+//  Return the post content location
+HYDRA_EXPORT const char *
+    hydra_post_location (hydra_post_t *self);
+    
 //  Return the post content size
 HYDRA_EXPORT size_t
     hydra_post_content_size (hydra_post_t *self);

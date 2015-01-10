@@ -155,6 +155,17 @@ hydra_post_digest (hydra_post_t *self)
 
 
 //  --------------------------------------------------------------------------
+//  Return the post content location
+
+const char *
+hydra_post_location (hydra_post_t *self)
+{
+    assert (self);
+    return self->location;
+}
+
+
+//  --------------------------------------------------------------------------
 //  Return the post content size
 
 size_t

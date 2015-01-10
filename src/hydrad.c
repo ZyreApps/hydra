@@ -25,10 +25,10 @@
 "without warranty of any kind, either expressed, implied, or statutory.\n"
 
 static void
-s_handle_peer (char *endpoint, bool verbose)
+s_handle_peer (char *peer_endpoint, char *sink_endpoint, bool verbose)
 {
     hydra_client_verbose = verbose;
-    hydra_client_t *client = hydra_client_new (endpoint, 500);
+    hydra_client_t *client = hydra_client_new (peer_endpoint, sink_endpoint, 500);
     assert (client);
     int before = hydra_client_before (client);
     int after = hydra_client_after (client);
@@ -36,19 +36,16 @@ s_handle_peer (char *endpoint, bool verbose)
 
     //  Fetch newer posts first
     while (after && !zsys_interrupted) {
-        if (hydra_client_fetch (client, HYDRA_PROTO_FETCH_NEWER) == 0) {
-            zsys_debug ("hydrad: fetched post type=%s file=%s size=%zd",
-                        hydra_client_mime_type (client), "?",
-//                         hydra_client_location (client),
-                        hydra_client_content_size (client));
+        if (hydra_client_fetch (client, HYDRA_PROTO_FETCH_NEWER) == 0)
             after--;
-        }
         else {
             zsys_debug ("hydrad: could not fetch newer post");
             break;
         }
     }
-    //  Fetch newer, older, or fresh posts
+    //  Now reset and repeat for all posts
+//     if (hydra_client_fetch (client, HYDRA_PROTO_FETCH_RESET) == 0)
+    
     zsys_info ("hydrad: synchronized with peer, goodbye");
     hydra_client_destroy (&client);
 }
@@ -108,28 +105,37 @@ int main (int argc, char *argv [])
         zstr_send (server, "VERBOSE");
 
     //  Bind Hydra service to ephemeral port and get that port number
-    char *command;
     int port_nbr;
     zsock_send (server, "ss", "LOAD", "hydra.cfg");
     zsock_send (server, "ss", "BIND", "tcp://*:*");
     zsock_send (server, "s", "PORT");
-    zsock_recv (server, "si", &command, &port_nbr);
+    zsock_recv (server, "si", NULL, &port_nbr);
     zsys_info ("hydrad: TCP server started on port=%d", port_nbr);
-    assert (streq (command, "PORT"));
-    free (command);
 
+    //  Server collects new posts via sink socket; we need to get the
+    //  endpoint for the sink so we can pass it to clients
+    char *sink_endpoint;
+    zsock_send (server, "s", "SINK");
+    zsock_recv (server, "s", &sink_endpoint);
+    zsys_info ("hydrad: sink socket is at endpoint=%s", sink_endpoint);
+    
     //  Here is how we set the node nickname, persistently
     zsock_send (server, "sss", "SET", "/hydra/nickname", "Anonymous Coward");
     zsock_send (server, "ss", "SAVE", "hydra.cfg");
 
     //  Provision the Hydra server with some test posts in a tree
     char *post_id;
-    zsock_send (server, "ssss", "POST", "This is a string", "", "Hello, World");
+    zsock_send (server, "ssssss", "POST", "This is a string", "", "text/plain",
+                "string", "Hello, World");
     zsock_recv (server, "s", &post_id);
-    zsock_send (server, "sssss", "POST FILE", "This is a disk file", post_id, "text/zpl", "hydra.cfg");
+    
+    zsock_send (server, "ssssss", "POST", "This is a disk file", post_id,
+                "text/zpl", "file", "hydra.cfg");
     zstr_free (&post_id);
     zsock_recv (server, "s", &post_id);
-    zsock_send (server, "ssssb", "POST DATA", "This is a blob of data", post_id, "*/*", "ABCDEFGHIJ", 10);
+    
+    zsock_send (server, "sssssb", "POST", "This is a blob of data", post_id,
+                "*/*", "frame", "ABCDEFGHIJ", 10);
     zstr_free (&post_id);
     zsock_recv (server, "s", &post_id);
     zstr_free (&post_id);
@@ -158,10 +164,10 @@ int main (int argc, char *argv [])
         if (which == zyre_socket (zyre)) {
             zyre_event_t *event = zyre_event_new (zyre);
             if (zyre_event_type (event) == ZYRE_EVENT_ENTER) {
+                char *peer_endpoint = zyre_event_header (event, "X-HYDRA");
                 zsys_debug ("hydrad: new peer name=%s endpoint=%s",
-                            zyre_event_name (event),
-                            zyre_event_header (event, "X-HYDRA"));
-                s_handle_peer (zyre_event_header (event, "X-HYDRA"), verbose);
+                            zyre_event_name (event), peer_endpoint);
+                s_handle_peer (peer_endpoint, sink_endpoint, verbose);
             }
             zyre_event_destroy (&event);
         }
