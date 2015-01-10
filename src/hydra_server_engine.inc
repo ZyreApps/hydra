@@ -35,10 +35,11 @@ typedef enum {
     hello_event = 2,
     status_event = 3,
     header_event = 4,
-    fetch_event = 5,
-    goodbye_event = 6,
-    expired_event = 7,
-    exception_event = 8
+    no_such_post_event = 5,
+    chunk_event = 6,
+    goodbye_event = 7,
+    expired_event = 8,
+    exception_event = 9
 } event_t;
 
 //  Names for state machine logging and error reporting
@@ -57,7 +58,8 @@ s_event_name [] = {
     "HELLO",
     "STATUS",
     "HEADER",
-    "FETCH",
+    "no_such_post",
+    "CHUNK",
     "GOODBYE",
     "expired",
     "exception"
@@ -125,6 +127,10 @@ static void
     set_server_identity (client_t *self);
 static void
     calculate_status_for_client (client_t *self);
+static void
+    fetch_specified_post_header (client_t *self);
+static void
+    fetch_specified_post_chunk (client_t *self);
 static void
     signal_command_invalid (client_t *self);
 
@@ -314,8 +320,8 @@ s_protocol_event (hydra_proto_t *message)
         case HYDRA_PROTO_HEADER:
             return header_event;
             break;
-        case HYDRA_PROTO_FETCH:
-            return fetch_event;
+        case HYDRA_PROTO_CHUNK:
+            return chunk_event;
             break;
         case HYDRA_PROTO_GOODBYE:
             return goodbye_event;
@@ -501,6 +507,12 @@ s_client_execute (s_client_t *self, event_t event)
                 else
                 if (self->event == header_event) {
                     if (!self->exception) {
+                        //  fetch specified post header
+                        if (self->server->verbose)
+                            zsys_debug ("%s:         $ fetch specified post header", self->log_prefix);
+                        fetch_specified_post_header (&self->client);
+                    }
+                    if (!self->exception) {
                         //  send HEADER_OK
                         if (self->server->verbose)
                             zsys_debug ("%s:         $ send HEADER_OK",
@@ -511,13 +523,31 @@ s_client_execute (s_client_t *self, event_t event)
                     }
                 }
                 else
-                if (self->event == fetch_event) {
+                if (self->event == no_such_post_event) {
                     if (!self->exception) {
-                        //  send FETCH_OK
+                        //  send HEADER_EMPTY
                         if (self->server->verbose)
-                            zsys_debug ("%s:         $ send FETCH_OK",
+                            zsys_debug ("%s:         $ send HEADER_EMPTY",
                                 self->log_prefix);
-                        hydra_proto_set_id (self->server->message, HYDRA_PROTO_FETCH_OK);
+                        hydra_proto_set_id (self->server->message, HYDRA_PROTO_HEADER_EMPTY);
+                        hydra_proto_set_routing_id (self->server->message, self->routing_id);
+                        hydra_proto_send (self->server->message, self->server->router);
+                    }
+                }
+                else
+                if (self->event == chunk_event) {
+                    if (!self->exception) {
+                        //  fetch specified post chunk
+                        if (self->server->verbose)
+                            zsys_debug ("%s:         $ fetch specified post chunk", self->log_prefix);
+                        fetch_specified_post_chunk (&self->client);
+                    }
+                    if (!self->exception) {
+                        //  send CHUNK_OK
+                        if (self->server->verbose)
+                            zsys_debug ("%s:         $ send CHUNK_OK",
+                                self->log_prefix);
+                        hydra_proto_set_id (self->server->message, HYDRA_PROTO_CHUNK_OK);
                         hydra_proto_set_routing_id (self->server->message, self->routing_id);
                         hydra_proto_send (self->server->message, self->server->router);
                     }

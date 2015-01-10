@@ -13,10 +13,11 @@
 #ifndef __HYDRA_POST_H_INCLUDED__
 #define __HYDRA_POST_H_INCLUDED__
 
+typedef struct _hydra_post_t hydra_post_t;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 
 //  @interface
 //  Create a new post
@@ -30,7 +31,7 @@ HYDRA_EXPORT void
 //  Recalculate the post ID based on subject, timestamp, parent id, MIME
 //  type, and content digest, and return post ID to caller.
 HYDRA_EXPORT const char *
-    hydra_post_id (hydra_post_t *self);
+    hydra_post_ident (hydra_post_t *self);
     
 //  Return the post subject, if set
 HYDRA_EXPORT const char *
@@ -48,6 +49,10 @@ HYDRA_EXPORT const char *
 HYDRA_EXPORT const char *
     hydra_post_mime_type (hydra_post_t *self);
     
+//  Return the post content digest
+HYDRA_EXPORT const char *
+    hydra_post_digest (hydra_post_t *self);
+
 //  Return the post content size
 HYDRA_EXPORT size_t
     hydra_post_content_size (hydra_post_t *self);
@@ -66,7 +71,8 @@ HYDRA_EXPORT void
     hydra_post_set_content (hydra_post_t *self, const char *content);
     
 //  Set the post content to a chunk of data. Recalculates the post digest
-//  from the chunk contents. Takes ownership of the chunk.
+//  from the chunk contents. Takes ownership of the chunk. The data is not
+//  stored on disk until you call hydra_post_save.
 HYDRA_EXPORT void
     hydra_post_set_data (hydra_post_t *self, const void *data, size_t size);
     
@@ -95,6 +101,14 @@ HYDRA_EXPORT hydra_post_t *
 HYDRA_EXPORT zchunk_t *
     hydra_post_fetch (hydra_post_t *self, size_t size, size_t offset);
     
+//  Encode a post metadata to a hydra_proto message
+HYDRA_EXPORT void
+    hydra_post_encode (hydra_post_t *self, hydra_proto_t *proto);
+
+//  Create a new post from a hydra_proto HEADER-OK message.
+HYDRA_EXPORT hydra_post_t *
+    hydra_post_decode (hydra_proto_t *proto);
+
 //  Print the post file to stdout
 HYDRA_EXPORT void
     hydra_post_print (hydra_post_t *self);

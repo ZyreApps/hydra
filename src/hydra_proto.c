@@ -41,18 +41,18 @@ struct _hydra_proto_t {
     char nickname [256];                //  Client nickname
     char oldest [256];                  //  Oldest post
     char newest [256];                  //  Newest post
-    uint32_t older;                     //  Number of older posts
-    uint32_t newer;                     //  Newest of newer posts
+    uint32_t before;                    //  Number of posts before oldest
+    uint32_t after;                     //  Newest of posts after newest
     byte which;                         //  Which post to fetch
-    char identifier [256];              //  Post identifier
+    char ident [256];                   //  Post identifier
     char *subject;                      //  Subject line
     char timestamp [256];               //  Post creation timestamp
-    char parent_post [256];             //  Parent post ID, if any
-    char content_digest [256];          //  Content digest
-    char content_type [256];            //  Content type
+    char parent_id [256];               //  Parent post ID, if any
+    char digest [256];                  //  Content SHA1 digest
+    char mime_type [256];               //  Content MIME type
     uint64_t content_size;              //  Content size, octets
-    uint64_t offset;                    //  File offset in content
-    uint32_t octets;                    //  Number of octets to fetch
+    uint64_t offset;                    //  Chunk offset in file
+    uint32_t octets;                    //  Maximum chunk size to fetch
     zchunk_t *content;                  //  Content data chunk
     uint16_t status;                    //  3-digit status code
     char reason [256];                  //  Printable explanation
@@ -297,8 +297,8 @@ hydra_proto_recv (hydra_proto_t *self, zsock_t *input)
             break;
 
         case HYDRA_PROTO_STATUS_OK:
-            GET_NUMBER4 (self->older);
-            GET_NUMBER4 (self->newer);
+            GET_NUMBER4 (self->before);
+            GET_NUMBER4 (self->after);
             break;
 
         case HYDRA_PROTO_HEADER:
@@ -306,23 +306,25 @@ hydra_proto_recv (hydra_proto_t *self, zsock_t *input)
             break;
 
         case HYDRA_PROTO_HEADER_OK:
-            GET_STRING (self->identifier);
+            GET_STRING (self->ident);
             GET_LONGSTR (self->subject);
             GET_STRING (self->timestamp);
-            GET_STRING (self->parent_post);
-            GET_STRING (self->content_digest);
-            GET_STRING (self->content_type);
+            GET_STRING (self->parent_id);
+            GET_STRING (self->digest);
+            GET_STRING (self->mime_type);
             GET_NUMBER8 (self->content_size);
             break;
 
-        case HYDRA_PROTO_FETCH:
+        case HYDRA_PROTO_HEADER_EMPTY:
+            break;
+
+        case HYDRA_PROTO_CHUNK:
             GET_NUMBER8 (self->offset);
             GET_NUMBER4 (self->octets);
             break;
 
-        case HYDRA_PROTO_FETCH_OK:
+        case HYDRA_PROTO_CHUNK_OK:
             GET_NUMBER8 (self->offset);
-            GET_NUMBER4 (self->octets);
             {
                 size_t chunk_size;
                 GET_NUMBER4 (chunk_size);
@@ -391,30 +393,29 @@ hydra_proto_send (hydra_proto_t *self, zsock_t *output)
             frame_size += 1 + strlen (self->newest);
             break;
         case HYDRA_PROTO_STATUS_OK:
-            frame_size += 4;            //  older
-            frame_size += 4;            //  newer
+            frame_size += 4;            //  before
+            frame_size += 4;            //  after
             break;
         case HYDRA_PROTO_HEADER:
             frame_size += 1;            //  which
             break;
         case HYDRA_PROTO_HEADER_OK:
-            frame_size += 1 + strlen (self->identifier);
+            frame_size += 1 + strlen (self->ident);
             frame_size += 4;
             if (self->subject)
                 frame_size += strlen (self->subject);
             frame_size += 1 + strlen (self->timestamp);
-            frame_size += 1 + strlen (self->parent_post);
-            frame_size += 1 + strlen (self->content_digest);
-            frame_size += 1 + strlen (self->content_type);
+            frame_size += 1 + strlen (self->parent_id);
+            frame_size += 1 + strlen (self->digest);
+            frame_size += 1 + strlen (self->mime_type);
             frame_size += 8;            //  content_size
             break;
-        case HYDRA_PROTO_FETCH:
+        case HYDRA_PROTO_CHUNK:
             frame_size += 8;            //  offset
             frame_size += 4;            //  octets
             break;
-        case HYDRA_PROTO_FETCH_OK:
+        case HYDRA_PROTO_CHUNK_OK:
             frame_size += 8;            //  offset
-            frame_size += 4;            //  octets
             frame_size += 4;            //  Size is 4 octets
             if (self->content)
                 frame_size += zchunk_size (self->content);
@@ -449,8 +450,8 @@ hydra_proto_send (hydra_proto_t *self, zsock_t *output)
             break;
 
         case HYDRA_PROTO_STATUS_OK:
-            PUT_NUMBER4 (self->older);
-            PUT_NUMBER4 (self->newer);
+            PUT_NUMBER4 (self->before);
+            PUT_NUMBER4 (self->after);
             break;
 
         case HYDRA_PROTO_HEADER:
@@ -458,27 +459,26 @@ hydra_proto_send (hydra_proto_t *self, zsock_t *output)
             break;
 
         case HYDRA_PROTO_HEADER_OK:
-            PUT_STRING (self->identifier);
+            PUT_STRING (self->ident);
             if (self->subject) {
                 PUT_LONGSTR (self->subject);
             }
             else
                 PUT_NUMBER4 (0);    //  Empty string
             PUT_STRING (self->timestamp);
-            PUT_STRING (self->parent_post);
-            PUT_STRING (self->content_digest);
-            PUT_STRING (self->content_type);
+            PUT_STRING (self->parent_id);
+            PUT_STRING (self->digest);
+            PUT_STRING (self->mime_type);
             PUT_NUMBER8 (self->content_size);
             break;
 
-        case HYDRA_PROTO_FETCH:
+        case HYDRA_PROTO_CHUNK:
             PUT_NUMBER8 (self->offset);
             PUT_NUMBER4 (self->octets);
             break;
 
-        case HYDRA_PROTO_FETCH_OK:
+        case HYDRA_PROTO_CHUNK_OK:
             PUT_NUMBER8 (self->offset);
-            PUT_NUMBER4 (self->octets);
             if (self->content) {
                 PUT_NUMBER4 (zchunk_size (self->content));
                 memcpy (self->needle,
@@ -549,8 +549,8 @@ hydra_proto_print (hydra_proto_t *self)
             
         case HYDRA_PROTO_STATUS_OK:
             zsys_debug ("HYDRA_PROTO_STATUS_OK:");
-            zsys_debug ("    older=%ld", (long) self->older);
-            zsys_debug ("    newer=%ld", (long) self->newer);
+            zsys_debug ("    before=%ld", (long) self->before);
+            zsys_debug ("    after=%ld", (long) self->after);
             break;
             
         case HYDRA_PROTO_HEADER:
@@ -560,10 +560,10 @@ hydra_proto_print (hydra_proto_t *self)
             
         case HYDRA_PROTO_HEADER_OK:
             zsys_debug ("HYDRA_PROTO_HEADER_OK:");
-            if (self->identifier)
-                zsys_debug ("    identifier='%s'", self->identifier);
+            if (self->ident)
+                zsys_debug ("    ident='%s'", self->ident);
             else
-                zsys_debug ("    identifier=");
+                zsys_debug ("    ident=");
             if (self->subject)
                 zsys_debug ("    subject='%s'", self->subject);
             else
@@ -572,31 +572,34 @@ hydra_proto_print (hydra_proto_t *self)
                 zsys_debug ("    timestamp='%s'", self->timestamp);
             else
                 zsys_debug ("    timestamp=");
-            if (self->parent_post)
-                zsys_debug ("    parent_post='%s'", self->parent_post);
+            if (self->parent_id)
+                zsys_debug ("    parent_id='%s'", self->parent_id);
             else
-                zsys_debug ("    parent_post=");
-            if (self->content_digest)
-                zsys_debug ("    content_digest='%s'", self->content_digest);
+                zsys_debug ("    parent_id=");
+            if (self->digest)
+                zsys_debug ("    digest='%s'", self->digest);
             else
-                zsys_debug ("    content_digest=");
-            if (self->content_type)
-                zsys_debug ("    content_type='%s'", self->content_type);
+                zsys_debug ("    digest=");
+            if (self->mime_type)
+                zsys_debug ("    mime_type='%s'", self->mime_type);
             else
-                zsys_debug ("    content_type=");
+                zsys_debug ("    mime_type=");
             zsys_debug ("    content_size=%ld", (long) self->content_size);
             break;
             
-        case HYDRA_PROTO_FETCH:
-            zsys_debug ("HYDRA_PROTO_FETCH:");
+        case HYDRA_PROTO_HEADER_EMPTY:
+            zsys_debug ("HYDRA_PROTO_HEADER_EMPTY:");
+            break;
+            
+        case HYDRA_PROTO_CHUNK:
+            zsys_debug ("HYDRA_PROTO_CHUNK:");
             zsys_debug ("    offset=%ld", (long) self->offset);
             zsys_debug ("    octets=%ld", (long) self->octets);
             break;
             
-        case HYDRA_PROTO_FETCH_OK:
-            zsys_debug ("HYDRA_PROTO_FETCH_OK:");
+        case HYDRA_PROTO_CHUNK_OK:
+            zsys_debug ("HYDRA_PROTO_CHUNK_OK:");
             zsys_debug ("    offset=%ld", (long) self->offset);
-            zsys_debug ("    octets=%ld", (long) self->octets);
             zsys_debug ("    content=[ ... ]");
             break;
             
@@ -682,11 +685,14 @@ hydra_proto_command (hydra_proto_t *self)
         case HYDRA_PROTO_HEADER_OK:
             return ("HEADER_OK");
             break;
-        case HYDRA_PROTO_FETCH:
-            return ("FETCH");
+        case HYDRA_PROTO_HEADER_EMPTY:
+            return ("HEADER_EMPTY");
             break;
-        case HYDRA_PROTO_FETCH_OK:
-            return ("FETCH_OK");
+        case HYDRA_PROTO_CHUNK:
+            return ("CHUNK");
+            break;
+        case HYDRA_PROTO_CHUNK_OK:
+            return ("CHUNK_OK");
             break;
         case HYDRA_PROTO_GOODBYE:
             return ("GOODBYE");
@@ -790,38 +796,38 @@ hydra_proto_set_newest (hydra_proto_t *self, const char *value)
 
 
 //  --------------------------------------------------------------------------
-//  Get/set the older field
+//  Get/set the before field
 
 uint32_t
-hydra_proto_older (hydra_proto_t *self)
+hydra_proto_before (hydra_proto_t *self)
 {
     assert (self);
-    return self->older;
+    return self->before;
 }
 
 void
-hydra_proto_set_older (hydra_proto_t *self, uint32_t older)
+hydra_proto_set_before (hydra_proto_t *self, uint32_t before)
 {
     assert (self);
-    self->older = older;
+    self->before = before;
 }
 
 
 //  --------------------------------------------------------------------------
-//  Get/set the newer field
+//  Get/set the after field
 
 uint32_t
-hydra_proto_newer (hydra_proto_t *self)
+hydra_proto_after (hydra_proto_t *self)
 {
     assert (self);
-    return self->newer;
+    return self->after;
 }
 
 void
-hydra_proto_set_newer (hydra_proto_t *self, uint32_t newer)
+hydra_proto_set_after (hydra_proto_t *self, uint32_t after)
 {
     assert (self);
-    self->newer = newer;
+    self->after = after;
 }
 
 
@@ -844,24 +850,24 @@ hydra_proto_set_which (hydra_proto_t *self, byte which)
 
 
 //  --------------------------------------------------------------------------
-//  Get/set the identifier field
+//  Get/set the ident field
 
 const char *
-hydra_proto_identifier (hydra_proto_t *self)
+hydra_proto_ident (hydra_proto_t *self)
 {
     assert (self);
-    return self->identifier;
+    return self->ident;
 }
 
 void
-hydra_proto_set_identifier (hydra_proto_t *self, const char *value)
+hydra_proto_set_ident (hydra_proto_t *self, const char *value)
 {
     assert (self);
     assert (value);
-    if (value == self->identifier)
+    if (value == self->ident)
         return;
-    strncpy (self->identifier, value, 255);
-    self->identifier [255] = 0;
+    strncpy (self->ident, value, 255);
+    self->ident [255] = 0;
 }
 
 
@@ -908,68 +914,68 @@ hydra_proto_set_timestamp (hydra_proto_t *self, const char *value)
 
 
 //  --------------------------------------------------------------------------
-//  Get/set the parent_post field
+//  Get/set the parent_id field
 
 const char *
-hydra_proto_parent_post (hydra_proto_t *self)
+hydra_proto_parent_id (hydra_proto_t *self)
 {
     assert (self);
-    return self->parent_post;
+    return self->parent_id;
 }
 
 void
-hydra_proto_set_parent_post (hydra_proto_t *self, const char *value)
+hydra_proto_set_parent_id (hydra_proto_t *self, const char *value)
 {
     assert (self);
     assert (value);
-    if (value == self->parent_post)
+    if (value == self->parent_id)
         return;
-    strncpy (self->parent_post, value, 255);
-    self->parent_post [255] = 0;
+    strncpy (self->parent_id, value, 255);
+    self->parent_id [255] = 0;
 }
 
 
 //  --------------------------------------------------------------------------
-//  Get/set the content_digest field
+//  Get/set the digest field
 
 const char *
-hydra_proto_content_digest (hydra_proto_t *self)
+hydra_proto_digest (hydra_proto_t *self)
 {
     assert (self);
-    return self->content_digest;
+    return self->digest;
 }
 
 void
-hydra_proto_set_content_digest (hydra_proto_t *self, const char *value)
+hydra_proto_set_digest (hydra_proto_t *self, const char *value)
 {
     assert (self);
     assert (value);
-    if (value == self->content_digest)
+    if (value == self->digest)
         return;
-    strncpy (self->content_digest, value, 255);
-    self->content_digest [255] = 0;
+    strncpy (self->digest, value, 255);
+    self->digest [255] = 0;
 }
 
 
 //  --------------------------------------------------------------------------
-//  Get/set the content_type field
+//  Get/set the mime_type field
 
 const char *
-hydra_proto_content_type (hydra_proto_t *self)
+hydra_proto_mime_type (hydra_proto_t *self)
 {
     assert (self);
-    return self->content_type;
+    return self->mime_type;
 }
 
 void
-hydra_proto_set_content_type (hydra_proto_t *self, const char *value)
+hydra_proto_set_mime_type (hydra_proto_t *self, const char *value)
 {
     assert (self);
     assert (value);
-    if (value == self->content_type)
+    if (value == self->mime_type)
         return;
-    strncpy (self->content_type, value, 255);
-    self->content_type [255] = 0;
+    strncpy (self->mime_type, value, 255);
+    self->mime_type [255] = 0;
 }
 
 
@@ -1171,8 +1177,8 @@ hydra_proto_test (bool verbose)
     }
     hydra_proto_set_id (self, HYDRA_PROTO_STATUS_OK);
 
-    hydra_proto_set_older (self, 123);
-    hydra_proto_set_newer (self, 123);
+    hydra_proto_set_before (self, 123);
+    hydra_proto_set_after (self, 123);
     //  Send twice
     hydra_proto_send (self, output);
     hydra_proto_send (self, output);
@@ -1180,8 +1186,8 @@ hydra_proto_test (bool verbose)
     for (instance = 0; instance < 2; instance++) {
         hydra_proto_recv (self, input);
         assert (hydra_proto_routing_id (self));
-        assert (hydra_proto_older (self) == 123);
-        assert (hydra_proto_newer (self) == 123);
+        assert (hydra_proto_before (self) == 123);
+        assert (hydra_proto_after (self) == 123);
     }
     hydra_proto_set_id (self, HYDRA_PROTO_HEADER);
 
@@ -1197,12 +1203,12 @@ hydra_proto_test (bool verbose)
     }
     hydra_proto_set_id (self, HYDRA_PROTO_HEADER_OK);
 
-    hydra_proto_set_identifier (self, "Life is short but Now lasts for ever");
+    hydra_proto_set_ident (self, "Life is short but Now lasts for ever");
     hydra_proto_set_subject (self, "Life is short but Now lasts for ever");
     hydra_proto_set_timestamp (self, "Life is short but Now lasts for ever");
-    hydra_proto_set_parent_post (self, "Life is short but Now lasts for ever");
-    hydra_proto_set_content_digest (self, "Life is short but Now lasts for ever");
-    hydra_proto_set_content_type (self, "Life is short but Now lasts for ever");
+    hydra_proto_set_parent_id (self, "Life is short but Now lasts for ever");
+    hydra_proto_set_digest (self, "Life is short but Now lasts for ever");
+    hydra_proto_set_mime_type (self, "Life is short but Now lasts for ever");
     hydra_proto_set_content_size (self, 123);
     //  Send twice
     hydra_proto_send (self, output);
@@ -1211,15 +1217,25 @@ hydra_proto_test (bool verbose)
     for (instance = 0; instance < 2; instance++) {
         hydra_proto_recv (self, input);
         assert (hydra_proto_routing_id (self));
-        assert (streq (hydra_proto_identifier (self), "Life is short but Now lasts for ever"));
+        assert (streq (hydra_proto_ident (self), "Life is short but Now lasts for ever"));
         assert (streq (hydra_proto_subject (self), "Life is short but Now lasts for ever"));
         assert (streq (hydra_proto_timestamp (self), "Life is short but Now lasts for ever"));
-        assert (streq (hydra_proto_parent_post (self), "Life is short but Now lasts for ever"));
-        assert (streq (hydra_proto_content_digest (self), "Life is short but Now lasts for ever"));
-        assert (streq (hydra_proto_content_type (self), "Life is short but Now lasts for ever"));
+        assert (streq (hydra_proto_parent_id (self), "Life is short but Now lasts for ever"));
+        assert (streq (hydra_proto_digest (self), "Life is short but Now lasts for ever"));
+        assert (streq (hydra_proto_mime_type (self), "Life is short but Now lasts for ever"));
         assert (hydra_proto_content_size (self) == 123);
     }
-    hydra_proto_set_id (self, HYDRA_PROTO_FETCH);
+    hydra_proto_set_id (self, HYDRA_PROTO_HEADER_EMPTY);
+
+    //  Send twice
+    hydra_proto_send (self, output);
+    hydra_proto_send (self, output);
+
+    for (instance = 0; instance < 2; instance++) {
+        hydra_proto_recv (self, input);
+        assert (hydra_proto_routing_id (self));
+    }
+    hydra_proto_set_id (self, HYDRA_PROTO_CHUNK);
 
     hydra_proto_set_offset (self, 123);
     hydra_proto_set_octets (self, 123);
@@ -1233,12 +1249,11 @@ hydra_proto_test (bool verbose)
         assert (hydra_proto_offset (self) == 123);
         assert (hydra_proto_octets (self) == 123);
     }
-    hydra_proto_set_id (self, HYDRA_PROTO_FETCH_OK);
+    hydra_proto_set_id (self, HYDRA_PROTO_CHUNK_OK);
 
     hydra_proto_set_offset (self, 123);
-    hydra_proto_set_octets (self, 123);
-    zchunk_t *fetch_ok_content = zchunk_new ("Captcha Diem", 12);
-    hydra_proto_set_content (self, &fetch_ok_content);
+    zchunk_t *chunk_ok_content = zchunk_new ("Captcha Diem", 12);
+    hydra_proto_set_content (self, &chunk_ok_content);
     //  Send twice
     hydra_proto_send (self, output);
     hydra_proto_send (self, output);
@@ -1247,7 +1262,6 @@ hydra_proto_test (bool verbose)
         hydra_proto_recv (self, input);
         assert (hydra_proto_routing_id (self));
         assert (hydra_proto_offset (self) == 123);
-        assert (hydra_proto_octets (self) == 123);
         assert (memcmp (zchunk_data (hydra_proto_content (self)), "Captcha Diem", 12) == 0);
     }
     hydra_proto_set_id (self, HYDRA_PROTO_GOODBYE);

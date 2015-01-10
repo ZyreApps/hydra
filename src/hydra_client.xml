@@ -26,7 +26,8 @@
     <state name = "expect hello ok" inherit = "defaults">
         <event name = "HELLO OK" next = "expect status ok">
             <action name = "use response timeout" />
-            <action name = "load peer config data" />
+            <action name = "store peer id and nickname" />
+            <action name = "prepare to request status" />
             <action name = "send" message = "STATUS" />
         </event>
     </state>
@@ -38,36 +39,36 @@
     </state>
 
     <state name = "connected" inherit = "defaults">
-    </state>
-    
-<!--        <event name = "fetch" next = "expect get post ok">
-            <action name = "prepare to get last post" />
-            <action name = "send" message = "GET POST" />
-        </event>
-        <event name = "have post" next = "finished">
-            <action name = "signal success" />
-        </event>
-        <event name = "got nothing" next = "finished">
-            <action name = "signal success" />
+        <!-- API method to fetch older, newer, or fresh post -->
+        <event name = "fetch" next = "expect header ok">
+            <action name = "prepare to fetch header" />
+            <action name = "send" message = "HEADER" />
         </event>
     </state>
 
-    <state name = "expect get post ok" inherit = "defaults">
-        <event name = "GET POST OK">
-            <action name = "store the post" />
-            <action name = "prepare to get previous post" />
-            <action name = "send" message = "GET POST" />
+    <state name = "expect header ok" inherit = "defaults">
+        <event name = "HEADER OK" next = "expect chunk ok">
+            <action name = "store post metadata" />
+            <action name = "prepare to get first chunk" />
+            <action name = "send" message = "CHUNK" />
         </event>
-        <event name = "have post" next = "finished">
-            <action name = "signal success" />
+        <event name = "HEADER EMPTY" next = "connected">
+            <action name = "signal no data" />
         </event>
     </state>
--->
-<!--
-    <state name = "finished" inherit = "defaults">
+
+    <state name = "expect chunk ok" inherit = "defaults">
+        <event name = "CHUNK OK" next = "expect chunk ok">
+            <action name = "store post data chunk" />
+            <action name = "prepare to get next chunk" />
+            <action name = "send" message = "CHUNK" />
+        </event>
+        <event name = "finished" next = "connected">
+            <action name = "signal post fetched" />
+            <action name = "store the post in ledger" />
+        </event>
     </state>
-    -->
-    
+
     <state name = "defaults">
         <event name = "expired">
             <action name = "signal server not present" />
@@ -75,6 +76,10 @@
         </event>
         <event name = "destructor" next = "expect goodbye ok">
             <action name = "send" message = "GOODBYE" />
+        </event>
+        <event name = "error">
+            <action name = "signal unexpected server reply" />
+            <action name = "terminate" />
         </event>
         <event name = "*">
             <action name = "signal internal error" />
@@ -85,10 +90,12 @@
     <state name = "expect goodbye ok" inherit = "defaults">
         <event name = "GOODBYE OK">
             <action name = "signal success" />
+            <action name = "save peer configuration" />
             <action name = "terminate" />
         </event>
         <event name = "expired">
             <action name = "signal incomplete" />
+            <action name = "save peer configuration" />
             <action name = "terminate" />
         </event>
     </state>
@@ -105,8 +112,8 @@
 
     <reply name = "CONNECTED">
         <field name = "status" type = "integer" />
-        <field name = "older" type = "number" size = "4" />
-        <field name = "newer" type = "number" size = "4" />
+        <field name = "before" type = "number" size = "4" />
+        <field name = "after" type = "number" size = "4" />
     </reply>
 
     <method name = "destructor" return = "status">
@@ -116,14 +123,6 @@
         <accept reply = "FAILURE" />
     </method>
 
-<!--    <method name = "fetch" return = "status">
-    Fetch all available posts from server, starting with most recent,
-    and working backwards, until there are no more posts, or the server
-    disappears.
-        <accept reply = "SUCCESS" />
-        <accept reply = "FAILURE" />
-    </method>
--->
     <reply name = "SUCCESS">
         <field name = "status" type = "integer" />
     </reply>
@@ -131,5 +130,26 @@
     <reply name = "FAILURE">
         <field name = "status" type = "integer" />
         <field name = "reason" type = "string" />
+    </reply>
+    
+    <method name = "fetch" return = "status">
+    Fetch a post from the server. Fetches either a newer post, an older post,
+    or a fresh post (from newest backwards). Returns 0 if OK, -1 if there was
+    no post to fetch, or another error.
+    disappears.
+        <field name = "which" type = "integer" />
+        <accept reply = "FETCHED" />
+        <accept reply = "FAILURE" />
+    </method>
+
+    <reply name = "FETCHED">
+        <field name = "status" type = "integer" />
+        <field name = "ident" type = "string">Post identifier</field>
+        <field name = "subject" type = "longstr">Subject line</field>
+        <field name = "timestamp" type = "string">Post creation timestamp</field>
+        <field name = "parent id" type = "string">Parent post ID, if any</field>
+        <field name = "mime type" type = "string">Content type</field>
+        <field name = "content size" type = "number" size = "8">Content size, octets</field>
+<!--         <field name = "location" type = "string">Content file location</field> -->
     </reply>
 </class>

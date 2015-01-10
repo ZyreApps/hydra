@@ -29,9 +29,9 @@ The following ABNF grammar defines the The Hydra Protocol:
     ;  Server tells client how many posts it has, older and newer than the   
     ;  range the client already knows.                                       
 
-    STATUS-OK       = signature %d4 older newer
-    older           = number-4              ; Number of older posts
-    newer           = number-4              ; Newest of newer posts
+    STATUS-OK       = signature %d4 before after
+    before          = number-4              ; Number of posts before oldest
+    after           = number-4              ; Newest of posts after newest
 
     ;  Client requests a post from the server, requesting either an older    
     ;  post (previous to the oldest post it already has), a newer post       
@@ -43,40 +43,43 @@ The following ABNF grammar defines the The Hydra Protocol:
 
     ;  Return a post's metadata.                                             
 
-    HEADER-OK       = signature %d6 identifier subject timestamp parent_post content_digest content_type content_size
-    identifier      = string                ; Post identifier
+    HEADER-OK       = signature %d6 ident subject timestamp parent_id digest mime_type content_size
+    ident           = string                ; Post identifier
     subject         = longstr               ; Subject line
     timestamp       = string                ; Post creation timestamp
-    parent post     = string                ; Parent post ID, if any
-    content digest  = string                ; Content digest
-    content type    = string                ; Content type
+    parent id       = string                ; Parent post ID, if any
+    digest          = string                ; Content SHA1 digest
+    mime type       = string                ; Content MIME type
     content size    = number-8              ; Content size, octets
 
-    ;  Client fetches a chunk of content data from the server. This command  
-    ;  always applies to the post returned by a HEADER-OK.                   
+    ;  Server does not have a post to give to the client.                    
 
-    FETCH           = signature %d7 offset octets
-    offset          = number-8              ; File offset in content
-    octets          = number-4              ; Number of octets to fetch
+    HEADER-EMPTY    = signature %d7
+
+    ;  Client fetches a chunk of content data from the server. This command  
+    ;  always applies to the post returned by a HEADER-OK. The               
+
+    CHUNK           = signature %d8 offset octets
+    offset          = number-8              ; Chunk offset in file
+    octets          = number-4              ; Maximum chunk size to fetch
 
     ;  Return a chunk of post content.                                       
 
-    FETCH-OK        = signature %d8 offset octets content
-    offset          = number-8              ; File offset in content
-    octets          = number-4              ; Number of octets to fetch
+    CHUNK-OK        = signature %d9 offset content
+    offset          = number-8              ; Chunk offset in file
     content         = chunk                 ; Content data chunk
 
     ;  Close the connection politely                                         
 
-    GOODBYE         = signature %d9
+    GOODBYE         = signature %d10
 
     ;  Handshake a connection close                                          
 
-    GOODBYE-OK      = signature %d10
+    GOODBYE-OK      = signature %d11
 
     ;  Command failed for some specific reason                               
 
-    ERROR           = signature %d11 status reason
+    ERROR           = signature %d12 status reason
     status          = number-2              ; 3-digit status code
     reason          = string                ; Printable explanation
 

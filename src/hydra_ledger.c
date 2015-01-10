@@ -23,7 +23,7 @@
 //  Structure of our class
 
 struct _hydra_ledger_t {
-    zhash_t *posts_hash;    //  Hash table containing all post IDs
+    zhash_t *post_files;    //  Hash table maps post IDs to filenames
     char **posts_list;      //  Array of post IDs, oldest to newest
     size_t size;            //  Current size of posts list
     size_t max_size;        //  Maximum size of posts list (allocated)
@@ -31,18 +31,16 @@ struct _hydra_ledger_t {
 };
 
 static void
-s_have_new_post (hydra_ledger_t *self, hydra_post_t *post)
+s_have_new_post (hydra_ledger_t *self, hydra_post_t *post, char *filename)
 {
-    //  Hash table looks up post id to item in posts_list
-    zhash_insert (self->posts_hash, hydra_post_id (post), &self->posts_list [self->size]);
-    
     //  Store post ID in posts_list and bump size
     if (self->size == self->max_size - 1) {
         self->max_size *= 2;
         self->posts_list = (char **) realloc (
             self->posts_list, sizeof (char *) * self->max_size);
     }
-    self->posts_list [self->size++] = strdup (hydra_post_id (post));
+    self->posts_list [self->size++] = strdup (hydra_post_ident (post));
+    zhash_insert (self->post_files, hydra_post_ident (post), filename);
 }
 
 
@@ -54,12 +52,14 @@ hydra_ledger_t *
 hydra_ledger_new (void)
 {
     hydra_ledger_t *self = (hydra_ledger_t *) zmalloc (sizeof (hydra_ledger_t));
-    if (self)
-        self->posts_hash = zhash_new ();
-    if (self->posts_hash) {
+    if (self) {
         self->max_size = 256;      //  Arbitrary, this is expanded on demand
         self->posts_list = (char **) malloc (sizeof (char *) * self->max_size);
     }
+    if (self->posts_list) 
+        self->post_files = zhash_new ();
+    if (self->post_files)
+        zhash_autofree (self->post_files);
     return self;
 }
 
@@ -73,7 +73,7 @@ hydra_ledger_destroy (hydra_ledger_t **self_p)
     assert (self_p);
     if (*self_p) {
         hydra_ledger_t *self = *self_p;
-        zhash_destroy (&self->posts_hash);
+        zhash_destroy (&self->post_files);
         //  Free list of post IDs
         uint post_nbr;
         for (post_nbr = 0; post_nbr < self->size; post_nbr++)
@@ -87,7 +87,7 @@ hydra_ledger_destroy (hydra_ledger_t **self_p)
 
 
 //  --------------------------------------------------------------------------
-//  Return ledger size.
+//  Return ledger size, i.e. number of posts stored in the ledger.
 
 size_t
 hydra_ledger_size (hydra_ledger_t *self)
@@ -107,7 +107,6 @@ hydra_ledger_load (hydra_ledger_t *self)
 {
     assert (self);
     assert (self->size == 0);
-    zsys_info ("load ledger");
     
     //  Load a list of all post files in the posts directory
     zdir_t *dir = zdir_new ("posts", "-");
@@ -120,24 +119,21 @@ hydra_ledger_load (hydra_ledger_t *self)
     zrex_t *rex = zrex_new ("^(\\d\\d\\d\\d-\\d\\d-\\d\\d)\\((\\d+)\\)$");
     assert (rex && zrex_valid (rex));
 
-    //  Now check each post file, and load post IDs into posts_hash
+    //  Now check each post file, and load post IDs into posts list
     uint index;
     for (index = 0; files [index]; index++) {
         zfile_t *file = files [index];
         char *filename = zfile_filename (file, NULL);
         assert (memcmp (filename, "posts/", 6) == 0);
         filename += 6;
-        zsys_info ("have post in filename=%s", filename);
         hydra_post_t *post = hydra_post_load (filename);
         if (post) {
-            zsys_info ("post loaded, id=%s", hydra_post_id (post));
             if (zrex_matches (rex, filename) && streq (zrex_hit (rex, 1), today)) {
                 int post_seq = atoi (zrex_hit (rex, 2));
-                zsys_info ("load new post name=%s seq=%d", filename, post_seq);
                 if (self->post_seq < post_seq)
                     self->post_seq = post_seq;
             }
-            s_have_new_post (self, post);
+            s_have_new_post (self, post, filename);
             hydra_post_destroy (&post);
         }
     }
@@ -155,23 +151,61 @@ hydra_ledger_load (hydra_ledger_t *self)
 //  to ensure post filenames are correctly generated.
 
 int
-hydra_ledger_save_post (hydra_ledger_t *self, hydra_post_t **post_p)
+hydra_ledger_store (hydra_ledger_t *self, hydra_post_t **post_p)
 {
     assert (self);
     assert (post_p && *post_p);
+    hydra_post_t *post = *post_p;
     
     //  Get yyyy-mm-dd string for filename
     char *today = zclock_timestr ();
     today [10] = 0;
     char *filename = zsys_sprintf ("%s(%08d)", today, ++self->post_seq);
-    zsys_info ("create post via API filename=%s", filename);
-    int rc = hydra_post_save (*post_p, filename);
-    s_have_new_post (self, *post_p);
+    zsys_info ("hydrad: store new post filename=%s bytes=%zd",
+               filename, hydra_post_content_size (post));
+    int rc = hydra_post_save (post, filename);
+    s_have_new_post (self, post, filename);
     hydra_post_destroy (post_p);
     *post_p = NULL;
     zstr_free (&filename);
     zstr_free (&today);
     return rc;
+}
+
+
+//  --------------------------------------------------------------------------
+//  Return post at specified index; if the index does not refer to a valid
+//  post, returns NULL.
+
+hydra_post_t *
+hydra_ledger_fetch (hydra_ledger_t *self, int index)
+{
+    hydra_post_t *post = NULL;
+    if (index >= 0 && index < self->size) {
+        char *post_ident = self->posts_list [index];
+        char *filename = (char *) zhash_lookup (self->post_files, post_ident);
+        if (filename)
+            post = hydra_post_load (filename);
+    }
+    return post;
+}
+
+
+//  --------------------------------------------------------------------------
+//  Lookup post in ledger and return post index (0 .. size - 1); if the post
+//  does not exist, returns -1.
+
+int
+hydra_ledger_index (hydra_ledger_t *self, const char *post_ident)
+{
+    if (*post_ident) {
+        uint post_nbr;
+        for (post_nbr = 0; post_nbr < self->size; post_nbr++) {
+            if (streq (post_ident, self->posts_list [post_nbr]))
+                return post_nbr;
+        }
+    }
+    return -1;
 }
 
 
@@ -182,6 +216,8 @@ int
 hydra_ledger_test (bool verbose)
 {
     printf (" * hydra_ledger: ");
+    if (verbose)
+        printf ("\n");
 
     //  @selftest
     //  Simple create/destroy test
@@ -205,8 +241,20 @@ hydra_ledger_test (bool verbose)
     //  Now create second post and save via ledger
     post = hydra_post_new ("Test post 2");
     hydra_post_set_content (post, "Hello, Again");
-    hydra_ledger_save_post (ledger, &post);
+    char *post_ident = strdup (hydra_post_ident (post));
+    hydra_ledger_store (ledger, &post);
     assert (hydra_ledger_size (ledger) == 2);
+
+    //  Test index method
+    assert (hydra_ledger_index (ledger, post_ident) == 1);
+    assert (hydra_ledger_index (ledger, "") == -1);
+    assert (hydra_ledger_index (ledger, "no such id") == -1);
+
+    //  Test we can load a post via the ledger
+    post = hydra_ledger_fetch (ledger, 1);
+    assert (post);
+    assert (streq (post_ident, hydra_post_ident (post)));
+    free (post_ident);
 
     //  Done, destroy ledger
     hydra_ledger_destroy (&ledger);
@@ -215,7 +263,7 @@ hydra_ledger_test (bool verbose)
     zsys_dir_change ("..");
     zdir_t *dir = zdir_new (".hydra_test", NULL);
     assert (dir);
-//     zdir_remove (dir, true);
+    zdir_remove (dir, true);
     zdir_destroy (&dir);
     //  @end
 

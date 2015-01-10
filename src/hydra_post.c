@@ -14,6 +14,8 @@
 @header
     Work with a Hydra post in memory.
 @discuss
+    TODO
+    - add sender_id property indicating which peer, if any, sent us the post
 @end
 */
 
@@ -24,7 +26,7 @@
 //  Structure of our class
 
 struct _hydra_post_t {
-    char id [ID_SIZE + 1];      //  SHA1 (subject ":" timestamp ":" parent_id
+    char ident [ID_SIZE + 1];   //  SHA1 (subject ":" timestamp ":" parent_id
                                 //        ":" mime_type ":" digest)
     char *subject;              //  Post subject
     char timestamp [21];        //  Timestamp yyyy-mm-ddThh:mm:ssZ
@@ -79,7 +81,7 @@ hydra_post_destroy (hydra_post_t **self_p)
 //  type, and content digest, and return post ID to caller.
 
 const char *
-hydra_post_id (hydra_post_t *self)
+hydra_post_ident (hydra_post_t *self)
 {
     assert (self);
     zdigest_t *digest = zdigest_new ();
@@ -89,11 +91,11 @@ hydra_post_id (hydra_post_t *self)
             self->mime_type? self->mime_type: "", self->digest);
         zdigest_update (digest, (byte *) digest_text, strlen (digest_text));
         assert (strlen (zdigest_string (digest)) == ID_SIZE);
-        strcpy (self->id, zdigest_string (digest));
+        strcpy (self->ident, zdigest_string (digest));
         zstr_free (&digest_text);
         zdigest_destroy (&digest);
     }
-    return self->id;
+    return self->ident;
 }
 
 
@@ -138,6 +140,17 @@ hydra_post_mime_type (hydra_post_t *self)
 {
     assert (self);
     return self->mime_type;
+}
+
+
+//  --------------------------------------------------------------------------
+//  Return the post content digest
+
+const char *
+hydra_post_digest (hydra_post_t *self)
+{
+    assert (self);
+    return self->digest;
 }
 
 
@@ -191,7 +204,8 @@ hydra_post_set_content (hydra_post_t *self, const char *content)
 
 //  --------------------------------------------------------------------------
 //  Set the post content to a chunk of data. Recalculates the post digest
-//  from the chunk contents. Takes ownership of the chunk.
+//  from the chunk contents. Takes ownership of the chunk. The data is not
+//  stored on disk until you call hydra_post_save.
 
 void
 hydra_post_set_data (hydra_post_t *self, const void *data, size_t size)
@@ -259,7 +273,7 @@ hydra_post_save (hydra_post_t *self, const char *filename)
         fclose (output);
     }
     zconfig_t *root = zconfig_new ("root", NULL);
-    zconfig_put (root, "/post/id", hydra_post_id (self));
+    zconfig_put (root, "/post/ident", hydra_post_ident (self));
     zconfig_put (root, "/post/subject", self->subject);
     zconfig_put (root, "/post/timestamp", self->timestamp);
     zconfig_put (root, "/post/parent-id", self->parent_id);
@@ -287,7 +301,7 @@ hydra_post_load (const char *filename)
         return NULL;            //  No such file
 
     hydra_post_t *self = NULL;
-    char *id = zconfig_resolve (root, "/post/id", "");
+    char *ident = zconfig_resolve (root, "/post/ident", "");
     char *subject = zconfig_resolve (root, "/post/subject", NULL);
     char *timestamp = zconfig_resolve (root, "/post/timestamp", NULL);
     char *parent_id = zconfig_resolve (root, "/post/parent-id", "");
@@ -296,12 +310,12 @@ hydra_post_load (const char *filename)
     char *location = zconfig_resolve (root, "/post/location", NULL);
     
     if (subject && timestamp && mime_type && digest && location
-    && (strlen (id) == ID_SIZE)
+    && (strlen (ident) == ID_SIZE)
     && (strlen (parent_id) == 0 || strlen (parent_id) == ID_SIZE)
     && (strlen (timestamp) == 20)
     && (strlen (digest) == ID_SIZE)) {
         self = hydra_post_new (subject);
-        strcpy (self->id, id);
+        strcpy (self->ident, ident);
         strcpy (self->timestamp, timestamp);
         strcpy (self->parent_id, parent_id);
         self->mime_type = strdup (mime_type);
@@ -310,6 +324,47 @@ hydra_post_load (const char *filename)
         self->content_size = atoll (zconfig_resolve (root, "/post/content-size", "0"));
     }
     zconfig_destroy (&root);
+    return self;
+}
+
+
+//  --------------------------------------------------------------------------
+//  Encode a post metadata to a hydra_proto message
+
+void
+hydra_post_encode (hydra_post_t *self, hydra_proto_t *proto)
+{
+    assert (self);
+    assert (proto);
+    
+    hydra_proto_set_ident (proto, self->ident);
+    hydra_proto_set_subject (proto, self->subject);
+    hydra_proto_set_timestamp (proto, self->timestamp);
+    hydra_proto_set_parent_id (proto, self->parent_id);
+    hydra_proto_set_mime_type (proto, self->mime_type);
+    hydra_proto_set_digest (proto, self->digest);
+    hydra_proto_set_content_size (proto, self->content_size);
+}
+
+
+//  --------------------------------------------------------------------------
+//  Create a new post from a hydra_proto HEADER-OK message.
+
+hydra_post_t *
+hydra_post_decode (hydra_proto_t *proto)
+{
+    assert (proto);
+    assert (hydra_proto_id (proto) == HYDRA_PROTO_HEADER_OK);
+    
+    hydra_post_t *self = hydra_post_new ((char *) hydra_proto_subject (proto));
+    if (self) {
+        strcpy (self->ident, hydra_proto_ident (proto));
+        strcpy (self->timestamp, hydra_proto_timestamp (proto));
+        strcpy (self->parent_id, hydra_proto_parent_id (proto));
+        self->mime_type = strdup (hydra_proto_mime_type (proto));
+        strcpy (self->digest, hydra_proto_digest (proto));
+        self->content_size = hydra_proto_content_size (proto);
+    }
     return self;
 }
 
@@ -346,7 +401,7 @@ void
 hydra_post_print (hydra_post_t *self)
 {
     assert (self);
-    printf ("POST post-id: %s\n", self->id);
+    printf ("POST   ident: %s\n", self->ident);
     printf ("     subject: %s\n", self->subject);
     printf ("   timestamp: %s\n", self->timestamp);
     printf ("   parent-id: %s\n", self->parent_id);

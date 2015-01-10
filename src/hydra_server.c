@@ -53,6 +53,10 @@ struct _server_t {
 struct _client_t {
     server_t *server;           //  Reference to parent server
     hydra_proto_t *message;     //  Message from and to client
+    hydra_ledger_t *ledger;     //  Posts ledger, same as server ledger
+    hydra_post_t *post;         //  Current post we're sending
+    int oldest_index;           //  Oldest post held by client
+    int newest_index;           //  Newest post held by client
 };
 
 //  Include the generated server engine
@@ -64,11 +68,18 @@ struct _client_t {
 static int
 server_initialize (server_t *self)
 {
+    //  If server does not have an identity yet, generate one
+    char *identity = zconfig_resolve (self->config, "/hydra/identity", NULL);
+    if (!identity) {
+        zuuid_t *uuid = zuuid_new ();
+        zconfig_put (self->config, "/hydra/identity", zuuid_str (uuid));
+        zconfig_put (self->config, "/hydra/nickname", "Anonymous");
+        zconfig_save (self->config, "hydra.cfg");
+        zuuid_destroy (&uuid);
+    }
+    //  Load post ledger
     self->ledger = hydra_ledger_new ();
     hydra_ledger_load (self->ledger);
-    //  Create store structure, if necessary
-    zsys_dir_create ("peers");
-
     return 0;
 }
 
@@ -121,8 +132,8 @@ server_method (server_t *self, const char *method, zmsg_t *msg)
     zstr_free (&parent_id);
 
     zmsg_t *reply = zmsg_new ();
-    zmsg_addstr (reply, hydra_post_id (post));
-    hydra_ledger_save_post (self->ledger, &post);
+    zmsg_addstr (reply, hydra_post_ident (post));
+    hydra_ledger_store (self->ledger, &post);
     return reply;
 }
 
@@ -133,7 +144,11 @@ server_method (server_t *self, const char *method, zmsg_t *msg)
 static int
 client_initialize (client_t *self)
 {
-    //  Construct properties here
+    //  Oldest to newest is the range of posts the client has told us it has.
+    //  The lowest valid index is 0, When the client has no posts, these are
+    //  set to -1. Index points into server ledger.
+    self->oldest_index = self->newest_index = -1;
+    self->ledger = self->server->ledger;
     return 0;
 }
 
@@ -142,7 +157,7 @@ client_initialize (client_t *self)
 static void
 client_terminate (client_t *self)
 {
-    //  Destroy properties here
+    hydra_post_destroy (&self->post);
 }
 
 
@@ -168,7 +183,77 @@ set_server_identity (client_t *self)
 static void
 calculate_status_for_client (client_t *self)
 {
+    //  Map oldest/newest post IDs into ledger indices
+    self->oldest_index = hydra_ledger_index (self->ledger,
+                                             hydra_proto_oldest (self->message));
+    self->newest_index = hydra_ledger_index (self->ledger,
+                                             hydra_proto_newest (self->message));
 
+    if (self->oldest_index == -1 || self->newest_index == -1) {
+        //  Either we have a valid range or we don't
+        self->oldest_index = self->newest_index = -1;
+        //  If upper is -1, number of posts after index is size
+        hydra_proto_set_after (self->message, hydra_ledger_size (self->ledger));
+    }
+    else {
+        //  Number of posts before oldest index is same as index
+        hydra_proto_set_before (self->message, self->oldest_index);
+        //  Number of posts after upper index is size - upper - 1
+        hydra_proto_set_after (self->message,
+            hydra_ledger_size (self->ledger) - self->newest_index - 1);
+    }
+}
+
+
+//  ---------------------------------------------------------------------------
+//  fetch_specified_post_header
+//
+
+static void
+fetch_specified_post_header (client_t *self)
+{
+    hydra_post_destroy (&self->post);
+    int last_index = hydra_ledger_size (self->ledger) - 1;
+    
+    switch (hydra_proto_which (self->message)) {
+        case HYDRA_PROTO_FETCH_OLDER:
+            zsys_info ("fetch older, oldest_index=%d", self->oldest_index);
+            if (self->oldest_index >= 0)
+                self->post = hydra_ledger_fetch (self->ledger, --self->oldest_index);
+            break;
+        case HYDRA_PROTO_FETCH_NEWER:
+            zsys_info ("fetch newer, newest_index=%d last_index=%d", self->newest_index, last_index);
+            if (self->newest_index < last_index)
+                self->post = hydra_ledger_fetch (self->ledger, ++self->newest_index);
+            break;
+        case HYDRA_PROTO_FETCH_RESET:
+            zsys_info ("fetch reset, last_index=%d", last_index);
+            self->newest_index = last_index;
+            self->oldest_index = last_index;
+            self->post = hydra_ledger_fetch (self->ledger, self->newest_index);
+            break;
+    }
+    if (self->post) {
+        zsys_info ("fetch OK");
+        hydra_post_encode (self->post, self->message);
+    }
+    else {
+        zsys_info ("fetch failed");
+        engine_set_exception (self, no_such_post_event);
+    }
+}
+
+
+//  ---------------------------------------------------------------------------
+//  fetch_specified_post_chunk
+//
+
+static void
+fetch_specified_post_chunk (client_t *self)
+{
+    zchunk_t *chunk = hydra_post_fetch (self->post,
+        hydra_proto_octets (self->message), hydra_proto_offset (self->message));
+    hydra_proto_set_content (self->message, &chunk);
 }
 
 

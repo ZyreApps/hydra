@@ -101,11 +101,11 @@ We assume that it is usually impossible to fetch all posts from a peer, within a
 
 * The client can then request posts, always extending the range either towards newer posts, or towards older posts.
 
-* Since posts can exist across many servers, clients first fetch the post ID metadata, and only fetch the content if desired.
-
-* The client can also decide to start from scratch and request the newest posts from the server, if the gap is too large.
+* Since posts can exist across many servers, clients first fetch the post ID metadata, and then fetch the content as desired.
 
 * Clients fetch content on a chunk-by-chunk basis. This prevents memory overflow when sending large files.
+
+* The client can also decide to start from scratch and request the newest posts from the server, if the gap is too large.
 
 .pull src/hydra_proto.bnf
 

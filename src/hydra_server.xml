@@ -23,10 +23,15 @@
             <action name = "send" message = "STATUS OK" />
         </event>
         <event name = "HEADER">
+            <action name = "fetch specified post header" />
             <action name = "send" message = "HEADER OK" />
         </event>
-        <event name = "FETCH">
-            <action name = "send" message = "FETCH OK" />
+        <event name = "no such post">
+            <action name = "send" message = "HEADER EMPTY" />
+        </event>
+        <event name = "CHUNK">
+            <action name = "fetch specified post chunk" />
+            <action name = "send" message = "CHUNK OK" />
         </event>
         <event name = "GOODBYE">
             <action name = "send" message = "GOODBYE OK" />

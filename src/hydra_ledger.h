@@ -13,10 +13,11 @@
 #ifndef __HYDRA_LEDGER_H_INCLUDED__
 #define __HYDRA_LEDGER_H_INCLUDED__
 
+typedef struct _hydra_ledger_t hydra_ledger_t;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 
 //  @interface
 //  Create a new empty ledger instance.
@@ -27,7 +28,7 @@ HYDRA_EXPORT hydra_ledger_t *
 HYDRA_EXPORT void
     hydra_ledger_destroy (hydra_ledger_t **self_p);
 
-//  Return ledger size.
+//  Return ledger size, i.e. number of posts stored in the ledger.
 HYDRA_EXPORT size_t
     hydra_ledger_size (hydra_ledger_t *self);
     
@@ -40,8 +41,18 @@ HYDRA_EXPORT int
 //  the ledger, and then destroys the post. Use in place of hydra_post_save
 //  to ensure post filenames are correctly generated.
 HYDRA_EXPORT int
-    hydra_ledger_save_post (hydra_ledger_t *self, hydra_post_t **post_p);
+    hydra_ledger_store (hydra_ledger_t *self, hydra_post_t **post_p);
     
+//  Return post at specified index; if the index does not refer to a valid
+//  post, returns NULL.
+HYDRA_EXPORT hydra_post_t *
+    hydra_ledger_fetch (hydra_ledger_t *self, int index);
+
+//  Lookup post in ledger and return post index (0 .. size - 1); if the post
+//  does not exist, returns -1.
+HYDRA_EXPORT int
+    hydra_ledger_index (hydra_ledger_t *self, const char *post_id);
+
 //  Self test of this class
 HYDRA_EXPORT int
     hydra_ledger_test (bool verbose);

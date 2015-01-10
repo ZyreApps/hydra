@@ -42,8 +42,8 @@ received any posts from the server, these fields are empty.
 
     STATUS_OK - Server tells client how many posts it has, older and newer than the
 range the client already knows.
-        older               number 4    Number of older posts
-        newer               number 4    Newest of newer posts
+        before              number 4    Number of posts before oldest
+        after               number 4    Newest of posts after newest
 
     HEADER - Client requests a post from the server, requesting either an older post
 (previous to the oldest post it already has), a newer post (following the
@@ -52,22 +52,23 @@ status).
         which               number 1    Which post to fetch
 
     HEADER_OK - Return a post's metadata.
-        identifier          string      Post identifier
+        ident               string      Post identifier
         subject             longstr     Subject line
         timestamp           string      Post creation timestamp
-        parent_post         string      Parent post ID, if any
-        content_digest      string      Content digest
-        content_type        string      Content type
+        parent_id           string      Parent post ID, if any
+        digest              string      Content SHA1 digest
+        mime_type           string      Content MIME type
         content_size        number 8    Content size, octets
 
-    FETCH - Client fetches a chunk of content data from the server. This command
-always applies to the post returned by a HEADER-OK.
-        offset              number 8    File offset in content
-        octets              number 4    Number of octets to fetch
+    HEADER_EMPTY - Server does not have a post to give to the client.
 
-    FETCH_OK - Return a chunk of post content.
-        offset              number 8    File offset in content
-        octets              number 4    Number of octets to fetch
+    CHUNK - Client fetches a chunk of content data from the server. This command
+always applies to the post returned by a HEADER-OK. The
+        offset              number 8    Chunk offset in file
+        octets              number 4    Maximum chunk size to fetch
+
+    CHUNK_OK - Return a chunk of post content.
+        offset              number 8    Chunk offset in file
         content             chunk       Content data chunk
 
     GOODBYE - Close the connection politely
@@ -81,7 +82,7 @@ always applies to the post returned by a HEADER-OK.
 
 #define HYDRA_PROTO_FETCH_OLDER             1
 #define HYDRA_PROTO_FETCH_NEWER             2
-#define HYDRA_PROTO_FETCH_FRESH             3
+#define HYDRA_PROTO_FETCH_RESET             3
 #define HYDRA_PROTO_SUCCESS                 200
 #define HYDRA_PROTO_STORED                  201
 #define HYDRA_PROTO_DELIVERED               202
@@ -102,11 +103,12 @@ always applies to the post returned by a HEADER-OK.
 #define HYDRA_PROTO_STATUS_OK               4
 #define HYDRA_PROTO_HEADER                  5
 #define HYDRA_PROTO_HEADER_OK               6
-#define HYDRA_PROTO_FETCH                   7
-#define HYDRA_PROTO_FETCH_OK                8
-#define HYDRA_PROTO_GOODBYE                 9
-#define HYDRA_PROTO_GOODBYE_OK              10
-#define HYDRA_PROTO_ERROR                   11
+#define HYDRA_PROTO_HEADER_EMPTY            7
+#define HYDRA_PROTO_CHUNK                   8
+#define HYDRA_PROTO_CHUNK_OK                9
+#define HYDRA_PROTO_GOODBYE                 10
+#define HYDRA_PROTO_GOODBYE_OK              11
+#define HYDRA_PROTO_ERROR                   12
 
 #include <czmq.h>
 
@@ -180,17 +182,17 @@ const char *
 void
     hydra_proto_set_newest (hydra_proto_t *self, const char *value);
 
-//  Get/set the older field
+//  Get/set the before field
 uint32_t
-    hydra_proto_older (hydra_proto_t *self);
+    hydra_proto_before (hydra_proto_t *self);
 void
-    hydra_proto_set_older (hydra_proto_t *self, uint32_t older);
+    hydra_proto_set_before (hydra_proto_t *self, uint32_t before);
 
-//  Get/set the newer field
+//  Get/set the after field
 uint32_t
-    hydra_proto_newer (hydra_proto_t *self);
+    hydra_proto_after (hydra_proto_t *self);
 void
-    hydra_proto_set_newer (hydra_proto_t *self, uint32_t newer);
+    hydra_proto_set_after (hydra_proto_t *self, uint32_t after);
 
 //  Get/set the which field
 byte
@@ -198,11 +200,11 @@ byte
 void
     hydra_proto_set_which (hydra_proto_t *self, byte which);
 
-//  Get/set the identifier field
+//  Get/set the ident field
 const char *
-    hydra_proto_identifier (hydra_proto_t *self);
+    hydra_proto_ident (hydra_proto_t *self);
 void
-    hydra_proto_set_identifier (hydra_proto_t *self, const char *value);
+    hydra_proto_set_ident (hydra_proto_t *self, const char *value);
 
 //  Get/set the subject field
 const char *
@@ -216,23 +218,23 @@ const char *
 void
     hydra_proto_set_timestamp (hydra_proto_t *self, const char *value);
 
-//  Get/set the parent_post field
+//  Get/set the parent_id field
 const char *
-    hydra_proto_parent_post (hydra_proto_t *self);
+    hydra_proto_parent_id (hydra_proto_t *self);
 void
-    hydra_proto_set_parent_post (hydra_proto_t *self, const char *value);
+    hydra_proto_set_parent_id (hydra_proto_t *self, const char *value);
 
-//  Get/set the content_digest field
+//  Get/set the digest field
 const char *
-    hydra_proto_content_digest (hydra_proto_t *self);
+    hydra_proto_digest (hydra_proto_t *self);
 void
-    hydra_proto_set_content_digest (hydra_proto_t *self, const char *value);
+    hydra_proto_set_digest (hydra_proto_t *self, const char *value);
 
-//  Get/set the content_type field
+//  Get/set the mime_type field
 const char *
-    hydra_proto_content_type (hydra_proto_t *self);
+    hydra_proto_mime_type (hydra_proto_t *self);
 void
-    hydra_proto_set_content_type (hydra_proto_t *self, const char *value);
+    hydra_proto_set_mime_type (hydra_proto_t *self, const char *value);
 
 //  Get/set the content_size field
 uint64_t

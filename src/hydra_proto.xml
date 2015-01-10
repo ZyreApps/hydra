@@ -36,14 +36,14 @@
     <message name = "status ok">
         Server tells client how many posts it has, older and newer than the
         range the client already knows.
-        <field name = "older" type = "number" size = "4">Number of older posts</field>
-        <field name = "newer" type = "number" size = "4">Newest of newer posts</field>
+        <field name = "before" type = "number" size = "4">Number of posts before oldest</field>
+        <field name = "after" type = "number" size = "4">Newest of posts after newest</field>
     </message>
 
     <!-- Position requests -->
-    <define name = "FETCH OLDER" value = "1" />
-    <define name = "FETCH NEWER" value = "2" />
-    <define name = "FETCH FRESH" value = "3" />
+    <define name = "FETCH OLDER" value = "1">Fetch next older post</define>
+    <define name = "FETCH NEWER" value = "2">Fetch next newer post</define>
+    <define name = "FETCH RESET" value = "3">Fetch newest post (then fetch older)</define>
     
     <message name = "header">
         Client requests a post from the server, requesting either an older post
@@ -55,26 +55,29 @@
 
     <message name = "header ok">
         Return a post's metadata.
-        <field name = "identifier" type = "string">Post identifier</field>
+        <field name = "ident" type = "string">Post identifier</field>
         <field name = "subject" type = "longstr">Subject line</field>
         <field name = "timestamp" type = "string">Post creation timestamp</field>
-        <field name = "parent post" type = "string">Parent post ID, if any</field>
-        <field name = "content digest" type = "string">Content digest</field>
-        <field name = "content type" type = "string">Content type</field>
+        <field name = "parent id" type = "string">Parent post ID, if any</field>
+        <field name = "digest" type = "string">Content SHA1 digest</field>
+        <field name = "mime type" type = "string">Content MIME type</field>
         <field name = "content size" type = "number" size = "8">Content size, octets</field>
     </message>
 
-    <message name = "fetch">
+    <message name = "header empty">
+        Server does not have a post to give to the client.
+    </message>
+    
+    <message name = "chunk">
         Client fetches a chunk of content data from the server. This command
-        always applies to the post returned by a HEADER-OK.
-        <field name = "offset" type = "number" size = "8">File offset in content</field>
-        <field name = "octets" type = "number" size = "4">Number of octets to fetch</field>
+        always applies to the post returned by a HEADER-OK. The 
+        <field name = "offset" type = "number" size = "8">Chunk offset in file</field>
+        <field name = "octets" type = "number" size = "4">Maximum chunk size to fetch</field>
     </message>
 
-    <message name = "fetch ok">
+    <message name = "chunk ok">
         Return a chunk of post content.
-        <field name = "offset" type = "number" size = "8">File offset in content</field>
-        <field name = "octets" type = "number" size = "4">Number of octets to fetch</field>
+        <field name = "offset" type = "number" size = "8">Chunk offset in file</field>
         <field name = "content" type = "chunk">Content data chunk</field>
     </message>
 

@@ -36,13 +36,20 @@ typedef struct {
     hydra_proto_t *message;     //  Message from and to server
     client_args_t *args;        //  Arguments from methods
 
-    char *peer_identity;        //  Peer identity
-    char *peer_nickname;        //  Peer nickname;
+    zconfig_t *config;          //  Own configuration data
+    char *identity;             //  Own identity to send to server
+    char *nickname;             //  Own nickname to send to server
+    
     zconfig_t *peer_config;     //  Peer configuration data
+    hydra_post_t *post;         //  Current post we're receiving
+    size_t chunk_offset;        //  For fetching post content in chunks
 } client_t;
 
 //  Include the generated client engine
 #include "hydra_client_engine.inc"
+
+//  Maximum size of chunks we fetch, 1MB seems fair over WiFi
+#define CHUNK_SIZE 1024 * 1024 * 10
 
 //  Allocate properties and structures for a new client instance.
 //  Return 0 if OK, -1 if failed
@@ -50,6 +57,12 @@ typedef struct {
 static int
 client_initialize (client_t *self)
 {
+    //  Load configuration data
+    self->config = zconfig_load ("hydra.cfg");
+    assert (self->config);          //  Must be checked by caller
+    self->identity = zconfig_resolve (self->config, "/hydra/identity", NULL);
+    assert (self->identity);        //  Must be checked by caller
+    self->nickname = zconfig_resolve (self->config, "/hydra/nickname", "");
     return 0;
 }
 
@@ -58,9 +71,9 @@ client_initialize (client_t *self)
 static void
 client_terminate (client_t *self)
 {
-    free (self->peer_identity);
-    free (self->peer_nickname);
+    zconfig_destroy (&self->config);
     zconfig_destroy (&self->peer_config);
+    hydra_post_destroy (&self->post);
 }
 
 
@@ -96,12 +109,8 @@ connect_to_server_endpoint (client_t *self)
 static void
 set_client_identity (client_t *self)
 {
-    //  Get node identity from config file, or generate new identity
-    zconfig_t *config = zconfig_load ("hydra.cfg");
-    assert (config);
-    hydra_proto_set_identity (self->message, zconfig_resolve (config, "/hydra/identity", NULL));
-    hydra_proto_set_nickname (self->message, zconfig_resolve (config, "/hydra/nickname", ""));
-    zconfig_destroy (&config);
+    hydra_proto_set_identity (self->message, self->identity);
+    hydra_proto_set_nickname (self->message, self->nickname);
 }
 
 
@@ -117,23 +126,32 @@ use_response_timeout (client_t *self)
 
 
 //  ---------------------------------------------------------------------------
-//  load_peer_config_data
+//  store_peer_id_and_nickname
 //
 
 static void
-load_peer_config_data (client_t *self)
+store_peer_id_and_nickname (client_t *self)
 {
-    assert (!self->peer_identity);
-    self->peer_identity = strdup (hydra_proto_identity (self->message));
-    self->peer_nickname = strdup (hydra_proto_nickname (self->message));
-    self->peer_config = zconfig_loadf ("peers/%s.cfg", self->peer_identity);
-    
-    if (self->peer_config) {
-        hydra_proto_set_oldest (self->message,
-            zconfig_resolve (self->peer_config, "/peer/oldest", ""));
-        hydra_proto_set_newest (self->message,
-            zconfig_resolve (self->peer_config, "/peer/newest", ""));
-    }
+    //  Load the peer's config file, or create a new config tree
+    self->peer_config = zconfig_loadf ("peers/%s.cfg", hydra_proto_identity (self->message));
+    if (!self->peer_config)
+        self->peer_config = zconfig_new ("root", NULL);
+
+    //  Store the id and nickname we got from the server
+    zconfig_put (self->peer_config, "/peer/identity", hydra_proto_identity (self->message));
+    zconfig_put (self->peer_config, "/peer/nickname", hydra_proto_nickname (self->message));
+}
+
+
+//  ---------------------------------------------------------------------------
+//  prepare_to_request_status
+//
+
+static void
+prepare_to_request_status (client_t *self)
+{
+    hydra_proto_set_oldest (self->message, zconfig_resolve (self->peer_config, "/peer/oldest", ""));
+    hydra_proto_set_newest (self->message, zconfig_resolve (self->peer_config, "/peer/newest", ""));
 }
 
 
@@ -145,8 +163,112 @@ static void
 signal_connected (client_t *self)
 {
     zsock_send (self->cmdpipe, "si44", "CONNECTED", 0,
-                hydra_proto_older (self->message),
-                hydra_proto_newer (self->message));
+                hydra_proto_before (self->message),
+                hydra_proto_after (self->message));
+}
+
+
+//  ---------------------------------------------------------------------------
+//  save_peer_configuration
+//
+
+static void
+save_peer_configuration (client_t *self)
+{
+    //  We store peer configuration data in the "peers" subdirectory
+    //  If this doesn't already exist, now is a good time to create it
+    zsys_dir_create ("peers");
+    char *identity = zconfig_resolve (self->peer_config, "/peer/identity", NULL);
+    assert (identity);
+    zconfig_savef (self->peer_config, "peers/%s.cfg", identity);
+}
+
+
+//  ---------------------------------------------------------------------------
+//  prepare_to_fetch_header
+//
+
+static void
+prepare_to_fetch_header (client_t *self)
+{
+    hydra_proto_set_which (self->message, self->args->which);
+}
+
+
+//  ---------------------------------------------------------------------------
+//  store_post_metadata
+//
+
+static void
+store_post_metadata (client_t *self)
+{
+    hydra_post_destroy (&self->post);
+    self->post = hydra_post_decode (self->message);
+}
+
+
+//  ---------------------------------------------------------------------------
+//  prepare_to_get_first_chunk
+//
+
+static void
+prepare_to_get_first_chunk (client_t *self)
+{
+    //  TODO: stage post data and restart failed transfers
+    //  - implement this in hydra_post
+    //  - create new post, set_remote
+    //  - desired content size, actual content size
+    //  - hydra_post tells us what offset & octets to fetch
+    //  - hydra_post_store to accept a chunk
+    //  - calculate digest on the fly, check it matches at the end
+    //  For now, assume 1 post = 1 chunk
+    self->chunk_offset = 0;
+    hydra_proto_set_offset (self->message, self->chunk_offset);
+    hydra_proto_set_octets (self->message, CHUNK_SIZE);
+}
+
+
+//  ---------------------------------------------------------------------------
+//  store_post_data_chunk
+//
+
+static void
+store_post_data_chunk (client_t *self)
+{
+    //  Only allow one chunk per post for now
+    assert (hydra_proto_offset (self->message) == 0);
+    zchunk_t *chunk = hydra_proto_content (self->message);
+    hydra_post_set_data (self->post, zchunk_data (chunk), zchunk_size (chunk));
+}
+
+
+//  ---------------------------------------------------------------------------
+//  prepare_to_get_next_chunk
+//
+
+static void
+prepare_to_get_next_chunk (client_t *self)
+{
+    zsys_info ("client: received %zd bytes and finished", hydra_post_content_size (self->post));
+    engine_set_exception (self, finished_event);
+}
+
+
+//  ---------------------------------------------------------------------------
+//  signal_post_fetched
+//
+
+static void
+signal_post_fetched (client_t *self)
+{
+    zsock_send (self->cmdpipe, "sisssss8", "FETCHED", 0,
+        hydra_proto_ident (self->message),
+        hydra_proto_subject (self->message),
+        hydra_proto_timestamp (self->message),
+        hydra_proto_parent_id (self->message),
+        hydra_proto_mime_type (self->message),
+        hydra_proto_content_size (self->message));
+//         hydra_proto_location (self->message));
 }
 
 
@@ -158,17 +280,6 @@ static void
 signal_success (client_t *self)
 {
     zsock_send (self->cmdpipe, "si", "SUCCESS", 0);
-}
-
-
-//  ---------------------------------------------------------------------------
-//  signal_incomplete
-//
-
-static void
-signal_incomplete (client_t *self)
-{
-    zsock_send (self->cmdpipe, "sis", "FAILURE", -1, "Premature disconnection");
 }
 
 
@@ -195,6 +306,39 @@ signal_server_not_present (client_t *self)
 
 
 //  ---------------------------------------------------------------------------
+//  signal_no_data
+//
+
+static void
+signal_no_data (client_t *self)
+{
+    zsock_send (self->cmdpipe, "sis", "FAILURE", -1, "No post was found");
+}
+
+
+//  ---------------------------------------------------------------------------
+//  signal_unexpected_server_reply
+//
+
+static void
+signal_unexpected_server_reply (client_t *self)
+{
+    zsock_send (self->cmdpipe, "sis", "FAILURE", -1, "Unexpected server reply");
+}
+
+
+//  ---------------------------------------------------------------------------
+//  signal_incomplete
+//
+
+static void
+signal_incomplete (client_t *self)
+{
+    zsock_send (self->cmdpipe, "sis", "FAILURE", -1, "Premature disconnection");
+}
+
+
+//  ---------------------------------------------------------------------------
 //  signal_internal_error
 //
 
@@ -217,6 +361,8 @@ hydra_client_test (bool verbose)
     
     //  @selftest
     //  Start a server to test against, and bind to endpoint
+    zsys_dir_create (".hydra_test");
+    zsys_dir_change (".hydra_test");
     zactor_t *server = zactor_new (hydra_server, "hydra_client_test");
     if (verbose)
         zstr_send (server, "VERBOSE");
@@ -229,6 +375,23 @@ hydra_client_test (bool verbose)
     hydra_client_destroy (&client);
     
     zactor_destroy (&server);
+    
+    //  Delete the test directory
+    zsys_dir_change ("..");
+    zdir_t *dir = zdir_new (".hydra_test", NULL);
+    assert (dir);
+    zdir_remove (dir, true);
+    zdir_destroy (&dir);
     //  @end
     printf ("OK\n");
+}
+
+
+//  ---------------------------------------------------------------------------
+//  store_the_post_in_ledger
+//
+
+static void
+store_the_post_in_ledger (client_t *self)
+{
 }

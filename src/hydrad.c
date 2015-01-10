@@ -16,7 +16,7 @@
 @end
 */
 
-#include "../include/hydra.h"
+#include "hydra_classes.h"
 
 #define PRODUCT         "Hydra service/0.0.1"
 #define COPYRIGHT       "Copyright (c) 2014 the Contributors"
@@ -30,9 +30,26 @@ s_handle_peer (char *endpoint, bool verbose)
     hydra_client_verbose = verbose;
     hydra_client_t *client = hydra_client_new (endpoint, 500);
     assert (client);
-    zsys_info ("peer status older=%d newer=%d", 
-        hydra_client_older (client), hydra_client_newer (client));
-    
+    int before = hydra_client_before (client);
+    int after = hydra_client_after (client);
+    zsys_info ("peer status before=%d after=%d", before, after);
+
+    //  Fetch newer posts first
+    while (after && !zsys_interrupted) {
+        if (hydra_client_fetch (client, HYDRA_PROTO_FETCH_NEWER) == 0) {
+            zsys_debug ("hydrad: fetched post type=%s file=%s size=%zd",
+                        hydra_client_mime_type (client), "?",
+//                         hydra_client_location (client),
+                        hydra_client_content_size (client));
+            after--;
+        }
+        else {
+            zsys_debug ("hydrad: could not fetch newer post");
+            break;
+        }
+    }
+    //  Fetch newer, older, or fresh posts
+    zsys_info ("hydrad: synchronized with peer, goodbye");
     hydra_client_destroy (&client);
 }
 
@@ -65,7 +82,7 @@ int main (int argc, char *argv [])
     //  This code eventually goes into a reusable hydra actor class
 
     //  Switch to working directory
-    zsys_info ("hydrad: data store in %s directory", workdir);
+    zsys_info ("hydrad: working in directory=%s", workdir);
     if (zsys_dir_change (workdir)) {
         zsys_error ("hydrad: cannot access %s: %s", workdir, strerror (errno));
         return 1;
@@ -83,14 +100,6 @@ int main (int argc, char *argv [])
         zconfig_put (config, "/server/timeout", "5000");
         zconfig_put (config, "/server/background", "0");
         zconfig_put (config, "/server/verbose", "0");
-    }
-    char *identity = zconfig_resolve (config, "/hydra/identity", NULL);
-    if (!identity) {
-        zuuid_t *uuid = zuuid_new ();
-        zconfig_put (config, "/hydra/identity", zuuid_str (uuid));
-        zconfig_put (config, "/hydra/nickname", "Anonymous");
-        zconfig_save (config, "hydra.cfg");
-        zuuid_destroy (&uuid);
     }
     //  Start server and bind to ephemeral TCP port. We can run many
     //  servers on the same box, for testing.
