@@ -89,15 +89,6 @@ int main (int argc, char *argv [])
         zsys_error ("hydrad: cannot start process safely, exiting");
         return 1;
     }
-    //  Get node identity from config file, or generate new identity
-    zconfig_t *config = zconfig_load ("hydra.cfg");
-    if (!config) {
-        //  Set defaults for Hydra service
-        config = zconfig_new ("root", NULL);
-        zconfig_put (config, "/server/timeout", "5000");
-        zconfig_put (config, "/server/background", "0");
-        zconfig_put (config, "/server/verbose", "0");
-    }
     //  Start server and bind to ephemeral TCP port. We can run many
     //  servers on the same box, for testing.
     zactor_t *server = zactor_new (hydra_server, NULL);
@@ -112,10 +103,9 @@ int main (int argc, char *argv [])
     zsock_recv (server, "si", NULL, &port_nbr);
     zsys_info ("hydrad: TCP server started on port=%d", port_nbr);
 
-    //  Server collects new posts via sink socket; we need to get the
-    //  endpoint for the sink so we can pass it to clients
+    //  Initialize the server, after config is loaded.
     char *sink_endpoint;
-    zsock_send (server, "s", "SINK");
+    zsock_send (server, "s", "INIT");
     zsock_recv (server, "s", &sink_endpoint);
     zsys_info ("hydrad: sink socket is at endpoint=%s", sink_endpoint);
     
@@ -180,6 +170,5 @@ int main (int argc, char *argv [])
     //  Shutdown all services
     zactor_destroy (&server);
     zyre_destroy (&zyre);
-    zconfig_destroy (&config);
     return 0;
 }
