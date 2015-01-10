@@ -43,12 +43,13 @@ typedef enum {
     fetch_event = 5,
     header_ok_event = 6,
     header_empty_event = 7,
-    chunk_ok_event = 8,
-    finished_event = 9,
-    expired_event = 10,
-    destructor_event = 11,
-    error_event = 12,
-    goodbye_ok_event = 13
+    post_exists_event = 8,
+    chunk_ok_event = 9,
+    finished_event = 10,
+    expired_event = 11,
+    destructor_event = 12,
+    error_event = 13,
+    goodbye_ok_event = 14
 } event_t;
 
 //  Names for state machine logging and error reporting
@@ -75,6 +76,7 @@ s_event_name [] = {
     "fetch",
     "HEADER_OK",
     "HEADER_EMPTY",
+    "post_exists",
     "CHUNK_OK",
     "finished",
     "expired",
@@ -155,6 +157,8 @@ static void
 static void
     signal_no_data (client_t *self);
 static void
+    signal_post_skipped (client_t *self);
+static void
     store_post_data_chunk (client_t *self);
 static void
     prepare_to_get_next_chunk (client_t *self);
@@ -163,6 +167,8 @@ static void
 static void
     store_the_post_in_ledger (client_t *self);
 static void
+    save_peer_configuration (client_t *self);
+static void
     signal_server_not_present (client_t *self);
 static void
     signal_unexpected_server_reply (client_t *self);
@@ -170,8 +176,6 @@ static void
     signal_internal_error (client_t *self);
 static void
     signal_success (client_t *self);
-static void
-    save_peer_configuration (client_t *self);
 static void
     signal_incomplete (client_t *self);
 
@@ -711,6 +715,17 @@ s_client_execute (s_client_t *self, event_t event)
                         self->state = connected_state;
                 }
                 else
+                if (self->event == post_exists_event) {
+                    if (!self->exception) {
+                        //  signal post skipped
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ signal post skipped");
+                        signal_post_skipped (&self->client);
+                    }
+                    if (!self->exception)
+                        self->state = connected_state;
+                }
+                else
                 if (self->event == expired_event) {
                     if (!self->exception) {
                         //  signal server not present
@@ -806,6 +821,12 @@ s_client_execute (s_client_t *self, event_t event)
                         if (hydra_client_verbose)
                             zsys_debug ("hydra_client:          $ store the post in ledger");
                         store_the_post_in_ledger (&self->client);
+                    }
+                    if (!self->exception) {
+                        //  save peer configuration
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ save peer configuration");
+                        save_peer_configuration (&self->client);
                     }
                     if (!self->exception)
                         self->state = connected_state;
@@ -1329,6 +1350,10 @@ s_accept_reply (hydra_client_t *self, ...)
                     zstr_free (&self->mime_type);
                     zsock_recv (self->actor, "isssss8", &self->status, &self->ident, &self->subject, &self->timestamp, &self->parent_id, &self->mime_type, &self->content_size);
                 }
+                else
+                if (streq (reply, "SKIPPED")) {
+                    zsock_recv (self->actor, "i", &self->status);
+                }
                 break;
             }
             filter = va_arg (args, char *);
@@ -1389,7 +1414,7 @@ hydra_client_fetch (hydra_client_t *self, int which)
 {
     assert (self);
     zsock_send (self->actor, "si", "FETCH", which);
-    if (s_accept_reply (self, "FETCHED", "FAILURE", NULL))
+    if (s_accept_reply (self, "FETCHED", "SKIPPED", "FAILURE", NULL))
         return -1;              //  Interrupted or timed-out
     return self->status;
 }

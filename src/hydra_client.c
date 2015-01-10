@@ -41,6 +41,8 @@ typedef struct {
     char *nickname;             //  Own nickname to send to server
     
     zconfig_t *peer_config;     //  Peer configuration data
+    char *oldest;               //  Oldest post we got from peer
+    char *newest;               //  Newest post we got from peer
     hydra_post_t *post;         //  Current post we're receiving
     size_t chunk_offset;        //  For fetching post content in chunks
     zsock_t *sink;              //  Where we send posts to be stored
@@ -77,6 +79,8 @@ client_terminate (client_t *self)
     zconfig_destroy (&self->peer_config);
     hydra_post_destroy (&self->post);
     zsock_destroy (&self->sink);
+    free (self->newest);
+    free (self->oldest);
 }
 
 
@@ -145,6 +149,8 @@ store_peer_id_and_nickname (client_t *self)
     //  Store the id and nickname we got from the server
     zconfig_put (self->peer_config, "/peer/identity", hydra_proto_identity (self->message));
     zconfig_put (self->peer_config, "/peer/nickname", hydra_proto_nickname (self->message));
+    self->oldest = strdup (zconfig_resolve (self->peer_config, "/peer/oldest", ""));
+    self->newest = strdup (zconfig_resolve (self->peer_config, "/peer/newest", ""));
 }
 
 
@@ -155,8 +161,8 @@ store_peer_id_and_nickname (client_t *self)
 static void
 prepare_to_request_status (client_t *self)
 {
-    hydra_proto_set_oldest (self->message, zconfig_resolve (self->peer_config, "/peer/oldest", ""));
-    hydra_proto_set_newest (self->message, zconfig_resolve (self->peer_config, "/peer/newest", ""));
+    hydra_proto_set_oldest (self->message, self->oldest);
+    hydra_proto_set_newest (self->message, self->newest);
 }
 
 
@@ -183,6 +189,8 @@ save_peer_configuration (client_t *self)
     //  We store peer configuration data in the "peers" subdirectory
     //  If this doesn't already exist, now is a good time to create it
     zsys_dir_create ("peers");
+    zconfig_put (self->peer_config, "/peer/oldest", self->oldest);
+    zconfig_put (self->peer_config, "/peer/newest", self->newest);
     char *identity = zconfig_resolve (self->peer_config, "/peer/identity", NULL);
     assert (identity);
     zconfig_savef (self->peer_config, "peers/%s.cfg", identity);
@@ -265,6 +273,7 @@ prepare_to_get_next_chunk (client_t *self)
 static void
 signal_post_fetched (client_t *self)
 {
+    printf ("FETCHED post=%s\n", hydra_post_ident (self->post));
     zsock_send (self->cmdpipe, "sisssss8", "FETCHED", 0,
         hydra_post_ident (self->post),
         hydra_post_subject (self->post),
@@ -282,6 +291,26 @@ signal_post_fetched (client_t *self)
 static void
 store_the_post_in_ledger (client_t *self)
 {
+    //  Update peer range
+    if (self->args->which == HYDRA_PROTO_FETCH_OLDER) {
+    printf ("PEER oldest=%s\n", hydra_post_ident (self->post));
+        free (self->oldest);
+        self->oldest = strdup (hydra_post_ident (self->post));
+    }
+    else
+    if (self->args->which == HYDRA_PROTO_FETCH_NEWER) {
+    printf ("PEER newest=%s\n", hydra_post_ident (self->post));
+        free (self->newest);
+        self->newest = strdup (hydra_post_ident (self->post));
+    }
+    else
+    if (self->args->which == HYDRA_PROTO_FETCH_RESET) {
+        free (self->newest);
+        free (self->oldest);
+        self->newest = strdup ("");
+    printf ("PEER newest=- oldest=%s\n", hydra_post_ident (self->post));
+        self->oldest = strdup (hydra_post_ident (self->post));
+    }
     zsock_send (self->sink, "p", self->post);
     self->post = NULL;
 }
@@ -328,6 +357,17 @@ static void
 signal_no_data (client_t *self)
 {
     zsock_send (self->cmdpipe, "sis", "FAILURE", -1, "No post was found");
+}
+
+
+//  ---------------------------------------------------------------------------
+//  signal_post_skipped
+//
+
+static void
+signal_post_skipped (client_t *self)
+{
+    zsock_send (self->cmdpipe, "si", "SKIPPED", 0);
 }
 
 

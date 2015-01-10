@@ -55,6 +55,9 @@
         <event name = "HEADER EMPTY" next = "connected">
             <action name = "signal no data" />
         </event>
+        <event name = "post exists" next = "connected">
+            <action name = "signal post skipped" />
+        </event>
     </state>
 
     <state name = "expect chunk ok" inherit = "defaults">
@@ -66,6 +69,7 @@
         <event name = "finished" next = "connected">
             <action name = "signal post fetched" />
             <action name = "store the post in ledger" />
+            <action name = "save peer configuration" />
         </event>
     </state>
 
@@ -141,6 +145,7 @@
     disappears.
         <field name = "which" type = "integer" />
         <accept reply = "FETCHED" />
+        <accept reply = "SKIPPED" />
         <accept reply = "FAILURE" />
     </method>
 
@@ -152,5 +157,10 @@
         <field name = "parent id" type = "string">Parent post ID, if any</field>
         <field name = "mime type" type = "string">Content type</field>
         <field name = "content size" type = "number" size = "8">Content size, octets</field>
+    </reply>
+
+    <!-- Client already has this post -->
+    <reply name = "SKIPPED">
+        <field name = "status" type = "integer" />
     </reply>
 </class>
