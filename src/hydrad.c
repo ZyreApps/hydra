@@ -25,10 +25,10 @@
 "without warranty of any kind, either expressed, implied, or statutory.\n"
 
 static void
-s_handle_peer (char *peer_endpoint, char *sink_endpoint, bool verbose)
+s_handle_peer (char *endpoint, bool verbose)
 {
     hydra_client_verbose = verbose;
-    hydra_client_t *client = hydra_client_new (peer_endpoint, sink_endpoint, 500);
+    hydra_client_t *client = hydra_client_new (endpoint, 500);
     assert (client);
     int before = hydra_client_before (client);
     int after = hydra_client_after (client);
@@ -103,12 +103,6 @@ int main (int argc, char *argv [])
     zsock_recv (server, "si", NULL, &port_nbr);
     zsys_info ("hydrad: TCP server started on port=%d", port_nbr);
 
-    //  Initialize the server, after config is loaded.
-    char *sink_endpoint;
-    zsock_send (server, "s", "INIT");
-    zsock_recv (server, "s", &sink_endpoint);
-    zsys_info ("hydrad: sink socket is at endpoint=%s", sink_endpoint);
-    
     //  Here is how we set the node nickname, persistently
     zsock_send (server, "sss", "SET", "/hydra/nickname", "Anonymous Coward");
     zsock_send (server, "ss", "SAVE", "hydra.cfg");
@@ -154,10 +148,10 @@ int main (int argc, char *argv [])
         if (which == zyre_socket (zyre)) {
             zyre_event_t *event = zyre_event_new (zyre);
             if (zyre_event_type (event) == ZYRE_EVENT_ENTER) {
-                char *peer_endpoint = zyre_event_header (event, "X-HYDRA");
+                char *endpoint = zyre_event_header (event, "X-HYDRA");
                 zsys_debug ("hydrad: new peer name=%s endpoint=%s",
-                            zyre_event_name (event), peer_endpoint);
-                s_handle_peer (peer_endpoint, sink_endpoint, verbose);
+                            zyre_event_name (event), endpoint);
+                s_handle_peer (endpoint, verbose);
             }
             zyre_event_destroy (&event);
         }

@@ -109,8 +109,7 @@
     Connect to server endpoint, with specified timeout in msecs (zero means
     wait forever). Constructor succeeds if connection is successful. The sink
     endpoint is provided by the node's own server, for storing received posts.
-        <field name = "peer endpoint" type = "string" />
-        <field name = "sink endpoint" type = "string" />
+        <field name = "endpoint" type = "string" />
         <field name = "timeout" type = "number" size = "4" />
         <accept reply = "CONNECTED" />
         <accept reply = "FAILURE" />

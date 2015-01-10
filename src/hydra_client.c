@@ -62,11 +62,16 @@ client_initialize (client_t *self)
 {
     //  Load configuration data
     self->config = zconfig_load ("hydra.cfg");
-    assert (self->config);          //  Must be checked by caller
+    assert (self->config);          //  Server must already have started
     self->identity = zconfig_resolve (self->config, "/hydra/identity", NULL);
-    assert (self->identity);        //  Must be checked by caller
+    assert (self->identity);        //  Server must already have started
     self->nickname = zconfig_resolve (self->config, "/hydra/nickname", "");
+
+    //  Create and connect sink socket; use identity as unique endpoint
     self->sink = zsock_new (ZMQ_PUSH);
+    int rc = zsock_connect (self->sink, "inproc://%s", self->identity);
+    assert (rc == 0);
+    
     return 0;
 }
 
@@ -102,12 +107,10 @@ use_connect_timeout (client_t *self)
 static void
 connect_to_server_endpoint (client_t *self)
 {
-    if (zsock_connect (self->dealer, "%s", self->args->peer_endpoint)) {
+    if (zsock_connect (self->dealer, "%s", self->args->endpoint)) {
         engine_set_exception (self, bad_endpoint_event);
-        zsys_warning ("could not connect to %s", self->args->peer_endpoint);
+        zsys_warning ("could not connect to %s", self->args->endpoint);
     }
-    int rc = zsock_connect (self->sink, "%s", self->args->sink_endpoint);
-    assert (rc == 0);
 }
 
 
@@ -425,7 +428,7 @@ hydra_client_test (bool verbose)
     zstr_sendx (server, "BIND", "ipc://@/hydra", NULL);
     
     hydra_client_verbose = verbose;
-    hydra_client_t *client = hydra_client_new ("ipc://@/hydra", "inproc://sometest", 500);
+    hydra_client_t *client = hydra_client_new ("ipc://@/hydra", 500);
     int rc = hydra_client_fetch (client, HYDRA_PROTO_FETCH_RESET);
     assert (rc == -1);
     hydra_client_destroy (&client);

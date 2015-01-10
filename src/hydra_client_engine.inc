@@ -93,8 +93,7 @@ s_event_name [] = {
 
 //  These are the different method arguments we manage automatically
 struct _client_args_t {
-    char *peer_endpoint;
-    char *sink_endpoint;
+    char *endpoint;
     uint32_t timeout;
     int which;
 };
@@ -225,8 +224,7 @@ s_client_destroy (s_client_t **self_p)
     assert (self_p);
     if (*self_p) {
         s_client_t *self = *self_p;
-        zstr_free (&self->args.peer_endpoint);
-        zstr_free (&self->args.sink_endpoint);
+        zstr_free (&self->args.endpoint);
         client_terminate (&self->client);
         hydra_proto_destroy (&self->message);
         zsock_destroy (&self->msgpipe);
@@ -1084,9 +1082,8 @@ s_client_handle_cmdpipe (zloop_t *loop, zsock_t *reader, void *argument)
         self->terminated = true;    //  Shutdown the engine
     else
     if (streq (method, "CONSTRUCTOR")) {
-        zstr_free (&self->args.peer_endpoint);
-        zstr_free (&self->args.sink_endpoint);
-        zsock_recv (self->cmdpipe, "ss4", &self->args.peer_endpoint, &self->args.sink_endpoint, &self->args.timeout);
+        zstr_free (&self->args.endpoint);
+        zsock_recv (self->cmdpipe, "s4", &self->args.endpoint, &self->args.timeout);
         s_client_execute (self, constructor_event);
     }
     else
@@ -1226,10 +1223,10 @@ struct _hydra_client_t {
 //  provided by the node's own server, for storing received posts.                  
 
 static int 
-hydra_client_constructor (hydra_client_t *self, const char *peer_endpoint, const char *sink_endpoint, uint32_t timeout);
+hydra_client_constructor (hydra_client_t *self, const char *endpoint, uint32_t timeout);
 
 hydra_client_t *
-hydra_client_new (const char *peer_endpoint, const char *sink_endpoint, uint32_t timeout)
+hydra_client_new (const char *endpoint, uint32_t timeout)
 {
     hydra_client_t *self = (hydra_client_t *) zmalloc (sizeof (hydra_client_t));
     if (self) {
@@ -1237,7 +1234,7 @@ hydra_client_new (const char *peer_endpoint, const char *sink_endpoint, uint32_t
         self->msgpipe = zsys_create_pipe (&backend);
         self->actor = zactor_new (hydra_client, backend);
         if (self->actor)
-            self->status = hydra_client_constructor (self, peer_endpoint, sink_endpoint, timeout);
+            self->status = hydra_client_constructor (self, endpoint, timeout);
         if (self->status == -1)
             zactor_destroy (&self->actor);
         if (!self->actor)
@@ -1377,10 +1374,10 @@ s_accept_reply (hydra_client_t *self, ...)
 //  Returns >= 0 if successful, -1 if interrupted.
 
 static int 
-hydra_client_constructor (hydra_client_t *self, const char *peer_endpoint, const char *sink_endpoint, uint32_t timeout)
+hydra_client_constructor (hydra_client_t *self, const char *endpoint, uint32_t timeout)
 {
     assert (self);
-    zsock_send (self->actor, "sss4", "CONSTRUCTOR", peer_endpoint, sink_endpoint, timeout);
+    zsock_send (self->actor, "ss4", "CONSTRUCTOR", endpoint, timeout);
     if (s_accept_reply (self, "CONNECTED", "FAILURE", NULL))
         return -1;              //  Interrupted or timed-out
     return self->status;

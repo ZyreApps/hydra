@@ -79,33 +79,27 @@ server_initialize (server_t *self)
     if (!config)
         config = zconfig_new ("root", NULL);
     
-    if (!zconfig_resolve (config, "/hydra/identity", NULL)) {
+    char *identity = zconfig_resolve (config, "/hydra/identity", NULL);
+    if (!identity) {
         zsys_info ("hydrad: no server identity found, regenerating");
         zuuid_t *uuid = zuuid_new ();
         zconfig_put (config, "/hydra/identity", zuuid_str (uuid));
         zconfig_put (config, "/hydra/nickname", "Anonymous");
         zconfig_save (config, "hydra.cfg");
         zuuid_destroy (&uuid);
+        identity = zconfig_resolve (config, "/hydra/identity", NULL);
     }
-    zsys_info ("hydrad: server identity=%s",
-                zconfig_resolve (config, "/hydra/identity", "?"));
+    zsys_info ("hydrad: server identity=%s", identity);
+    
+    //  Create and bind sink socket (posts will come here)
+    self->sink = zsock_new (ZMQ_PULL);
+    zsock_bind (self->sink, "inproc://%s", identity);
+    engine_handle_socket (self, self->sink, s_server_handle_sink);
     zconfig_destroy (&config);
     
      //  Load post ledger
     self->ledger = hydra_ledger_new ();
     hydra_ledger_load (self->ledger);
-    
-    //  Create and bind sink socket (posts will come here)
-    self->sink = zsock_new (ZMQ_PULL);
-    char endpoint [32];
-    while (true) {
-        sprintf (endpoint, "inproc://hydra-%04x-%04x",
-                randof (0x10000), randof (0x10000));
-        if (zsock_bind (self->sink, "%s", endpoint) == 0)
-            break;
-    }
-    engine_handle_socket (self, self->sink, s_server_handle_sink);
-    
     return 0;
 }
 
