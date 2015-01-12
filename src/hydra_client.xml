@@ -49,6 +49,7 @@
     <state name = "expect header ok" inherit = "defaults">
         <event name = "HEADER OK" next = "expect chunk ok">
             <action name = "store post metadata" />
+            <action name = "skip post if we have it" />
             <action name = "prepare to get first chunk" />
             <action name = "send" message = "CHUNK" />
         </event>

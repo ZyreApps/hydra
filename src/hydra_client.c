@@ -224,6 +224,25 @@ store_post_metadata (client_t *self)
 
 
 //  ---------------------------------------------------------------------------
+//  skip_post_if_we_have_it
+//
+
+static void
+skip_post_if_we_have_it (client_t *self)
+{
+    //  What's the resolution here? Could we use a ledger actor and talk to
+    //  it directly via dealer-router?
+    
+    //  This is the slowerst and stupidest solution I could think of
+    hydra_ledger_t *ledger = hydra_ledger_new ();
+    hydra_ledger_load (ledger);
+    if (hydra_ledger_index (ledger, hydra_post_ident (self->post)) == -1)
+        engine_set_exception (self, post_exists_event);
+    hydra_ledger_destroy (&ledger);
+}
+
+
+//  ---------------------------------------------------------------------------
 //  prepare_to_get_first_chunk
 //
 

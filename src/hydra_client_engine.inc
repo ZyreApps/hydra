@@ -152,6 +152,8 @@ static void
 static void
     store_post_metadata (client_t *self);
 static void
+    skip_post_if_we_have_it (client_t *self);
+static void
     prepare_to_get_first_chunk (client_t *self);
 static void
     signal_no_data (client_t *self);
@@ -684,6 +686,12 @@ s_client_execute (s_client_t *self, event_t event)
                         if (hydra_client_verbose)
                             zsys_debug ("hydra_client:          $ store post metadata");
                         store_post_metadata (&self->client);
+                    }
+                    if (!self->exception) {
+                        //  skip post if we have it
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ skip post if we have it");
+                        skip_post_if_we_have_it (&self->client);
                     }
                     if (!self->exception) {
                         //  prepare to get first chunk
