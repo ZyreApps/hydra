@@ -25,37 +25,37 @@
         <field name = "nickname" type = "string">Server nickname</field>
     </message>
 
-    <message name = "status">
-        Client requests server status update, telling server the oldest and
-        newest post that it knows for that server. If the client never
-        received any posts from the server, these fields are empty.
-        <field name = "oldest" type = "string">Oldest post</field>
-        <field name = "newest" type = "string">Newest post</field>
+    <message name = "next older">
+        Client requests next post that is older than the specified post ID.
+        If the post ID is "HEAD", fetches the newest post that the server has.
+        <field name = "ident" type = "string">Client's oldest post ID</field>
     </message>
 
-    <message name = "status ok">
-        Server tells client how many posts it has, older and newer than the
-        range the client already knows.
-        <field name = "before" type = "number" size = "4">Number of posts before oldest</field>
-        <field name = "after" type = "number" size = "4">Newest of posts after newest</field>
+    <message name = "next newer">
+        Client requests next post that is newer than the specified post ID.
+        If the post ID is "TAIL", fetches the oldest post that the server has.
+        <field name = "ident" type = "string">Client's newest post ID</field>
     </message>
 
-    <!-- Position requests -->
-    <define name = "FETCH OLDER" value = "1">Fetch next older post</define>
-    <define name = "FETCH NEWER" value = "2">Fetch next newer post</define>
-    <define name = "FETCH RESET" value = "3">Fetch newest post (then fetch older)</define>
-    
-    <message name = "header">
-        Client requests a post from the server, requesting either an older post
-        (previous to the oldest post it already has), a newer post (following the
-        newest post it has), or a fresh post (server's latest post, ignoring all
-        status).
-        <field name = "which" type = "number" size = "1">Which post to fetch</field>
-    </message>
-
-    <message name = "header ok">
-        Return a post's metadata.
+    <message name = "next ok">
+        Server returns a post identity to the client. This command does not
+        provide all metadata, only the post identity string. Clients can then
+        filter out posts they already have.
         <field name = "ident" type = "string">Post identifier</field>
+    </message>
+
+    <message name = "next empty">
+        Server signals that it has no (more) posts for the client.
+    </message>
+
+    <message name = "meta">
+        Client requests the metadata for the current post. A META command only
+        makes sense after a NEXT-OLDER or NEXT-NEWER with a successful NEXT-OK
+        from the server.
+    </message>
+
+    <message name = "meta ok">
+        Server returns the metadata for the current post (as returned by NEXT-OK).
         <field name = "subject" type = "longstr">Subject line</field>
         <field name = "timestamp" type = "string">Post creation timestamp</field>
         <field name = "parent id" type = "string">Parent post ID, if any</field>
@@ -64,13 +64,9 @@
         <field name = "content size" type = "number" size = "8">Content size, octets</field>
     </message>
 
-    <message name = "header empty">
-        Server does not have a post to give to the client.
-    </message>
-    
     <message name = "chunk">
-        Client fetches a chunk of content data from the server. This command
-        always applies to the post returned by a HEADER-OK. The 
+        Client fetches a chunk of content data from the server, for the current
+        post (as returned by NEXT-OK).
         <field name = "offset" type = "number" size = "8">Chunk offset in file</field>
         <field name = "octets" type = "number" size = "4">Maximum chunk size to fetch</field>
     </message>

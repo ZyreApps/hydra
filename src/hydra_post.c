@@ -365,7 +365,7 @@ hydra_post_t *
 hydra_post_decode (hydra_proto_t *proto)
 {
     assert (proto);
-    assert (hydra_proto_id (proto) == HYDRA_PROTO_HEADER_OK);
+    assert (hydra_proto_id (proto) == HYDRA_PROTO_META_OK);
     
     hydra_post_t *self = hydra_post_new ((char *) hydra_proto_subject (proto));
     if (self) {

@@ -32,9 +32,10 @@
 ;;
 (defprotocol HydraServerBackend
   (set-server-identity [this msg identity nickname])
-  (calculate-status-for-client [this msg oldest newest])
-  (fetch-specified-post-header [this msg which])
-  (fetch-specified-post-chunk [this msg offset octets])
+  (fetch-next-older-post [this msg ident])
+  (fetch-next-newer-post [this msg ident])
+  (fetch-post-metadata [this msg])
+  (fetch-post-content-chunk [this msg offset octets])
   (signal-command-invalid [this msg]))
 
 (defn terminate [{:keys [state]} routing-id _]
@@ -76,10 +77,11 @@
     :* [ (action signal-command-invalid) (send HydraProto/ERROR) terminate ]
   }
   :connected {
-    HydraProto/STATUS [ (action calculate-status-for-client .oldest .newest) (send HydraProto/STATUS_OK) ]
-    HydraProto/HEADER [ (action fetch-specified-post-header .which) (send HydraProto/HEADER_OK) ]
-    HydraProto/NO_SUCH_POST [ (send HydraProto/HEADER_EMPTY) ]
-    HydraProto/CHUNK [ (action fetch-specified-post-chunk .offset .octets) (send HydraProto/CHUNK_OK) ]
+    HydraProto/NEXT_OLDER [ (action fetch-next-older-post .ident) (send HydraProto/NEXT_OK) ]
+    HydraProto/NEXT_NEWER [ (action fetch-next-newer-post .ident) (send HydraProto/NEXT_OK) ]
+    HydraProto/NO_SUCH_POST [ (send HydraProto/NEXT_EMPTY) ]
+    HydraProto/META [ (action fetch-post-metadata) (send HydraProto/META_OK) ]
+    HydraProto/CHUNK [ (action fetch-post-content-chunk .offset .octets) (send HydraProto/CHUNK_OK) ]
     HydraProto/GOODBYE [ (send HydraProto/GOODBYE_OK) terminate ]
     HydraProto/EXPIRED [ terminate ]
     HydraProto/EXCEPTION [ (send HydraProto/ERROR) terminate ]

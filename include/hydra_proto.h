@@ -34,25 +34,26 @@
         identity            string      Server identity
         nickname            string      Server nickname
 
-    STATUS - Client requests server status update, telling server the oldest and
-newest post that it knows for that server. If the client never
-received any posts from the server, these fields are empty.
-        oldest              string      Oldest post
-        newest              string      Newest post
+    NEXT_OLDER - Client requests next post that is older than the specified post ID.
+If the post ID is "HEAD", fetches the newest post that the server has.
+        ident               string      Client's oldest post ID
 
-    STATUS_OK - Server tells client how many posts it has, older and newer than the
-range the client already knows.
-        before              number 4    Number of posts before oldest
-        after               number 4    Newest of posts after newest
+    NEXT_NEWER - Client requests next post that is newer than the specified post ID.
+If the post ID is "TAIL", fetches the oldest post that the server has.
+        ident               string      Client's newest post ID
 
-    HEADER - Client requests a post from the server, requesting either an older post
-(previous to the oldest post it already has), a newer post (following the
-newest post it has), or a fresh post (server's latest post, ignoring all
-status).
-        which               number 1    Which post to fetch
-
-    HEADER_OK - Return a post's metadata.
+    NEXT_OK - Server returns a post identity to the client. This command does not
+provide all metadata, only the post identity string. Clients can then
+filter out posts they already have.
         ident               string      Post identifier
+
+    NEXT_EMPTY - Server signals that it has no (more) posts for the client.
+
+    META - Client requests the metadata for the current post. A META command only
+makes sense after a NEXT-OLDER or NEXT-NEWER with a successful NEXT-OK
+from the server.
+
+    META_OK - Server returns the metadata for the current post (as returned by NEXT-OK).
         subject             longstr     Subject line
         timestamp           string      Post creation timestamp
         parent_id           string      Parent post ID, if any
@@ -60,10 +61,8 @@ status).
         mime_type           string      Content MIME type
         content_size        number 8    Content size, octets
 
-    HEADER_EMPTY - Server does not have a post to give to the client.
-
-    CHUNK - Client fetches a chunk of content data from the server. This command
-always applies to the post returned by a HEADER-OK. The
+    CHUNK - Client fetches a chunk of content data from the server, for the current
+post (as returned by NEXT-OK).
         offset              number 8    Chunk offset in file
         octets              number 4    Maximum chunk size to fetch
 
@@ -80,9 +79,6 @@ always applies to the post returned by a HEADER-OK. The
         reason              string      Printable explanation
 */
 
-#define HYDRA_PROTO_FETCH_OLDER             1
-#define HYDRA_PROTO_FETCH_NEWER             2
-#define HYDRA_PROTO_FETCH_RESET             3
 #define HYDRA_PROTO_SUCCESS                 200
 #define HYDRA_PROTO_STORED                  201
 #define HYDRA_PROTO_DELIVERED               202
@@ -99,16 +95,17 @@ always applies to the post returned by a HEADER-OK. The
 
 #define HYDRA_PROTO_HELLO                   1
 #define HYDRA_PROTO_HELLO_OK                2
-#define HYDRA_PROTO_STATUS                  3
-#define HYDRA_PROTO_STATUS_OK               4
-#define HYDRA_PROTO_HEADER                  5
-#define HYDRA_PROTO_HEADER_OK               6
-#define HYDRA_PROTO_HEADER_EMPTY            7
-#define HYDRA_PROTO_CHUNK                   8
-#define HYDRA_PROTO_CHUNK_OK                9
-#define HYDRA_PROTO_GOODBYE                 10
-#define HYDRA_PROTO_GOODBYE_OK              11
-#define HYDRA_PROTO_ERROR                   12
+#define HYDRA_PROTO_NEXT_OLDER              3
+#define HYDRA_PROTO_NEXT_NEWER              4
+#define HYDRA_PROTO_NEXT_OK                 5
+#define HYDRA_PROTO_NEXT_EMPTY              6
+#define HYDRA_PROTO_META                    7
+#define HYDRA_PROTO_META_OK                 8
+#define HYDRA_PROTO_CHUNK                   9
+#define HYDRA_PROTO_CHUNK_OK                10
+#define HYDRA_PROTO_GOODBYE                 11
+#define HYDRA_PROTO_GOODBYE_OK              12
+#define HYDRA_PROTO_ERROR                   13
 
 #include <czmq.h>
 
@@ -169,36 +166,6 @@ const char *
     hydra_proto_nickname (hydra_proto_t *self);
 void
     hydra_proto_set_nickname (hydra_proto_t *self, const char *value);
-
-//  Get/set the oldest field
-const char *
-    hydra_proto_oldest (hydra_proto_t *self);
-void
-    hydra_proto_set_oldest (hydra_proto_t *self, const char *value);
-
-//  Get/set the newest field
-const char *
-    hydra_proto_newest (hydra_proto_t *self);
-void
-    hydra_proto_set_newest (hydra_proto_t *self, const char *value);
-
-//  Get/set the before field
-uint32_t
-    hydra_proto_before (hydra_proto_t *self);
-void
-    hydra_proto_set_before (hydra_proto_t *self, uint32_t before);
-
-//  Get/set the after field
-uint32_t
-    hydra_proto_after (hydra_proto_t *self);
-void
-    hydra_proto_set_after (hydra_proto_t *self, uint32_t after);
-
-//  Get/set the which field
-byte
-    hydra_proto_which (hydra_proto_t *self);
-void
-    hydra_proto_set_which (hydra_proto_t *self, byte which);
 
 //  Get/set the ident field
 const char *

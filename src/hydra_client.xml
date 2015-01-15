@@ -24,53 +24,83 @@
     </state>
 
     <state name = "expect hello ok" inherit = "defaults">
-        <event name = "HELLO OK" next = "expect status ok">
+        <event name = "HELLO OK" next = "connected">
             <action name = "use response timeout" />
-            <action name = "store peer id and nickname" />
-            <action name = "prepare to request status" />
-            <action name = "send" message = "STATUS" />
-        </event>
-    </state>
-
-    <state name = "expect status ok" inherit = "defaults">
-        <event name = "STATUS OK" next = "connected">
             <action name = "signal connected" />
         </event>
     </state>
 
     <state name = "connected" inherit = "defaults">
-        <!-- API method to fetch older, newer, or fresh post -->
-        <event name = "fetch" next = "expect header ok">
-            <action name = "prepare to fetch header" />
-            <action name = "send" message = "HEADER" />
+        <event name = "sync" next = "have peer status">
+            <action name = "check peer status" />
         </event>
     </state>
 
-    <state name = "expect header ok" inherit = "defaults">
-        <event name = "HEADER OK" next = "expect chunk ok">
+    <state name = "have peer status">
+        <event name = "new peer" next = "scanning backwards">
+            <action name = "prepare to fetch newest post" />
+            <action name = "send" message = "NEXT OLDER" />
+        </event>
+        <event name = "known peer" next = "scanning forwards">
+            <action name = "prepare to fetch newer post" />
+            <action name = "send" message = "NEXT NEWER" />
+        </event>
+    </state>
+
+    <!-- We're scanning backwards from newer to older posts; it's a
+         little cheap to handle these different commands in the same
+         state but it keeps things simpler -->
+    <state name = "scanning backwards" inherit = "defaults">
+        <event name = "NEXT OK">
+            <action name = "use this post as oldest" />
+            <action name = "skip post if duplicate" />
+            <action name = "send" message = "META" />
+        </event>
+        <event name = "NEXT EMPTY">
+            <action name = "signal sync success" />
+        </event>
+        <event name = "META OK">
             <action name = "store post metadata" />
-            <action name = "skip post if we have it" />
             <action name = "prepare to get first chunk" />
             <action name = "send" message = "CHUNK" />
         </event>
-        <event name = "HEADER EMPTY" next = "connected">
-            <action name = "signal no data" />
-        </event>
-        <event name = "post exists" next = "connected">
-            <action name = "signal post skipped" />
-        </event>
-    </state>
-
-    <state name = "expect chunk ok" inherit = "defaults">
-        <event name = "CHUNK OK" next = "expect chunk ok">
-            <action name = "store post data chunk" />
-            <action name = "prepare to get next chunk" />
-            <action name = "send" message = "CHUNK" />
-        </event>
-        <event name = "finished" next = "connected">
-            <action name = "signal post fetched" />
+        <event name = "CHUNK OK">
+            <!-- Assume one chunk per content for now -->
+            <action name = "store post content chunk" />
             <action name = "store the post in ledger" />
             <action name = "save peer configuration" />
+            <action name = "send" message = "NEXT NEWER" />
+        </event>
+        <event name = "duplicate">
+            <action name = "send" message = "NEXT OLDER" />
+        </event>
+    </state>
+    
+    <!-- We're catching up with newer posts -->
+    <state name = "scanning forwards" inherit = "defaults">
+        <event name = "NEXT OK">
+            <action name = "use this post as newest" />
+            <action name = "skip post if duplicate" />
+            <action name = "send" message = "META" />
+        </event>
+        <event name = "NEXT EMPTY" next = "scanning backwards">
+            <action name = "prepare to fetch older post" />
+            <action name = "send" message = "NEXT OLDER" />
+        </event>
+        <event name = "META OK">
+            <action name = "store post metadata" />
+            <action name = "prepare to get first chunk" />
+            <action name = "send" message = "CHUNK" />
+        </event>
+        <event name = "CHUNK OK">
+            <!-- Assume one chunk per content for now -->
+            <action name = "store post content chunk" />
+            <action name = "store the post in ledger" />
+            <action name = "save peer configuration" />
+            <action name = "send" message = "NEXT NEWER" />
+        </event>
+        <event name = "duplicate">
+            <action name = "send" message = "NEXT NEWER" />
         </event>
     </state>
 
@@ -99,7 +129,7 @@
             <action name = "terminate" />
         </event>
         <event name = "expired">
-            <action name = "signal incomplete" />
+            <action name = "signal expired" />
             <action name = "save peer configuration" />
             <action name = "terminate" />
         </event>
@@ -118,8 +148,7 @@
 
     <reply name = "CONNECTED">
         <field name = "status" type = "integer" />
-        <field name = "before" type = "number" size = "4" />
-        <field name = "after" type = "number" size = "4" />
+        <field name = "nickname" type = "string" />
     </reply>
 
     <method name = "destructor" return = "status">
@@ -138,29 +167,10 @@
         <field name = "reason" type = "string" />
     </reply>
     
-    <method name = "fetch" return = "status">
-    Fetch a post from the server. Fetches either a newer post, an older post,
-    or a fresh post (from newest backwards). Returns 0 if OK, -1 if there was
-    no post to fetch, or another error.
-    disappears.
-        <field name = "which" type = "integer" />
-        <accept reply = "FETCHED" />
-        <accept reply = "SKIPPED" />
+    <method name = "sync" return = "status">
+    Synchronize client with server. Fetches all posts that it can. Returns
+    number of posts fetched (0 or more), or -1 if there was an error.
+        <accept reply = "SUCCESS" />
         <accept reply = "FAILURE" />
     </method>
-
-    <reply name = "FETCHED">
-        <field name = "status" type = "integer" />
-        <field name = "ident" type = "string">Post identifier</field>
-        <field name = "subject" type = "longstr">Subject line</field>
-        <field name = "timestamp" type = "string">Post creation timestamp</field>
-        <field name = "parent id" type = "string">Parent post ID, if any</field>
-        <field name = "mime type" type = "string">Content type</field>
-        <field name = "content size" type = "number" size = "8">Content size, octets</field>
-    </reply>
-
-    <!-- Client already has this post -->
-    <reply name = "SKIPPED">
-        <field name = "status" type = "integer" />
-    </reply>
 </class>

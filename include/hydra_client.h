@@ -57,52 +57,23 @@ zactor_t *
 zsock_t *
     hydra_client_msgpipe (hydra_client_t *self);
 
-//  Fetch a post from the server. Fetches either a newer post, an older post, or a  
-//  fresh post (from newest backwards). Returns 0 if OK, -1 if there was no post to 
-//  fetch, or another error. disappears.                                            
+//  Synchronize client with server. Fetches all posts that it can. Returns number of
+//  posts fetched (0 or more), or -1 if there was an error.                         
 //  Returns >= 0 if successful, -1 if interrupted.
 int 
-    hydra_client_fetch (hydra_client_t *self, int which);
+    hydra_client_sync (hydra_client_t *self);
 
 //  Return last received status
 int 
     hydra_client_status (hydra_client_t *self);
 
-//  Return last received before
-uint32_t 
-    hydra_client_before (hydra_client_t *self);
-
-//  Return last received after
-uint32_t 
-    hydra_client_after (hydra_client_t *self);
+//  Return last received nickname
+const char *
+    hydra_client_nickname (hydra_client_t *self);
 
 //  Return last received reason
 const char *
     hydra_client_reason (hydra_client_t *self);
-
-//  Return last received ident
-const char *
-    hydra_client_ident (hydra_client_t *self);
-
-//  Return last received subject
-const char *
-    hydra_client_subject (hydra_client_t *self);
-
-//  Return last received timestamp
-const char *
-    hydra_client_timestamp (hydra_client_t *self);
-
-//  Return last received parent_id
-const char *
-    hydra_client_parent_id (hydra_client_t *self);
-
-//  Return last received mime_type
-const char *
-    hydra_client_mime_type (hydra_client_t *self);
-
-//  Return last received content_size
-uint64_t 
-    hydra_client_content_size (hydra_client_t *self);
 
 //  Self test of this class
 void

@@ -27,16 +27,18 @@
     [this routing-id identity nickname])
   (hello-ok [this identity nickname]
     [this routing-id identity nickname])
-  (status [this oldest newest]
-    [this routing-id oldest newest])
-  (status-ok [this before after]
-    [this routing-id before after])
-  (header [this which]
-    [this routing-id which])
-  (header-ok [this ident subject timestamp parent-id digest mime-type content-size]
-    [this routing-id ident subject timestamp parent-id digest mime-type content-size])
-  (header-empty [this]
+  (next-older [this ident]
+    [this routing-id ident])
+  (next-newer [this ident]
+    [this routing-id ident])
+  (next-ok [this ident]
+    [this routing-id ident])
+  (next-empty [this]
     [this routing-id])
+  (meta [this]
+    [this routing-id])
+  (meta-ok [this subject timestamp parent-id digest mime-type content-size]
+    [this routing-id subject timestamp parent-id digest mime-type content-size])
   (chunk [this offset octets]
     [this routing-id offset octets])
   (chunk-ok [this offset content]
@@ -58,26 +60,30 @@
     (HydraProto/sendHello_Ok socket identity nickname))
   (hello-ok [this routing-id identity nickname]
     (HydraProto/sendHello_Ok socket routing-id identity nickname))
-  (status [this oldest newest]
-    (HydraProto/sendStatus socket oldest newest))
-  (status [this routing-id oldest newest]
-    (HydraProto/sendStatus socket routing-id oldest newest))
-  (status-ok [this before after]
-    (HydraProto/sendStatus_Ok socket before after))
-  (status-ok [this routing-id before after]
-    (HydraProto/sendStatus_Ok socket routing-id before after))
-  (header [this which]
-    (HydraProto/sendHeader socket which))
-  (header [this routing-id which]
-    (HydraProto/sendHeader socket routing-id which))
-  (header-ok [this ident subject timestamp parent-id digest mime-type content-size]
-    (HydraProto/sendHeader_Ok socket ident subject timestamp parent-id digest mime-type content-size))
-  (header-ok [this routing-id ident subject timestamp parent-id digest mime-type content-size]
-    (HydraProto/sendHeader_Ok socket routing-id ident subject timestamp parent-id digest mime-type content-size))
-  (header-empty [this]
-    (HydraProto/sendHeader_Empty socket))
-  (header-empty [this routing-id]
-    (HydraProto/sendHeader_Empty socket routing-id))
+  (next-older [this ident]
+    (HydraProto/sendNext_Older socket ident))
+  (next-older [this routing-id ident]
+    (HydraProto/sendNext_Older socket routing-id ident))
+  (next-newer [this ident]
+    (HydraProto/sendNext_Newer socket ident))
+  (next-newer [this routing-id ident]
+    (HydraProto/sendNext_Newer socket routing-id ident))
+  (next-ok [this ident]
+    (HydraProto/sendNext_Ok socket ident))
+  (next-ok [this routing-id ident]
+    (HydraProto/sendNext_Ok socket routing-id ident))
+  (next-empty [this]
+    (HydraProto/sendNext_Empty socket))
+  (next-empty [this routing-id]
+    (HydraProto/sendNext_Empty socket routing-id))
+  (meta [this]
+    (HydraProto/sendMeta socket))
+  (meta [this routing-id]
+    (HydraProto/sendMeta socket routing-id))
+  (meta-ok [this subject timestamp parent-id digest mime-type content-size]
+    (HydraProto/sendMeta_Ok socket subject timestamp parent-id digest mime-type content-size))
+  (meta-ok [this routing-id subject timestamp parent-id digest mime-type content-size]
+    (HydraProto/sendMeta_Ok socket routing-id subject timestamp parent-id digest mime-type content-size))
   (chunk [this offset octets]
     (HydraProto/sendChunk socket offset octets))
   (chunk [this routing-id offset octets]
@@ -112,21 +118,6 @@
 
 (defn nickname! [^HydraProto msg format & opts]
  (.setNickname msg format (object-array opts)))
-
-(defn oldest! [^HydraProto msg format & opts]
- (.setOldest msg format (object-array opts)))
-
-(defn newest! [^HydraProto msg format & opts]
- (.setNewest msg format (object-array opts)))
-
-(defn before! [^HydraProto msg before]
- (.setBefore msg before))
-
-(defn after! [^HydraProto msg after]
- (.setAfter msg after))
-
-(defn which! [^HydraProto msg which]
- (.setWhich msg which))
 
 (defn ident! [^HydraProto msg format & opts]
  (.setIdent msg format (object-array opts)))

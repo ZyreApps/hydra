@@ -54,39 +54,48 @@ public class TestHydraProto
         assertEquals (self.nickname (), "Life is short but Now lasts for ever");
         self.destroy ();
 
-        self = new HydraProto (HydraProto.STATUS);
-        self.setOldest ("Life is short but Now lasts for ever");
-        self.setNewest ("Life is short but Now lasts for ever");
-        self.send (output);
-
-        self = HydraProto.recv (input);
-        assert (self != null);
-        assertEquals (self.oldest (), "Life is short but Now lasts for ever");
-        assertEquals (self.newest (), "Life is short but Now lasts for ever");
-        self.destroy ();
-
-        self = new HydraProto (HydraProto.STATUS_OK);
-        self.setBefore ((byte) 123);
-        self.setAfter ((byte) 123);
-        self.send (output);
-
-        self = HydraProto.recv (input);
-        assert (self != null);
-        assertEquals (self.before (), 123);
-        assertEquals (self.after (), 123);
-        self.destroy ();
-
-        self = new HydraProto (HydraProto.HEADER);
-        self.setWhich ((byte) 123);
-        self.send (output);
-
-        self = HydraProto.recv (input);
-        assert (self != null);
-        assertEquals (self.which (), 123);
-        self.destroy ();
-
-        self = new HydraProto (HydraProto.HEADER_OK);
+        self = new HydraProto (HydraProto.NEXT_OLDER);
         self.setIdent ("Life is short but Now lasts for ever");
+        self.send (output);
+
+        self = HydraProto.recv (input);
+        assert (self != null);
+        assertEquals (self.ident (), "Life is short but Now lasts for ever");
+        self.destroy ();
+
+        self = new HydraProto (HydraProto.NEXT_NEWER);
+        self.setIdent ("Life is short but Now lasts for ever");
+        self.send (output);
+
+        self = HydraProto.recv (input);
+        assert (self != null);
+        assertEquals (self.ident (), "Life is short but Now lasts for ever");
+        self.destroy ();
+
+        self = new HydraProto (HydraProto.NEXT_OK);
+        self.setIdent ("Life is short but Now lasts for ever");
+        self.send (output);
+
+        self = HydraProto.recv (input);
+        assert (self != null);
+        assertEquals (self.ident (), "Life is short but Now lasts for ever");
+        self.destroy ();
+
+        self = new HydraProto (HydraProto.NEXT_EMPTY);
+        self.send (output);
+
+        self = HydraProto.recv (input);
+        assert (self != null);
+        self.destroy ();
+
+        self = new HydraProto (HydraProto.META);
+        self.send (output);
+
+        self = HydraProto.recv (input);
+        assert (self != null);
+        self.destroy ();
+
+        self = new HydraProto (HydraProto.META_OK);
         self.setSubject ("Life is short but Now lasts for ever");
         self.setTimestamp ("Life is short but Now lasts for ever");
         self.setParent_Id ("Life is short but Now lasts for ever");
@@ -97,20 +106,12 @@ public class TestHydraProto
 
         self = HydraProto.recv (input);
         assert (self != null);
-        assertEquals (self.ident (), "Life is short but Now lasts for ever");
         assertEquals (self.subject (), "Life is short but Now lasts for ever");
         assertEquals (self.timestamp (), "Life is short but Now lasts for ever");
         assertEquals (self.parent_id (), "Life is short but Now lasts for ever");
         assertEquals (self.digest (), "Life is short but Now lasts for ever");
         assertEquals (self.mime_type (), "Life is short but Now lasts for ever");
         assertEquals (self.content_size (), 123);
-        self.destroy ();
-
-        self = new HydraProto (HydraProto.HEADER_EMPTY);
-        self.send (output);
-
-        self = HydraProto.recv (input);
-        assert (self != null);
         self.destroy ();
 
         self = new HydraProto (HydraProto.CHUNK);

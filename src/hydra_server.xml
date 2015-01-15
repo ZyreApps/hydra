@@ -18,19 +18,23 @@
     </state>
 
     <state name = "connected" inherit = "defaults">
-        <event name = "STATUS">
-            <action name = "calculate status for client" />
-            <action name = "send" message = "STATUS OK" />
+        <event name = "NEXT OLDER">
+            <action name = "fetch next older post" />
+            <action name = "send" message = "NEXT OK" />
         </event>
-        <event name = "HEADER">
-            <action name = "fetch specified post header" />
-            <action name = "send" message = "HEADER OK" />
+        <event name = "NEXT NEWER">
+            <action name = "fetch next newer post" />
+            <action name = "send" message = "NEXT OK" />
         </event>
         <event name = "no such post">
-            <action name = "send" message = "HEADER EMPTY" />
+            <action name = "send" message = "NEXT EMPTY" />
+        </event>
+        <event name = "META">
+            <action name = "fetch post metadata" />
+            <action name = "send" message = "META OK" />
         </event>
         <event name = "CHUNK">
-            <action name = "fetch specified post chunk" />
+            <action name = "fetch post content chunk" />
             <action name = "send" message = "CHUNK OK" />
         </event>
         <event name = "GOODBYE">
