@@ -32,6 +32,7 @@
 ;;
 (defprotocol HydraServerBackend
   (set-server-identity [this msg identity nickname])
+  (check-if-client-has-credit [this msg ident])
   (fetch-next-older-post [this msg ident])
   (fetch-next-newer-post [this msg ident])
   (fetch-post-metadata [this msg])
@@ -77,8 +78,8 @@
     :* [ (action signal-command-invalid) (send HydraProto/ERROR) terminate ]
   }
   :connected {
-    HydraProto/NEXT_OLDER [ (action fetch-next-older-post .ident) (send HydraProto/NEXT_OK) ]
-    HydraProto/NEXT_NEWER [ (action fetch-next-newer-post .ident) (send HydraProto/NEXT_OK) ]
+    HydraProto/NEXT_OLDER [ (action check-if-client-has-credit .ident) (action fetch-next-older-post .ident) (send HydraProto/NEXT_OK) ]
+    HydraProto/NEXT_NEWER [ (action check-if-client-has-credit .ident) (action fetch-next-newer-post .ident) (send HydraProto/NEXT_OK) ]
     HydraProto/NO_SUCH_POST [ (send HydraProto/NEXT_EMPTY) ]
     HydraProto/META [ (action fetch-post-metadata) (send HydraProto/META_OK) ]
     HydraProto/CHUNK [ (action fetch-post-content-chunk .offset .octets) (send HydraProto/CHUNK_OK) ]

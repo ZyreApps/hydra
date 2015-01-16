@@ -225,6 +225,12 @@ use_this_post_as_oldest (client_t *self)
     //  Store the oldest post ID in peer config, then grab a reference to it
     zconfig_put (self->peer_config, "/peer/oldest", hydra_proto_ident (self->message));
     self->oldest = zconfig_resolve (self->peer_config, "/peer/oldest", NULL);
+    
+    //  If we don't have a newest post, use this post
+    if (!self->newest) {
+        zconfig_put (self->peer_config, "/peer/newest", self->oldest);
+        self->oldest = zconfig_resolve (self->peer_config, "/peer/newest", NULL);
+    }
 }
 
 
@@ -250,7 +256,6 @@ skip_post_if_duplicate (client_t *self)
 {
     //  What's the resolution here? Could we use a ledger actor and talk to
     //  it directly via dealer-router?
-
     //  This is the most brute-force solution I could think of
     hydra_ledger_t *ledger = hydra_ledger_new ();
     hydra_ledger_load (ledger);

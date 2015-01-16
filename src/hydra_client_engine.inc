@@ -108,6 +108,7 @@ typedef struct {
     hydra_proto_t *message;     //  Message received or sent
     client_args_t args;         //  Method arguments structure
     bool terminated;            //  True if client is shutdown
+    bool fsm_stopped;           //  "terminate" action called
     size_t timeout;             //  inactivity timeout, msecs
     state_t state;              //  Current state
     event_t event;              //  Current event
@@ -371,7 +372,7 @@ s_protocol_event (s_client_t *self, hydra_proto_t *message)
 
 
 //  Execute state machine as long as we have events; if event is NULL_event,
-//  or state machine is terminated, do nothing.
+//  or state machine is stopped, do nothing.
 
 static void
 s_client_execute (s_client_t *self, event_t event)
@@ -382,7 +383,9 @@ s_client_execute (s_client_t *self, event_t event)
         zloop_timer_end (self->loop, self->wakeup_timer);
         self->wakeup_timer = 0;
     }
-    while (!self->terminated && self->next_event != NULL_event) {
+    while (!self->terminated                    //  Actor is dying
+        && !self->fsm_stopped                   //  FSM has finished
+        && self->next_event != NULL_event) {
         self->event = self->next_event;
         self->next_event = NULL_event;
         self->exception = NULL_event;
@@ -433,7 +436,7 @@ s_client_execute (s_client_t *self, event_t event)
                         //  terminate
                         if (hydra_client_verbose)
                             zsys_debug ("hydra_client:          $ terminate");
-                        self->terminated = true;
+                        self->fsm_stopped = true;
                     }
                 }
                 else {
@@ -473,7 +476,7 @@ s_client_execute (s_client_t *self, event_t event)
                         //  terminate
                         if (hydra_client_verbose)
                             zsys_debug ("hydra_client:          $ terminate");
-                        self->terminated = true;
+                        self->fsm_stopped = true;
                     }
                 }
                 else
@@ -500,7 +503,7 @@ s_client_execute (s_client_t *self, event_t event)
                         //  terminate
                         if (hydra_client_verbose)
                             zsys_debug ("hydra_client:          $ terminate");
-                        self->terminated = true;
+                        self->fsm_stopped = true;
                     }
                 }
                 else {
@@ -515,7 +518,7 @@ s_client_execute (s_client_t *self, event_t event)
                         //  terminate
                         if (hydra_client_verbose)
                             zsys_debug ("hydra_client:          $ terminate");
-                        self->terminated = true;
+                        self->fsm_stopped = true;
                     }
                 }
                 break;
@@ -543,7 +546,7 @@ s_client_execute (s_client_t *self, event_t event)
                         //  terminate
                         if (hydra_client_verbose)
                             zsys_debug ("hydra_client:          $ terminate");
-                        self->terminated = true;
+                        self->fsm_stopped = true;
                     }
                 }
                 else
@@ -570,7 +573,7 @@ s_client_execute (s_client_t *self, event_t event)
                         //  terminate
                         if (hydra_client_verbose)
                             zsys_debug ("hydra_client:          $ terminate");
-                        self->terminated = true;
+                        self->fsm_stopped = true;
                     }
                 }
                 else {
@@ -585,7 +588,7 @@ s_client_execute (s_client_t *self, event_t event)
                         //  terminate
                         if (hydra_client_verbose)
                             zsys_debug ("hydra_client:          $ terminate");
-                        self->terminated = true;
+                        self->fsm_stopped = true;
                     }
                 }
                 break;
@@ -708,10 +711,10 @@ s_client_execute (s_client_t *self, event_t event)
                         save_peer_configuration (&self->client);
                     }
                     if (!self->exception) {
-                        //  send NEXT_NEWER
+                        //  send NEXT_OLDER
                         if (hydra_client_verbose)
-                            zsys_debug ("hydra_client:          $ send NEXT_NEWER");
-                        hydra_proto_set_id (self->message, HYDRA_PROTO_NEXT_NEWER);
+                            zsys_debug ("hydra_client:          $ send NEXT_OLDER");
+                        hydra_proto_set_id (self->message, HYDRA_PROTO_NEXT_OLDER);
                         hydra_proto_send (self->message, self->dealer);
                     }
                 }
@@ -737,7 +740,7 @@ s_client_execute (s_client_t *self, event_t event)
                         //  terminate
                         if (hydra_client_verbose)
                             zsys_debug ("hydra_client:          $ terminate");
-                        self->terminated = true;
+                        self->fsm_stopped = true;
                     }
                 }
                 else
@@ -764,7 +767,7 @@ s_client_execute (s_client_t *self, event_t event)
                         //  terminate
                         if (hydra_client_verbose)
                             zsys_debug ("hydra_client:          $ terminate");
-                        self->terminated = true;
+                        self->fsm_stopped = true;
                     }
                 }
                 else {
@@ -779,7 +782,7 @@ s_client_execute (s_client_t *self, event_t event)
                         //  terminate
                         if (hydra_client_verbose)
                             zsys_debug ("hydra_client:          $ terminate");
-                        self->terminated = true;
+                        self->fsm_stopped = true;
                     }
                 }
                 break;
@@ -896,7 +899,7 @@ s_client_execute (s_client_t *self, event_t event)
                         //  terminate
                         if (hydra_client_verbose)
                             zsys_debug ("hydra_client:          $ terminate");
-                        self->terminated = true;
+                        self->fsm_stopped = true;
                     }
                 }
                 else
@@ -923,7 +926,7 @@ s_client_execute (s_client_t *self, event_t event)
                         //  terminate
                         if (hydra_client_verbose)
                             zsys_debug ("hydra_client:          $ terminate");
-                        self->terminated = true;
+                        self->fsm_stopped = true;
                     }
                 }
                 else {
@@ -938,7 +941,7 @@ s_client_execute (s_client_t *self, event_t event)
                         //  terminate
                         if (hydra_client_verbose)
                             zsys_debug ("hydra_client:          $ terminate");
-                        self->terminated = true;
+                        self->fsm_stopped = true;
                     }
                 }
                 break;
@@ -955,7 +958,7 @@ s_client_execute (s_client_t *self, event_t event)
                         //  terminate
                         if (hydra_client_verbose)
                             zsys_debug ("hydra_client:          $ terminate");
-                        self->terminated = true;
+                        self->fsm_stopped = true;
                     }
                 }
                 else
@@ -982,7 +985,7 @@ s_client_execute (s_client_t *self, event_t event)
                         //  terminate
                         if (hydra_client_verbose)
                             zsys_debug ("hydra_client:          $ terminate");
-                        self->terminated = true;
+                        self->fsm_stopped = true;
                     }
                 }
                 else {
@@ -997,7 +1000,7 @@ s_client_execute (s_client_t *self, event_t event)
                         //  terminate
                         if (hydra_client_verbose)
                             zsys_debug ("hydra_client:          $ terminate");
-                        self->terminated = true;
+                        self->fsm_stopped = true;
                     }
                 }
                 break;
@@ -1020,7 +1023,7 @@ s_client_execute (s_client_t *self, event_t event)
                         //  terminate
                         if (hydra_client_verbose)
                             zsys_debug ("hydra_client:          $ terminate");
-                        self->terminated = true;
+                        self->fsm_stopped = true;
                     }
                 }
                 else
@@ -1041,7 +1044,7 @@ s_client_execute (s_client_t *self, event_t event)
                         //  terminate
                         if (hydra_client_verbose)
                             zsys_debug ("hydra_client:          $ terminate");
-                        self->terminated = true;
+                        self->fsm_stopped = true;
                     }
                 }
                 else
@@ -1068,7 +1071,7 @@ s_client_execute (s_client_t *self, event_t event)
                         //  terminate
                         if (hydra_client_verbose)
                             zsys_debug ("hydra_client:          $ terminate");
-                        self->terminated = true;
+                        self->fsm_stopped = true;
                     }
                 }
                 else {
@@ -1083,7 +1086,7 @@ s_client_execute (s_client_t *self, event_t event)
                         //  terminate
                         if (hydra_client_verbose)
                             zsys_debug ("hydra_client:          $ terminate");
-                        self->terminated = true;
+                        self->fsm_stopped = true;
                     }
                 }
                 break;
@@ -1177,8 +1180,11 @@ s_client_handle_msgpipe (zloop_t *loop, zsock_t *reader, void *argument)
         if (hydra_client_verbose)
             zsys_debug ("hydra_client:      API message=%s", method);
 
-        //  Front-end shuts down msgpipe before cmdpipe
-        if (streq (method, "$TERM"))
+        //  Front-end shuts down msgpipe before cmdpipe, this little
+        //  handshake just ensures all traffic on the msgpipe has been
+        //  flushed before the calling thread continues with destroying
+        //  the actor.
+        if (streq (method, "$FLUSH"))
             zsock_signal (self->cmdpipe, 0);
         //  Cleanup pipe if any argument frames are still waiting to be eaten
         if (zsock_rcvmore (self->msgpipe)) {
@@ -1306,10 +1312,12 @@ hydra_client_destroy (hydra_client_t **self_p)
     if (*self_p) {
         hydra_client_t *self = *self_p;
         if (self->actor && !zsys_interrupted) {
-            //  Shut down msgpipe first so that client can do clean shutdown,
-            //  sending any pending messages and handshaking goodbye to server
-            zstr_send (self->msgpipe, "$TERM");
-            zsock_wait (self->actor);
+            //  Before destroying the actor we have to flush any pending
+            //  traffic on the msgpipe, otherwise it gets lost in a fire and
+            //  forget scenario. We do this by sending $FLUSH to the msgpipe
+            //  and waiting for a signal back on the cmdpipe.
+            if (zstr_send (self->msgpipe, "$FLUSH") == 0)
+                zsock_wait (self->actor);
             hydra_client_destructor (self);
         }
         zactor_destroy (&self->actor);

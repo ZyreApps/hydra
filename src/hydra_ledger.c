@@ -33,14 +33,20 @@ struct _hydra_ledger_t {
 static void
 s_have_new_post (hydra_ledger_t *self, hydra_post_t *post, char *filename)
 {
-    //  Store post ID in posts_list and bump size
-    if (self->size == self->max_size - 1) {
-        self->max_size *= 2;
-        self->posts_list = (char **) realloc (
-            self->posts_list, sizeof (char *) * self->max_size);
+    //  If the post is new then we store it, otherwise we get rid of it
+    if (zhash_insert (self->post_files, hydra_post_ident (post), filename) == 0) {
+        //  Store post ID in posts_list and bump size
+        if (self->size == self->max_size - 1) {
+            self->max_size *= 2;
+            self->posts_list = (char **) realloc (
+                self->posts_list, sizeof (char *) * self->max_size);
+        }
+        self->posts_list [self->size++] = strdup (hydra_post_ident (post));
     }
-    self->posts_list [self->size++] = strdup (hydra_post_ident (post));
-    zhash_insert (self->post_files, hydra_post_ident (post), filename);
+    else {
+        zsys_warning ("hydra_ledger: deleting duplicate post, filename=%s", filename);
+        zsys_file_delete (filename);
+    }
 }
 
 
