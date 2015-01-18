@@ -23,6 +23,18 @@ To build the Hydra C stack do the following:
         cd ..
     done
 
+## Testing
+
+To test from the command line, run the hydrad executable like this:
+
+    hydrad -t       #  Create some test posts
+    hydrad          #  Run a node in default .hydra directory
+    hydrad node1    #  Run a node in ./node1 directory (creates it if needed)
+    hydrad -i ...   #  Use IPC, if you don't have WiFi/LAN enabled
+    hydrad -v ...   #  Enable verbose animation / tracing
+
+Note -i option needs at least one node to run using default .hydra directory. 
+
 ## Overview
 
 Hydra is a simple protocol and stack for opportunistic sharing of events and content.
