@@ -78,9 +78,11 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\..\include\hydra_library.h" />
-    <ClInclude Include="..\..\..\..\include\hydra.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\..\..\src\hydra.c">
+      <CompileAs>CompileAsCpp</CompileAs>
+    </ClCompile>
     <ClCompile Include="..\..\..\..\src\hydra_proto.c">
       <CompileAs>CompileAsCpp</CompileAs>
     </ClCompile>

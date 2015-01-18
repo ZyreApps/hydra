@@ -9,6 +9,7 @@
     <use project = "zyre" />
     
     <main name = "hydrad" />
+    <class name = "hydra" />
     <class name = "hydra_proto" />
     <class name = "hydra_server" />
     <class name = "hydra_client" />

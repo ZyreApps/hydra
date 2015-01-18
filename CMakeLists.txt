@@ -114,6 +114,7 @@ install(FILES ${hydra_headers} DESTINATION include)
 include_directories(${BINARY_DIR})
 include_directories(${SOURCE_DIR}/include)
 set (hydra_sources
+    src/hydra.c
     src/hydra_proto.c
     src/hydra_server.c
     src/hydra_client.c

@@ -45,6 +45,8 @@
 #endif
 
 //  Opaque class structures to allow forward references
+typedef struct _hydra_t hydra_t;
+#define HYDRA_T_DEFINED
 typedef struct _hydra_proto_t hydra_proto_t;
 #define HYDRA_PROTO_T_DEFINED
 typedef struct _hydra_server_t hydra_server_t;

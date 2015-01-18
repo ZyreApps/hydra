@@ -7,6 +7,9 @@
 -->
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
+    <ClCompile Include="..\..\..\..\src\hydra.c">
+      <Filter>src</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\..\..\src\hydra_proto.c">
       <Filter>src</Filter>
     </ClCompile>
@@ -25,9 +28,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\..\include\hydra_library.h">
-      <Filter>include</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\..\include\hydra.h">
       <Filter>include</Filter>
     </ClInclude>
   </ItemGroup>

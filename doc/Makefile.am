@@ -3,8 +3,8 @@
 #  Please refer to the README for information about making permanent changes.  #
 ################################################################################
 MAN1 = hydrad.1
-MAN3 = hydra_proto.3 hydra_server.3 hydra_client.3
-MAN7 = hydra.7
+MAN3 = hydra.3 hydra_proto.3 hydra_server.3 hydra_client.3
+MAN7 = 
 MAN_DOC = $(MAN1) $(MAN3) $(MAN7)
 
 MAN_TXT = $(MAN1:%.1=%.txt)
@@ -34,6 +34,8 @@ SUFFIXES=.txt .xml .1 .3 .7
 .xml.7:
 	xmlto man $<
 
+hydra.txt:
+	zproject_mkman $<
 hydra_proto.txt:
 	zproject_mkman $<
 hydra_server.txt:

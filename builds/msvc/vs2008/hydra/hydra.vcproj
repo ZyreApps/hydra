@@ -198,6 +198,38 @@
   <References />
   <Files>
     <Filter Name="Source Files" Filter="cpp;c;cxx;rc;def;r;odl;idl;hpj;bat">
+      <File RelativePath="..\..\..\..\src\hydra.c">
+        <FileConfiguration Name="Release|Win32">
+          <Tool Name="VCCLCompilerTool" CompileAs="2" />
+        </FileConfiguration>
+        <FileConfiguration Name="Release|x64">
+          <Tool Name="VCCLCompilerTool" CompileAs="2" />
+        </FileConfiguration>
+        <FileConfiguration Name="Debug|Win32">
+          <Tool Name="VCCLCompilerTool" CompileAs="2" />
+        </FileConfiguration>
+        <FileConfiguration Name="Debug|x64">
+          <Tool Name="VCCLCompilerTool" CompileAs="2" />
+        </FileConfiguration>
+        <FileConfiguration Name="DebugDLL|Win32">
+          <Tool Name="VCCLCompilerTool" CompileAs="2" />
+        </FileConfiguration>
+        <FileConfiguration Name="DebugDLL|x64">
+          <Tool Name="VCCLCompilerTool" CompileAs="2" />
+        </FileConfiguration>
+        <FileConfiguration Name="ReleaseDLL|Win32">
+          <Tool Name="VCCLCompilerTool" CompileAs="2" />
+        </FileConfiguration>
+        <FileConfiguration Name="ReleaseDLL|x64">
+          <Tool Name="VCCLCompilerTool" CompileAs="2" />
+        </FileConfiguration>
+        <FileConfiguration Name="RelWithDebInfo|Win32">
+          <Tool Name="VCCLCompilerTool" CompileAs="2" />
+        </FileConfiguration>
+        <FileConfiguration Name="RelWithDebInfo|x64">
+          <Tool Name="VCCLCompilerTool" CompileAs="2" />
+        </FileConfiguration>
+      </File>
       <File RelativePath="..\..\..\..\src\hydra_proto.c">
         <FileConfiguration Name="Release|Win32">
           <Tool Name="VCCLCompilerTool" CompileAs="2" />
@@ -361,13 +393,13 @@
     </Filter>
     <Filter Name="Header Files">
       <File RelativePath="..\..\..\..\builds\msvc\platform.h" />
+      <File RelativePath="..\..\..\..\include\hydra.h" />
       <File RelativePath="..\..\..\..\include\hydra_proto.h" />
       <File RelativePath="..\..\..\..\include\hydra_server.h" />
       <File RelativePath="..\..\..\..\include\hydra_client.h" />
       <File RelativePath="..\..\..\..\src\hydra_post.h" />
       <File RelativePath="..\..\..\..\src\hydra_ledger.h" />
       <File RelativePath="..\..\..\..\include\hydra_library.h" />
-      <File RelativePath="..\..\..\..\include\hydra.h" />
     </Filter>
   </Files>
   <Globals />
