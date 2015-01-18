@@ -27,7 +27,7 @@ struct _hydra_ledger_t {
     char **posts_list;      //  Array of post IDs, oldest to newest
     size_t size;            //  Current size of posts list
     size_t max_size;        //  Maximum size of posts list (allocated)
-    int post_seq;           //  Number of posts created today
+    int sequence;           //  Number of posts created today
 };
 
 static void
@@ -137,9 +137,9 @@ hydra_ledger_load (hydra_ledger_t *self)
         hydra_post_t *post = hydra_post_load (filename);
         if (post) {
             if (zrex_matches (rex, filename) && streq (zrex_hit (rex, 1), today)) {
-                int post_seq = atoi (zrex_hit (rex, 2));
-                if (self->post_seq < post_seq)
-                    self->post_seq = post_seq;
+                int sequence = atoi (zrex_hit (rex, 2));
+                if (self->sequence < sequence)
+                    self->sequence = sequence;
             }
             s_have_new_post (self, post, filename);
             hydra_post_destroy (&post);
@@ -168,7 +168,7 @@ hydra_ledger_store (hydra_ledger_t *self, hydra_post_t **post_p)
     //  Get yyyy-mm-dd string for filename
     char *today = zclock_timestr ();
     today [10] = 0;
-    char *filename = zsys_sprintf ("%s(%08d)", today, ++self->post_seq);
+    char *filename = zsys_sprintf ("%s(%08d)", today, ++self->sequence);
     zsys_info ("hydrad: store new post filename=%s bytes=%zd",
                filename, hydra_post_content_size (post));
     int rc = hydra_post_save (post, filename);

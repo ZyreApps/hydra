@@ -128,6 +128,9 @@
             <action name = "save peer configuration" />
             <action name = "terminate" />
         </event>
+        <event name = "*">
+            <!-- Ignore anything else the server may send us -->
+        </event>
         <event name = "expired">
             <action name = "signal expired" />
             <action name = "save peer configuration" />

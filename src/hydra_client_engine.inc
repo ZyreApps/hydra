@@ -1076,18 +1076,6 @@ s_client_execute (s_client_t *self, event_t event)
                 }
                 else {
                     //  Handle unexpected protocol events
-                    if (!self->exception) {
-                        //  signal internal error
-                        if (hydra_client_verbose)
-                            zsys_debug ("hydra_client:          $ signal internal error");
-                        signal_internal_error (&self->client);
-                    }
-                    if (!self->exception) {
-                        //  terminate
-                        if (hydra_client_verbose)
-                            zsys_debug ("hydra_client:          $ terminate");
-                        self->fsm_stopped = true;
-                    }
                 }
                 break;
         }
