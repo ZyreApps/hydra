@@ -21,26 +21,49 @@
 
 /*  These are the HydraProto messages:
 
-    HELLO - Open new connection
+    HELLO - Open new connection, provide client credentials.
         identity            string      Client identity
         nickname            string      Client nickname
 
-    HELLO_OK - Accept new connection and return most recent post, if any.
-        post_id             string      Post identifier
+    HELLO_OK - Accept new connection, provide server credentials.
         identity            string      Server identity
         nickname            string      Server nickname
 
-    GET_POST - Fetch a given post's content
-        post_id             string      Post identifier
+    NEXT_OLDER - Client requests next post that is older than the specified post ID.
+If the post ID is "HEAD", fetches the newest post that the server has.
+        ident               string      Client's oldest post ID
 
-    GET_POST_OK - Return a post's metadata and content
-        post_id             string      Post identifier
-        reply_to            string      Parent post, if any
-        previous            string      Previous post, if any
-        timestamp           string      Content date/time
-        digest              string      Content digest
-        type                string      Content type
-        content             chunk       Content body
+    NEXT_NEWER - Client requests next post that is newer than the specified post ID.
+If the post ID is "TAIL", fetches the oldest post that the server has.
+        ident               string      Client's newest post ID
+
+    NEXT_OK - Server returns a post identity to the client. This command does not
+provide all metadata, only the post identity string. Clients can then
+filter out posts they already have.
+        ident               string      Post identifier
+
+    NEXT_EMPTY - Server signals that it has no (more) posts for the client.
+
+    META - Client requests the metadata for the current post. A META command only
+makes sense after a NEXT-OLDER or NEXT-NEWER with a successful NEXT-OK
+from the server.
+
+    META_OK - Server returns the metadata for the current post (as returned by NEXT-OK).
+        subject             longstr     Subject line
+        timestamp           string      Post creation timestamp
+        parent_id           string      Parent post ID, if any
+        digest              string      Content SHA1 digest
+        mime_type           string      Content MIME type
+        content_size        number 8    Content size, octets
+
+    CHUNK - Client fetches a chunk of content data from the server, for the current
+post (as returned by NEXT-OK).
+        offset              number 8    Chunk offset in file
+        octets              number 4    Maximum chunk size to fetch
+
+    CHUNK_OK - Return a chunk of post content.
+        offset              number 8    Chunk offset in file
+        content             chunk       Content data chunk
 
     GOODBYE - Close the connection politely
 
@@ -79,11 +102,17 @@ public class HydraProto implements java.io.Closeable
 
     public static final int HELLO                 = 1;
     public static final int HELLO_OK              = 2;
-    public static final int GET_POST              = 3;
-    public static final int GET_POST_OK           = 4;
-    public static final int GOODBYE               = 5;
-    public static final int GOODBYE_OK            = 6;
-    public static final int ERROR                 = 7;
+    public static final int NEXT_OLDER            = 3;
+    public static final int NEXT_NEWER            = 4;
+    public static final int NEXT_OK               = 5;
+    public static final int NEXT_EMPTY            = 6;
+    public static final int META                  = 7;
+    public static final int META_OK               = 8;
+    public static final int CHUNK                 = 9;
+    public static final int CHUNK_OK              = 10;
+    public static final int GOODBYE               = 11;
+    public static final int GOODBYE_OK            = 12;
+    public static final int ERROR                 = 13;
 
     //  Structure of our class
     private ZFrame routingId;           // Routing_id from ROUTER, if any
@@ -92,12 +121,15 @@ public class HydraProto implements java.io.Closeable
 
     private String identity;
     private String nickname;
-    private String post_id;
-    private String reply_to;
-    private String previous;
+    private String ident;
+    private String subject;
     private String timestamp;
+    private String parent_id;
     private String digest;
-    private String type;
+    private String mime_type;
+    private long content_size;
+    private long offset;
+    private long octets;
     private byte[] content;
     private int status;
     private String reason;
@@ -283,22 +315,44 @@ public class HydraProto implements java.io.Closeable
                 break;
 
             case HELLO_OK:
-                self.post_id = self.getString ();
                 self.identity = self.getString ();
                 self.nickname = self.getString ();
                 break;
 
-            case GET_POST:
-                self.post_id = self.getString ();
+            case NEXT_OLDER:
+                self.ident = self.getString ();
                 break;
 
-            case GET_POST_OK:
-                self.post_id = self.getString ();
-                self.reply_to = self.getString ();
-                self.previous = self.getString ();
+            case NEXT_NEWER:
+                self.ident = self.getString ();
+                break;
+
+            case NEXT_OK:
+                self.ident = self.getString ();
+                break;
+
+            case NEXT_EMPTY:
+                break;
+
+            case META:
+                break;
+
+            case META_OK:
+                self.subject = self.getLongString ();
                 self.timestamp = self.getString ();
+                self.parent_id = self.getString ();
                 self.digest = self.getString ();
-                self.type = self.getString ();
+                self.mime_type = self.getString ();
+                self.content_size = self.getNumber8 ();
+                break;
+
+            case CHUNK:
+                self.offset = self.getNumber8 ();
+                self.octets = self.getNumber4 ();
+                break;
+
+            case CHUNK_OK:
+                self.offset = self.getNumber8 ();
                 self.content = self.getBlock((int) self.getNumber4());
                 break;
 
@@ -355,9 +409,6 @@ public class HydraProto implements java.io.Closeable
             break;
 
         case HELLO_OK:
-            //  post_id is a string with 1-byte length
-            frameSize ++;
-            frameSize += (post_id != null) ? post_id.length() : 0;
             //  identity is a string with 1-byte length
             frameSize ++;
             frameSize += (identity != null) ? identity.length() : 0;
@@ -366,31 +417,60 @@ public class HydraProto implements java.io.Closeable
             frameSize += (nickname != null) ? nickname.length() : 0;
             break;
 
-        case GET_POST:
-            //  post_id is a string with 1-byte length
+        case NEXT_OLDER:
+            //  ident is a string with 1-byte length
             frameSize ++;
-            frameSize += (post_id != null) ? post_id.length() : 0;
+            frameSize += (ident != null) ? ident.length() : 0;
             break;
 
-        case GET_POST_OK:
-            //  post_id is a string with 1-byte length
+        case NEXT_NEWER:
+            //  ident is a string with 1-byte length
             frameSize ++;
-            frameSize += (post_id != null) ? post_id.length() : 0;
-            //  reply_to is a string with 1-byte length
+            frameSize += (ident != null) ? ident.length() : 0;
+            break;
+
+        case NEXT_OK:
+            //  ident is a string with 1-byte length
             frameSize ++;
-            frameSize += (reply_to != null) ? reply_to.length() : 0;
-            //  previous is a string with 1-byte length
-            frameSize ++;
-            frameSize += (previous != null) ? previous.length() : 0;
+            frameSize += (ident != null) ? ident.length() : 0;
+            break;
+
+        case NEXT_EMPTY:
+            break;
+
+        case META:
+            break;
+
+        case META_OK:
+            //  subject is a long string with 4-byte length
+            frameSize += 4;
+            frameSize += (subject != null) ? subject.length() : 0;
             //  timestamp is a string with 1-byte length
             frameSize ++;
             frameSize += (timestamp != null) ? timestamp.length() : 0;
+            //  parent_id is a string with 1-byte length
+            frameSize ++;
+            frameSize += (parent_id != null) ? parent_id.length() : 0;
             //  digest is a string with 1-byte length
             frameSize ++;
             frameSize += (digest != null) ? digest.length() : 0;
-            //  type is a string with 1-byte length
+            //  mime_type is a string with 1-byte length
             frameSize ++;
-            frameSize += (type != null) ? type.length() : 0;
+            frameSize += (mime_type != null) ? mime_type.length() : 0;
+            //  content_size is a 8-byte integer
+            frameSize += 8;
+            break;
+
+        case CHUNK:
+            //  offset is a 8-byte integer
+            frameSize += 8;
+            //  octets is a 4-byte integer
+            frameSize += 4;
+            break;
+
+        case CHUNK_OK:
+            //  offset is a 8-byte integer
+            frameSize += 8;
             //  content is a chunk with 4-byte length
             frameSize += 4;
             frameSize += (content != null) ? content.length : 0;
@@ -434,10 +514,6 @@ public class HydraProto implements java.io.Closeable
             break;
 
         case HELLO_OK:
-            if (post_id != null)
-                putString (post_id);
-            else
-                putNumber1 ((byte) 0);      //  Empty string
             if (identity != null)
                 putString (identity);
             else
@@ -448,38 +524,64 @@ public class HydraProto implements java.io.Closeable
                 putNumber1 ((byte) 0);      //  Empty string
             break;
 
-        case GET_POST:
-            if (post_id != null)
-                putString (post_id);
+        case NEXT_OLDER:
+            if (ident != null)
+                putString (ident);
             else
                 putNumber1 ((byte) 0);      //  Empty string
             break;
 
-        case GET_POST_OK:
-            if (post_id != null)
-                putString (post_id);
+        case NEXT_NEWER:
+            if (ident != null)
+                putString (ident);
             else
                 putNumber1 ((byte) 0);      //  Empty string
-            if (reply_to != null)
-                putString (reply_to);
+            break;
+
+        case NEXT_OK:
+            if (ident != null)
+                putString (ident);
             else
                 putNumber1 ((byte) 0);      //  Empty string
-            if (previous != null)
-                putString (previous);
+            break;
+
+        case NEXT_EMPTY:
+            break;
+
+        case META:
+            break;
+
+        case META_OK:
+            if (subject != null)
+                putLongString (subject);
             else
-                putNumber1 ((byte) 0);      //  Empty string
+                putNumber4 (0);      //  Empty string
             if (timestamp != null)
                 putString (timestamp);
+            else
+                putNumber1 ((byte) 0);      //  Empty string
+            if (parent_id != null)
+                putString (parent_id);
             else
                 putNumber1 ((byte) 0);      //  Empty string
             if (digest != null)
                 putString (digest);
             else
                 putNumber1 ((byte) 0);      //  Empty string
-            if (type != null)
-                putString (type);
+            if (mime_type != null)
+                putString (mime_type);
             else
                 putNumber1 ((byte) 0);      //  Empty string
+            putNumber8 (content_size);
+            break;
+
+        case CHUNK:
+            putNumber8 (offset);
+            putNumber4 (octets);
+            break;
+
+        case CHUNK_OK:
+            putNumber8 (offset);
               if(content != null) {
                   putNumber4(content.length);
                   needle.put(content, 0, content.length);
@@ -557,14 +659,12 @@ public class HydraProto implements java.io.Closeable
 
     public static void sendHello_Ok (
         Socket output,
-        String post_id,
         String identity,
         String nickname)
     {
 	sendHello_Ok (
 		    output,
 		    null,
-		    post_id,
 		    identity,
 		    nickname);
     }
@@ -575,7 +675,6 @@ public class HydraProto implements java.io.Closeable
     public static void sendHello_Ok (
         Socket output,
 	ZFrame routingId,
-        String post_id,
         String identity,
         String nickname)
     {
@@ -584,92 +683,267 @@ public class HydraProto implements java.io.Closeable
         {
 	        self.setRoutingId (routingId);
         }
-        self.setPost_Id (post_id);
         self.setIdentity (identity);
         self.setNickname (nickname);
         self.send (output);
     }
 
 //  --------------------------------------------------------------------------
-//  Send the GET_POST to the socket in one step
+//  Send the NEXT_OLDER to the socket in one step
 
-    public static void sendGet_Post (
+    public static void sendNext_Older (
         Socket output,
-        String post_id)
+        String ident)
     {
-	sendGet_Post (
+	sendNext_Older (
 		    output,
 		    null,
-		    post_id);
+		    ident);
     }
 
 //  --------------------------------------------------------------------------
-//  Send the GET_POST to a router socket in one step
+//  Send the NEXT_OLDER to a router socket in one step
 
-    public static void sendGet_Post (
+    public static void sendNext_Older (
         Socket output,
 	ZFrame routingId,
-        String post_id)
+        String ident)
     {
-        HydraProto self = new HydraProto (HydraProto.GET_POST);
+        HydraProto self = new HydraProto (HydraProto.NEXT_OLDER);
         if (routingId != null)
         {
 	        self.setRoutingId (routingId);
         }
-        self.setPost_Id (post_id);
+        self.setIdent (ident);
         self.send (output);
     }
 
 //  --------------------------------------------------------------------------
-//  Send the GET_POST_OK to the socket in one step
+//  Send the NEXT_NEWER to the socket in one step
 
-    public static void sendGet_Post_Ok (
+    public static void sendNext_Newer (
         Socket output,
-        String post_id,
-        String reply_to,
-        String previous,
-        String timestamp,
-        String digest,
-        String type,
-        byte[] content)
+        String ident)
     {
-	sendGet_Post_Ok (
+	sendNext_Newer (
 		    output,
 		    null,
-		    post_id,
-		    reply_to,
-		    previous,
-		    timestamp,
-		    digest,
-		    type,
-		    content);
+		    ident);
     }
 
 //  --------------------------------------------------------------------------
-//  Send the GET_POST_OK to a router socket in one step
+//  Send the NEXT_NEWER to a router socket in one step
 
-    public static void sendGet_Post_Ok (
+    public static void sendNext_Newer (
         Socket output,
 	ZFrame routingId,
-        String post_id,
-        String reply_to,
-        String previous,
-        String timestamp,
-        String digest,
-        String type,
-        byte[] content)
+        String ident)
     {
-        HydraProto self = new HydraProto (HydraProto.GET_POST_OK);
+        HydraProto self = new HydraProto (HydraProto.NEXT_NEWER);
         if (routingId != null)
         {
 	        self.setRoutingId (routingId);
         }
-        self.setPost_Id (post_id);
-        self.setReply_To (reply_to);
-        self.setPrevious (previous);
+        self.setIdent (ident);
+        self.send (output);
+    }
+
+//  --------------------------------------------------------------------------
+//  Send the NEXT_OK to the socket in one step
+
+    public static void sendNext_Ok (
+        Socket output,
+        String ident)
+    {
+	sendNext_Ok (
+		    output,
+		    null,
+		    ident);
+    }
+
+//  --------------------------------------------------------------------------
+//  Send the NEXT_OK to a router socket in one step
+
+    public static void sendNext_Ok (
+        Socket output,
+	ZFrame routingId,
+        String ident)
+    {
+        HydraProto self = new HydraProto (HydraProto.NEXT_OK);
+        if (routingId != null)
+        {
+	        self.setRoutingId (routingId);
+        }
+        self.setIdent (ident);
+        self.send (output);
+    }
+
+//  --------------------------------------------------------------------------
+//  Send the NEXT_EMPTY to the socket in one step
+
+    public static void sendNext_Empty (
+        Socket output)
+    {
+	sendNext_Empty (
+		    output,
+		    null);
+    }
+
+//  --------------------------------------------------------------------------
+//  Send the NEXT_EMPTY to a router socket in one step
+
+    public static void sendNext_Empty (
+        Socket output,
+	ZFrame routingId)
+    {
+        HydraProto self = new HydraProto (HydraProto.NEXT_EMPTY);
+        if (routingId != null)
+        {
+	        self.setRoutingId (routingId);
+        }
+        self.send (output);
+    }
+
+//  --------------------------------------------------------------------------
+//  Send the META to the socket in one step
+
+    public static void sendMeta (
+        Socket output)
+    {
+	sendMeta (
+		    output,
+		    null);
+    }
+
+//  --------------------------------------------------------------------------
+//  Send the META to a router socket in one step
+
+    public static void sendMeta (
+        Socket output,
+	ZFrame routingId)
+    {
+        HydraProto self = new HydraProto (HydraProto.META);
+        if (routingId != null)
+        {
+	        self.setRoutingId (routingId);
+        }
+        self.send (output);
+    }
+
+//  --------------------------------------------------------------------------
+//  Send the META_OK to the socket in one step
+
+    public static void sendMeta_Ok (
+        Socket output,
+        String subject,
+        String timestamp,
+        String parent_id,
+        String digest,
+        String mime_type,
+        long content_size)
+    {
+	sendMeta_Ok (
+		    output,
+		    null,
+		    subject,
+		    timestamp,
+		    parent_id,
+		    digest,
+		    mime_type,
+		    content_size);
+    }
+
+//  --------------------------------------------------------------------------
+//  Send the META_OK to a router socket in one step
+
+    public static void sendMeta_Ok (
+        Socket output,
+	ZFrame routingId,
+        String subject,
+        String timestamp,
+        String parent_id,
+        String digest,
+        String mime_type,
+        long content_size)
+    {
+        HydraProto self = new HydraProto (HydraProto.META_OK);
+        if (routingId != null)
+        {
+	        self.setRoutingId (routingId);
+        }
+        self.setSubject (subject);
         self.setTimestamp (timestamp);
+        self.setParent_Id (parent_id);
         self.setDigest (digest);
-        self.setType (type);
+        self.setMime_Type (mime_type);
+        self.setContent_Size (content_size);
+        self.send (output);
+    }
+
+//  --------------------------------------------------------------------------
+//  Send the CHUNK to the socket in one step
+
+    public static void sendChunk (
+        Socket output,
+        long offset,
+        long octets)
+    {
+	sendChunk (
+		    output,
+		    null,
+		    offset,
+		    octets);
+    }
+
+//  --------------------------------------------------------------------------
+//  Send the CHUNK to a router socket in one step
+
+    public static void sendChunk (
+        Socket output,
+	ZFrame routingId,
+        long offset,
+        long octets)
+    {
+        HydraProto self = new HydraProto (HydraProto.CHUNK);
+        if (routingId != null)
+        {
+	        self.setRoutingId (routingId);
+        }
+        self.setOffset (offset);
+        self.setOctets (octets);
+        self.send (output);
+    }
+
+//  --------------------------------------------------------------------------
+//  Send the CHUNK_OK to the socket in one step
+
+    public static void sendChunk_Ok (
+        Socket output,
+        long offset,
+        byte[] content)
+    {
+	sendChunk_Ok (
+		    output,
+		    null,
+		    offset,
+		    content);
+    }
+
+//  --------------------------------------------------------------------------
+//  Send the CHUNK_OK to a router socket in one step
+
+    public static void sendChunk_Ok (
+        Socket output,
+	ZFrame routingId,
+        long offset,
+        byte[] content)
+    {
+        HydraProto self = new HydraProto (HydraProto.CHUNK_OK);
+        if (routingId != null)
+        {
+	        self.setRoutingId (routingId);
+        }
+        self.setOffset (offset);
         self.setContent (content);
         self.send (output);
     }
@@ -775,20 +1049,36 @@ public class HydraProto implements java.io.Closeable
             copy.nickname = this.nickname;
         break;
         case HELLO_OK:
-            copy.post_id = this.post_id;
             copy.identity = this.identity;
             copy.nickname = this.nickname;
         break;
-        case GET_POST:
-            copy.post_id = this.post_id;
+        case NEXT_OLDER:
+            copy.ident = this.ident;
         break;
-        case GET_POST_OK:
-            copy.post_id = this.post_id;
-            copy.reply_to = this.reply_to;
-            copy.previous = this.previous;
+        case NEXT_NEWER:
+            copy.ident = this.ident;
+        break;
+        case NEXT_OK:
+            copy.ident = this.ident;
+        break;
+        case NEXT_EMPTY:
+        break;
+        case META:
+        break;
+        case META_OK:
+            copy.subject = this.subject;
             copy.timestamp = this.timestamp;
+            copy.parent_id = this.parent_id;
             copy.digest = this.digest;
-            copy.type = this.type;
+            copy.mime_type = this.mime_type;
+            copy.content_size = this.content_size;
+        break;
+        case CHUNK:
+            copy.offset = this.offset;
+            copy.octets = this.octets;
+        break;
+        case CHUNK_OK:
+            copy.offset = this.offset;
             copy.content = this.content;
         break;
         case GOODBYE:
@@ -824,10 +1114,6 @@ public class HydraProto implements java.io.Closeable
 
         case HELLO_OK:
             System.out.println ("HELLO_OK:");
-            if (post_id != null)
-                System.out.printf ("    post_id='%s'\n", post_id);
-            else
-                System.out.printf ("    post_id=\n");
             if (identity != null)
                 System.out.printf ("    identity='%s'\n", identity);
             else
@@ -838,40 +1124,72 @@ public class HydraProto implements java.io.Closeable
                 System.out.printf ("    nickname=\n");
             break;
 
-        case GET_POST:
-            System.out.println ("GET_POST:");
-            if (post_id != null)
-                System.out.printf ("    post_id='%s'\n", post_id);
+        case NEXT_OLDER:
+            System.out.println ("NEXT_OLDER:");
+            if (ident != null)
+                System.out.printf ("    ident='%s'\n", ident);
             else
-                System.out.printf ("    post_id=\n");
+                System.out.printf ("    ident=\n");
             break;
 
-        case GET_POST_OK:
-            System.out.println ("GET_POST_OK:");
-            if (post_id != null)
-                System.out.printf ("    post_id='%s'\n", post_id);
+        case NEXT_NEWER:
+            System.out.println ("NEXT_NEWER:");
+            if (ident != null)
+                System.out.printf ("    ident='%s'\n", ident);
             else
-                System.out.printf ("    post_id=\n");
-            if (reply_to != null)
-                System.out.printf ("    reply_to='%s'\n", reply_to);
+                System.out.printf ("    ident=\n");
+            break;
+
+        case NEXT_OK:
+            System.out.println ("NEXT_OK:");
+            if (ident != null)
+                System.out.printf ("    ident='%s'\n", ident);
             else
-                System.out.printf ("    reply_to=\n");
-            if (previous != null)
-                System.out.printf ("    previous='%s'\n", previous);
+                System.out.printf ("    ident=\n");
+            break;
+
+        case NEXT_EMPTY:
+            System.out.println ("NEXT_EMPTY:");
+            break;
+
+        case META:
+            System.out.println ("META:");
+            break;
+
+        case META_OK:
+            System.out.println ("META_OK:");
+            if (subject != null)
+                System.out.printf ("    subject='%s'\n", subject);
             else
-                System.out.printf ("    previous=\n");
+                System.out.printf ("    subject=\n");
             if (timestamp != null)
                 System.out.printf ("    timestamp='%s'\n", timestamp);
             else
                 System.out.printf ("    timestamp=\n");
+            if (parent_id != null)
+                System.out.printf ("    parent_id='%s'\n", parent_id);
+            else
+                System.out.printf ("    parent_id=\n");
             if (digest != null)
                 System.out.printf ("    digest='%s'\n", digest);
             else
                 System.out.printf ("    digest=\n");
-            if (type != null)
-                System.out.printf ("    type='%s'\n", type);
+            if (mime_type != null)
+                System.out.printf ("    mime_type='%s'\n", mime_type);
             else
-                System.out.printf ("    type=\n");
+                System.out.printf ("    mime_type=\n");
+            System.out.printf ("    content_size=%d\n", (long)content_size);
+            break;
+
+        case CHUNK:
+            System.out.println ("CHUNK:");
+            System.out.printf ("    offset=%d\n", (long)offset);
+            System.out.printf ("    octets=%d\n", (long)octets);
+            break;
+
+        case CHUNK_OK:
+            System.out.println ("CHUNK_OK:");
+            System.out.printf ("    offset=%d\n", (long)offset);
             break;
 
         case GOODBYE:
@@ -953,45 +1271,31 @@ public class HydraProto implements java.io.Closeable
     }
 
     //  --------------------------------------------------------------------------
-    //  Get/set the post_id field
+    //  Get/set the ident field
 
-    public String post_id ()
+    public String ident ()
     {
-        return post_id;
+        return ident;
     }
 
-    public void setPost_Id (String format, Object ... args)
+    public void setIdent (String format, Object ... args)
     {
         //  Format into newly allocated string
-        post_id = String.format (format, args);
+        ident = String.format (format, args);
     }
 
     //  --------------------------------------------------------------------------
-    //  Get/set the reply_to field
+    //  Get/set the subject field
 
-    public String reply_to ()
+    public String subject ()
     {
-        return reply_to;
+        return subject;
     }
 
-    public void setReply_To (String format, Object ... args)
+    public void setSubject (String format, Object ... args)
     {
         //  Format into newly allocated string
-        reply_to = String.format (format, args);
-    }
-
-    //  --------------------------------------------------------------------------
-    //  Get/set the previous field
-
-    public String previous ()
-    {
-        return previous;
-    }
-
-    public void setPrevious (String format, Object ... args)
-    {
-        //  Format into newly allocated string
-        previous = String.format (format, args);
+        subject = String.format (format, args);
     }
 
     //  --------------------------------------------------------------------------
@@ -1009,6 +1313,20 @@ public class HydraProto implements java.io.Closeable
     }
 
     //  --------------------------------------------------------------------------
+    //  Get/set the parent_id field
+
+    public String parent_id ()
+    {
+        return parent_id;
+    }
+
+    public void setParent_Id (String format, Object ... args)
+    {
+        //  Format into newly allocated string
+        parent_id = String.format (format, args);
+    }
+
+    //  --------------------------------------------------------------------------
     //  Get/set the digest field
 
     public String digest ()
@@ -1023,17 +1341,56 @@ public class HydraProto implements java.io.Closeable
     }
 
     //  --------------------------------------------------------------------------
-    //  Get/set the type field
+    //  Get/set the mime_type field
 
-    public String type ()
+    public String mime_type ()
     {
-        return type;
+        return mime_type;
     }
 
-    public void setType (String format, Object ... args)
+    public void setMime_Type (String format, Object ... args)
     {
         //  Format into newly allocated string
-        type = String.format (format, args);
+        mime_type = String.format (format, args);
+    }
+
+    //  --------------------------------------------------------------------------
+    //  Get/set the content_size field
+
+    public long content_size ()
+    {
+        return content_size;
+    }
+
+    public void setContent_Size (long content_size)
+    {
+        this.content_size = content_size;
+    }
+
+    //  --------------------------------------------------------------------------
+    //  Get/set the offset field
+
+    public long offset ()
+    {
+        return offset;
+    }
+
+    public void setOffset (long offset)
+    {
+        this.offset = offset;
+    }
+
+    //  --------------------------------------------------------------------------
+    //  Get/set the octets field
+
+    public long octets ()
+    {
+        return octets;
+    }
+
+    public void setOctets (long octets)
+    {
+        this.octets = octets;
     }
 
     //  --------------------------------------------------------------------------

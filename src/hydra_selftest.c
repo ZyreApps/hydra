@@ -34,6 +34,8 @@ main (int argc, char *argv [])
     hydra_proto_test (verbose); 
     hydra_server_test (verbose); 
     hydra_client_test (verbose); 
+    hydra_post_test (verbose); 
+    hydra_ledger_test (verbose); 
 
     printf ("Tests passed OK\n");
     return 0;

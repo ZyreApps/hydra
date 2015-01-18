@@ -14,32 +14,67 @@
     </grammar>
 
     <message name = "hello">
-        Open new connection
+        Open new connection, provide client credentials.
         <field name = "identity" type = "string">Client identity</field>
         <field name = "nickname" type = "string">Client nickname</field>
     </message>
 
     <message name = "hello ok">
-        Accept new connection and return most recent post, if any.
-        <field name = "post-id" type = "string">Post identifier</field>
+        Accept new connection, provide server credentials.
         <field name = "identity" type = "string">Server identity</field>
         <field name = "nickname" type = "string">Server nickname</field>
     </message>
 
-    <message name = "get post">
-        Fetch a given post's content
-        <field name = "post-id" type = "string">Post identifier</field>
+    <message name = "next older">
+        Client requests next post that is older than the specified post ID.
+        If the post ID is "HEAD", fetches the newest post that the server has.
+        <field name = "ident" type = "string">Client's oldest post ID</field>
     </message>
 
-    <message name = "get post ok">
-        Return a post's metadata and content
-        <field name = "post-id" type = "string">Post identifier</field>
-        <field name = "reply-to" type = "string">Parent post, if any</field>
-        <field name = "previous" type = "string">Previous post, if any</field>
-        <field name = "timestamp" type = "string">Content date/time</field>
-        <field name = "digest" type = "string">Content digest</field>
-        <field name = "type" type = "string">Content type</field>
-        <field name = "content" type = "chunk">Content body</field>
+    <message name = "next newer">
+        Client requests next post that is newer than the specified post ID.
+        If the post ID is "TAIL", fetches the oldest post that the server has.
+        <field name = "ident" type = "string">Client's newest post ID</field>
+    </message>
+
+    <message name = "next ok">
+        Server returns a post identity to the client. This command does not
+        provide all metadata, only the post identity string. Clients can then
+        filter out posts they already have.
+        <field name = "ident" type = "string">Post identifier</field>
+    </message>
+
+    <message name = "next empty">
+        Server signals that it has no (more) posts for the client.
+    </message>
+
+    <message name = "meta">
+        Client requests the metadata for the current post. A META command only
+        makes sense after a NEXT-OLDER or NEXT-NEWER with a successful NEXT-OK
+        from the server.
+    </message>
+
+    <message name = "meta ok">
+        Server returns the metadata for the current post (as returned by NEXT-OK).
+        <field name = "subject" type = "longstr">Subject line</field>
+        <field name = "timestamp" type = "string">Post creation timestamp</field>
+        <field name = "parent id" type = "string">Parent post ID, if any</field>
+        <field name = "digest" type = "string">Content SHA1 digest</field>
+        <field name = "mime type" type = "string">Content MIME type</field>
+        <field name = "content size" type = "number" size = "8">Content size, octets</field>
+    </message>
+
+    <message name = "chunk">
+        Client fetches a chunk of content data from the server, for the current
+        post (as returned by NEXT-OK).
+        <field name = "offset" type = "number" size = "8">Chunk offset in file</field>
+        <field name = "octets" type = "number" size = "4">Maximum chunk size to fetch</field>
+    </message>
+
+    <message name = "chunk ok">
+        Return a chunk of post content.
+        <field name = "offset" type = "number" size = "8">Chunk offset in file</field>
+        <field name = "content" type = "chunk">Content data chunk</field>
     </message>
 
     <message name = "goodbye">

@@ -27,10 +27,11 @@ typedef enum {
     start_state = 1,
     expect_hello_ok_state = 2,
     connected_state = 3,
-    expect_get_post_ok_state = 4,
-    defaults_state = 5,
-    finished_state = 6,
-    expect_goodbye_ok_state = 7
+    have_peer_status_state = 4,
+    scanning_backwards_state = 5,
+    scanning_forwards_state = 6,
+    defaults_state = 7,
+    expect_goodbye_ok_state = 8
 } state_t;
 
 typedef enum {
@@ -38,13 +39,18 @@ typedef enum {
     constructor_event = 1,
     bad_endpoint_event = 2,
     hello_ok_event = 3,
-    fetch_event = 4,
-    have_post_event = 5,
-    got_nothing_event = 6,
-    get_post_ok_event = 7,
-    expired_event = 8,
-    destructor_event = 9,
-    goodbye_ok_event = 10
+    sync_event = 4,
+    new_peer_event = 5,
+    known_peer_event = 6,
+    next_ok_event = 7,
+    next_empty_event = 8,
+    meta_ok_event = 9,
+    chunk_ok_event = 10,
+    duplicate_event = 11,
+    expired_event = 12,
+    destructor_event = 13,
+    error_event = 14,
+    goodbye_ok_event = 15
 } event_t;
 
 //  Names for state machine logging and error reporting
@@ -54,9 +60,10 @@ s_state_name [] = {
     "start",
     "expect hello ok",
     "connected",
-    "expect get post ok",
+    "have peer status",
+    "scanning backwards",
+    "scanning forwards",
     "defaults",
-    "finished",
     "expect goodbye ok"
 };
 
@@ -66,12 +73,17 @@ s_event_name [] = {
     "constructor",
     "bad_endpoint",
     "HELLO_OK",
-    "fetch",
-    "have_post",
-    "got_nothing",
-    "GET_POST_OK",
+    "sync",
+    "new_peer",
+    "known_peer",
+    "NEXT_OK",
+    "NEXT_EMPTY",
+    "META_OK",
+    "CHUNK_OK",
+    "duplicate",
     "expired",
     "destructor",
+    "ERROR",
     "GOODBYE_OK"
 };
  
@@ -96,6 +108,7 @@ typedef struct {
     hydra_proto_t *message;     //  Message received or sent
     client_args_t args;         //  Method arguments structure
     bool terminated;            //  True if client is shutdown
+    bool fsm_stopped;           //  "terminate" action called
     size_t timeout;             //  inactivity timeout, msecs
     state_t state;              //  Current state
     event_t event;              //  Current event
@@ -131,19 +144,43 @@ static void
 static void
     use_response_timeout (client_t *self);
 static void
-    signal_success (client_t *self);
+    signal_connected (client_t *self);
 static void
-    prepare_to_get_last_post (client_t *self);
+    check_peer_status (client_t *self);
 static void
-    store_the_post (client_t *self);
+    prepare_to_fetch_newest_post (client_t *self);
 static void
-    prepare_to_get_previous_post (client_t *self);
+    prepare_to_fetch_newer_post (client_t *self);
+static void
+    use_this_post_as_oldest (client_t *self);
+static void
+    skip_post_if_duplicate (client_t *self);
+static void
+    signal_sync_success (client_t *self);
+static void
+    store_post_metadata (client_t *self);
+static void
+    prepare_to_get_first_chunk (client_t *self);
+static void
+    store_post_content_chunk (client_t *self);
+static void
+    store_the_post_in_ledger (client_t *self);
+static void
+    save_peer_configuration (client_t *self);
+static void
+    use_this_post_as_newest (client_t *self);
+static void
+    prepare_to_fetch_older_post (client_t *self);
 static void
     signal_server_not_present (client_t *self);
 static void
+    signal_unexpected_server_reply (client_t *self);
+static void
     signal_internal_error (client_t *self);
 static void
-    signal_incomplete (client_t *self);
+    signal_success (client_t *self);
+static void
+    signal_expired (client_t *self);
 
 //  Global tracing/animation indicator; we can't use a client method as
 //  that only works after construction (which we often want to trace).
@@ -308,11 +345,23 @@ s_protocol_event (s_client_t *self, hydra_proto_t *message)
         case HYDRA_PROTO_HELLO_OK:
             return hello_ok_event;
             break;
-        case HYDRA_PROTO_GET_POST_OK:
-            return get_post_ok_event;
+        case HYDRA_PROTO_NEXT_OK:
+            return next_ok_event;
+            break;
+        case HYDRA_PROTO_NEXT_EMPTY:
+            return next_empty_event;
+            break;
+        case HYDRA_PROTO_META_OK:
+            return meta_ok_event;
+            break;
+        case HYDRA_PROTO_CHUNK_OK:
+            return chunk_ok_event;
             break;
         case HYDRA_PROTO_GOODBYE_OK:
             return goodbye_ok_event;
+            break;
+        case HYDRA_PROTO_ERROR:
+            return error_event;
             break;
         default:
             zsys_error ("hydra_client: unknown command %s, halting", hydra_proto_command (message));
@@ -323,7 +372,7 @@ s_protocol_event (s_client_t *self, hydra_proto_t *message)
 
 
 //  Execute state machine as long as we have events; if event is NULL_event,
-//  or state machine is terminated, do nothing.
+//  or state machine is stopped, do nothing.
 
 static void
 s_client_execute (s_client_t *self, event_t event)
@@ -334,7 +383,9 @@ s_client_execute (s_client_t *self, event_t event)
         zloop_timer_end (self->loop, self->wakeup_timer);
         self->wakeup_timer = 0;
     }
-    while (!self->terminated && self->next_event != NULL_event) {
+    while (!self->terminated                    //  Actor is dying
+        && !self->fsm_stopped                   //  FSM has finished
+        && self->next_event != NULL_event) {
         self->event = self->next_event;
         self->next_event = NULL_event;
         self->exception = NULL_event;
@@ -385,7 +436,7 @@ s_client_execute (s_client_t *self, event_t event)
                         //  terminate
                         if (hydra_client_verbose)
                             zsys_debug ("hydra_client:          $ terminate");
-                        self->terminated = true;
+                        self->fsm_stopped = true;
                     }
                 }
                 else {
@@ -405,10 +456,10 @@ s_client_execute (s_client_t *self, event_t event)
                         use_response_timeout (&self->client);
                     }
                     if (!self->exception) {
-                        //  signal success
+                        //  signal connected
                         if (hydra_client_verbose)
-                            zsys_debug ("hydra_client:          $ signal success");
-                        signal_success (&self->client);
+                            zsys_debug ("hydra_client:          $ signal connected");
+                        signal_connected (&self->client);
                     }
                     if (!self->exception)
                         self->state = connected_state;
@@ -425,7 +476,7 @@ s_client_execute (s_client_t *self, event_t event)
                         //  terminate
                         if (hydra_client_verbose)
                             zsys_debug ("hydra_client:          $ terminate");
-                        self->terminated = true;
+                        self->fsm_stopped = true;
                     }
                 }
                 else
@@ -440,6 +491,21 @@ s_client_execute (s_client_t *self, event_t event)
                     if (!self->exception)
                         self->state = expect_goodbye_ok_state;
                 }
+                else
+                if (self->event == error_event) {
+                    if (!self->exception) {
+                        //  signal unexpected server reply
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ signal unexpected server reply");
+                        signal_unexpected_server_reply (&self->client);
+                    }
+                    if (!self->exception) {
+                        //  terminate
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ terminate");
+                        self->fsm_stopped = true;
+                    }
+                }
                 else {
                     //  Handle unexpected protocol events
                     if (!self->exception) {
@@ -452,50 +518,21 @@ s_client_execute (s_client_t *self, event_t event)
                         //  terminate
                         if (hydra_client_verbose)
                             zsys_debug ("hydra_client:          $ terminate");
-                        self->terminated = true;
+                        self->fsm_stopped = true;
                     }
                 }
                 break;
 
             case connected_state:
-                if (self->event == fetch_event) {
+                if (self->event == sync_event) {
                     if (!self->exception) {
-                        //  prepare to get last post
+                        //  check peer status
                         if (hydra_client_verbose)
-                            zsys_debug ("hydra_client:          $ prepare to get last post");
-                        prepare_to_get_last_post (&self->client);
-                    }
-                    if (!self->exception) {
-                        //  send GET_POST
-                        if (hydra_client_verbose)
-                            zsys_debug ("hydra_client:          $ send GET_POST");
-                        hydra_proto_set_id (self->message, HYDRA_PROTO_GET_POST);
-                        hydra_proto_send (self->message, self->dealer);
+                            zsys_debug ("hydra_client:          $ check peer status");
+                        check_peer_status (&self->client);
                     }
                     if (!self->exception)
-                        self->state = expect_get_post_ok_state;
-                }
-                else
-                if (self->event == have_post_event) {
-                    if (!self->exception) {
-                        //  signal success
-                        if (hydra_client_verbose)
-                            zsys_debug ("hydra_client:          $ signal success");
-                        signal_success (&self->client);
-                    }
-                    if (!self->exception)
-                        self->state = finished_state;
-                }
-                else
-                if (self->event == got_nothing_event) {
-                    if (!self->exception) {
-                        //  signal success
-                        if (hydra_client_verbose)
-                            zsys_debug ("hydra_client:          $ signal success");
-                        signal_success (&self->client);
-                    }
-                    if (!self->exception)
-                        self->state = finished_state;
+                        self->state = have_peer_status_state;
                 }
                 else
                 if (self->event == expired_event) {
@@ -509,7 +546,7 @@ s_client_execute (s_client_t *self, event_t event)
                         //  terminate
                         if (hydra_client_verbose)
                             zsys_debug ("hydra_client:          $ terminate");
-                        self->terminated = true;
+                        self->fsm_stopped = true;
                     }
                 }
                 else
@@ -524,6 +561,21 @@ s_client_execute (s_client_t *self, event_t event)
                     if (!self->exception)
                         self->state = expect_goodbye_ok_state;
                 }
+                else
+                if (self->event == error_event) {
+                    if (!self->exception) {
+                        //  signal unexpected server reply
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ signal unexpected server reply");
+                        signal_unexpected_server_reply (&self->client);
+                    }
+                    if (!self->exception) {
+                        //  terminate
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ terminate");
+                        self->fsm_stopped = true;
+                    }
+                }
                 else {
                     //  Handle unexpected protocol events
                     if (!self->exception) {
@@ -536,43 +588,145 @@ s_client_execute (s_client_t *self, event_t event)
                         //  terminate
                         if (hydra_client_verbose)
                             zsys_debug ("hydra_client:          $ terminate");
-                        self->terminated = true;
+                        self->fsm_stopped = true;
                     }
                 }
                 break;
 
-            case expect_get_post_ok_state:
-                if (self->event == get_post_ok_event) {
+            case have_peer_status_state:
+                if (self->event == new_peer_event) {
                     if (!self->exception) {
-                        //  store the post
+                        //  prepare to fetch newest post
                         if (hydra_client_verbose)
-                            zsys_debug ("hydra_client:          $ store the post");
-                        store_the_post (&self->client);
+                            zsys_debug ("hydra_client:          $ prepare to fetch newest post");
+                        prepare_to_fetch_newest_post (&self->client);
                     }
                     if (!self->exception) {
-                        //  prepare to get previous post
+                        //  send NEXT_OLDER
                         if (hydra_client_verbose)
-                            zsys_debug ("hydra_client:          $ prepare to get previous post");
-                        prepare_to_get_previous_post (&self->client);
+                            zsys_debug ("hydra_client:          $ send NEXT_OLDER");
+                        hydra_proto_set_id (self->message, HYDRA_PROTO_NEXT_OLDER);
+                        hydra_proto_send (self->message, self->dealer);
+                    }
+                    if (!self->exception)
+                        self->state = scanning_backwards_state;
+                }
+                else
+                if (self->event == known_peer_event) {
+                    if (!self->exception) {
+                        //  prepare to fetch newer post
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ prepare to fetch newer post");
+                        prepare_to_fetch_newer_post (&self->client);
                     }
                     if (!self->exception) {
-                        //  send GET_POST
+                        //  send NEXT_NEWER
                         if (hydra_client_verbose)
-                            zsys_debug ("hydra_client:          $ send GET_POST");
-                        hydra_proto_set_id (self->message, HYDRA_PROTO_GET_POST);
+                            zsys_debug ("hydra_client:          $ send NEXT_NEWER");
+                        hydra_proto_set_id (self->message, HYDRA_PROTO_NEXT_NEWER);
+                        hydra_proto_send (self->message, self->dealer);
+                    }
+                    if (!self->exception)
+                        self->state = scanning_forwards_state;
+                }
+                else {
+                    //  Handle unexpected internal events
+                    zsys_warning ("hydra_client: unhandled event %s in %s",
+                        s_event_name [self->event], s_state_name [self->state]);
+                    assert (false);
+                }
+                break;
+
+            case scanning_backwards_state:
+                if (self->event == next_ok_event) {
+                    if (!self->exception) {
+                        //  use this post as oldest
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ use this post as oldest");
+                        use_this_post_as_oldest (&self->client);
+                    }
+                    if (!self->exception) {
+                        //  skip post if duplicate
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ skip post if duplicate");
+                        skip_post_if_duplicate (&self->client);
+                    }
+                    if (!self->exception) {
+                        //  send META
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ send META");
+                        hydra_proto_set_id (self->message, HYDRA_PROTO_META);
                         hydra_proto_send (self->message, self->dealer);
                     }
                 }
                 else
-                if (self->event == have_post_event) {
+                if (self->event == next_empty_event) {
                     if (!self->exception) {
-                        //  signal success
+                        //  signal sync success
                         if (hydra_client_verbose)
-                            zsys_debug ("hydra_client:          $ signal success");
-                        signal_success (&self->client);
+                            zsys_debug ("hydra_client:          $ signal sync success");
+                        signal_sync_success (&self->client);
                     }
-                    if (!self->exception)
-                        self->state = finished_state;
+                }
+                else
+                if (self->event == meta_ok_event) {
+                    if (!self->exception) {
+                        //  store post metadata
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ store post metadata");
+                        store_post_metadata (&self->client);
+                    }
+                    if (!self->exception) {
+                        //  prepare to get first chunk
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ prepare to get first chunk");
+                        prepare_to_get_first_chunk (&self->client);
+                    }
+                    if (!self->exception) {
+                        //  send CHUNK
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ send CHUNK");
+                        hydra_proto_set_id (self->message, HYDRA_PROTO_CHUNK);
+                        hydra_proto_send (self->message, self->dealer);
+                    }
+                }
+                else
+                if (self->event == chunk_ok_event) {
+                    if (!self->exception) {
+                        //  store post content chunk
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ store post content chunk");
+                        store_post_content_chunk (&self->client);
+                    }
+                    if (!self->exception) {
+                        //  store the post in ledger
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ store the post in ledger");
+                        store_the_post_in_ledger (&self->client);
+                    }
+                    if (!self->exception) {
+                        //  save peer configuration
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ save peer configuration");
+                        save_peer_configuration (&self->client);
+                    }
+                    if (!self->exception) {
+                        //  send NEXT_OLDER
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ send NEXT_OLDER");
+                        hydra_proto_set_id (self->message, HYDRA_PROTO_NEXT_OLDER);
+                        hydra_proto_send (self->message, self->dealer);
+                    }
+                }
+                else
+                if (self->event == duplicate_event) {
+                    if (!self->exception) {
+                        //  send NEXT_OLDER
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ send NEXT_OLDER");
+                        hydra_proto_set_id (self->message, HYDRA_PROTO_NEXT_OLDER);
+                        hydra_proto_send (self->message, self->dealer);
+                    }
                 }
                 else
                 if (self->event == expired_event) {
@@ -586,7 +740,7 @@ s_client_execute (s_client_t *self, event_t event)
                         //  terminate
                         if (hydra_client_verbose)
                             zsys_debug ("hydra_client:          $ terminate");
-                        self->terminated = true;
+                        self->fsm_stopped = true;
                     }
                 }
                 else
@@ -601,6 +755,21 @@ s_client_execute (s_client_t *self, event_t event)
                     if (!self->exception)
                         self->state = expect_goodbye_ok_state;
                 }
+                else
+                if (self->event == error_event) {
+                    if (!self->exception) {
+                        //  signal unexpected server reply
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ signal unexpected server reply");
+                        signal_unexpected_server_reply (&self->client);
+                    }
+                    if (!self->exception) {
+                        //  terminate
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ terminate");
+                        self->fsm_stopped = true;
+                    }
+                }
                 else {
                     //  Handle unexpected protocol events
                     if (!self->exception) {
@@ -613,7 +782,166 @@ s_client_execute (s_client_t *self, event_t event)
                         //  terminate
                         if (hydra_client_verbose)
                             zsys_debug ("hydra_client:          $ terminate");
-                        self->terminated = true;
+                        self->fsm_stopped = true;
+                    }
+                }
+                break;
+
+            case scanning_forwards_state:
+                if (self->event == next_ok_event) {
+                    if (!self->exception) {
+                        //  use this post as newest
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ use this post as newest");
+                        use_this_post_as_newest (&self->client);
+                    }
+                    if (!self->exception) {
+                        //  skip post if duplicate
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ skip post if duplicate");
+                        skip_post_if_duplicate (&self->client);
+                    }
+                    if (!self->exception) {
+                        //  send META
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ send META");
+                        hydra_proto_set_id (self->message, HYDRA_PROTO_META);
+                        hydra_proto_send (self->message, self->dealer);
+                    }
+                }
+                else
+                if (self->event == next_empty_event) {
+                    if (!self->exception) {
+                        //  prepare to fetch older post
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ prepare to fetch older post");
+                        prepare_to_fetch_older_post (&self->client);
+                    }
+                    if (!self->exception) {
+                        //  send NEXT_OLDER
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ send NEXT_OLDER");
+                        hydra_proto_set_id (self->message, HYDRA_PROTO_NEXT_OLDER);
+                        hydra_proto_send (self->message, self->dealer);
+                    }
+                    if (!self->exception)
+                        self->state = scanning_backwards_state;
+                }
+                else
+                if (self->event == meta_ok_event) {
+                    if (!self->exception) {
+                        //  store post metadata
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ store post metadata");
+                        store_post_metadata (&self->client);
+                    }
+                    if (!self->exception) {
+                        //  prepare to get first chunk
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ prepare to get first chunk");
+                        prepare_to_get_first_chunk (&self->client);
+                    }
+                    if (!self->exception) {
+                        //  send CHUNK
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ send CHUNK");
+                        hydra_proto_set_id (self->message, HYDRA_PROTO_CHUNK);
+                        hydra_proto_send (self->message, self->dealer);
+                    }
+                }
+                else
+                if (self->event == chunk_ok_event) {
+                    if (!self->exception) {
+                        //  store post content chunk
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ store post content chunk");
+                        store_post_content_chunk (&self->client);
+                    }
+                    if (!self->exception) {
+                        //  store the post in ledger
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ store the post in ledger");
+                        store_the_post_in_ledger (&self->client);
+                    }
+                    if (!self->exception) {
+                        //  save peer configuration
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ save peer configuration");
+                        save_peer_configuration (&self->client);
+                    }
+                    if (!self->exception) {
+                        //  send NEXT_NEWER
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ send NEXT_NEWER");
+                        hydra_proto_set_id (self->message, HYDRA_PROTO_NEXT_NEWER);
+                        hydra_proto_send (self->message, self->dealer);
+                    }
+                }
+                else
+                if (self->event == duplicate_event) {
+                    if (!self->exception) {
+                        //  send NEXT_NEWER
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ send NEXT_NEWER");
+                        hydra_proto_set_id (self->message, HYDRA_PROTO_NEXT_NEWER);
+                        hydra_proto_send (self->message, self->dealer);
+                    }
+                }
+                else
+                if (self->event == expired_event) {
+                    if (!self->exception) {
+                        //  signal server not present
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ signal server not present");
+                        signal_server_not_present (&self->client);
+                    }
+                    if (!self->exception) {
+                        //  terminate
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ terminate");
+                        self->fsm_stopped = true;
+                    }
+                }
+                else
+                if (self->event == destructor_event) {
+                    if (!self->exception) {
+                        //  send GOODBYE
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ send GOODBYE");
+                        hydra_proto_set_id (self->message, HYDRA_PROTO_GOODBYE);
+                        hydra_proto_send (self->message, self->dealer);
+                    }
+                    if (!self->exception)
+                        self->state = expect_goodbye_ok_state;
+                }
+                else
+                if (self->event == error_event) {
+                    if (!self->exception) {
+                        //  signal unexpected server reply
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ signal unexpected server reply");
+                        signal_unexpected_server_reply (&self->client);
+                    }
+                    if (!self->exception) {
+                        //  terminate
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ terminate");
+                        self->fsm_stopped = true;
+                    }
+                }
+                else {
+                    //  Handle unexpected protocol events
+                    if (!self->exception) {
+                        //  signal internal error
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ signal internal error");
+                        signal_internal_error (&self->client);
+                    }
+                    if (!self->exception) {
+                        //  terminate
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ terminate");
+                        self->fsm_stopped = true;
                     }
                 }
                 break;
@@ -630,7 +958,7 @@ s_client_execute (s_client_t *self, event_t event)
                         //  terminate
                         if (hydra_client_verbose)
                             zsys_debug ("hydra_client:          $ terminate");
-                        self->terminated = true;
+                        self->fsm_stopped = true;
                     }
                 }
                 else
@@ -645,49 +973,20 @@ s_client_execute (s_client_t *self, event_t event)
                     if (!self->exception)
                         self->state = expect_goodbye_ok_state;
                 }
-                else {
-                    //  Handle unexpected protocol events
-                    if (!self->exception) {
-                        //  signal internal error
-                        if (hydra_client_verbose)
-                            zsys_debug ("hydra_client:          $ signal internal error");
-                        signal_internal_error (&self->client);
-                    }
-                    if (!self->exception) {
-                        //  terminate
-                        if (hydra_client_verbose)
-                            zsys_debug ("hydra_client:          $ terminate");
-                        self->terminated = true;
-                    }
-                }
-                break;
-
-            case finished_state:
-                if (self->event == expired_event) {
-                    if (!self->exception) {
-                        //  signal server not present
-                        if (hydra_client_verbose)
-                            zsys_debug ("hydra_client:          $ signal server not present");
-                        signal_server_not_present (&self->client);
-                    }
-                    if (!self->exception) {
-                        //  terminate
-                        if (hydra_client_verbose)
-                            zsys_debug ("hydra_client:          $ terminate");
-                        self->terminated = true;
-                    }
-                }
                 else
-                if (self->event == destructor_event) {
+                if (self->event == error_event) {
                     if (!self->exception) {
-                        //  send GOODBYE
+                        //  signal unexpected server reply
                         if (hydra_client_verbose)
-                            zsys_debug ("hydra_client:          $ send GOODBYE");
-                        hydra_proto_set_id (self->message, HYDRA_PROTO_GOODBYE);
-                        hydra_proto_send (self->message, self->dealer);
+                            zsys_debug ("hydra_client:          $ signal unexpected server reply");
+                        signal_unexpected_server_reply (&self->client);
                     }
-                    if (!self->exception)
-                        self->state = expect_goodbye_ok_state;
+                    if (!self->exception) {
+                        //  terminate
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ terminate");
+                        self->fsm_stopped = true;
+                    }
                 }
                 else {
                     //  Handle unexpected protocol events
@@ -701,7 +1000,7 @@ s_client_execute (s_client_t *self, event_t event)
                         //  terminate
                         if (hydra_client_verbose)
                             zsys_debug ("hydra_client:          $ terminate");
-                        self->terminated = true;
+                        self->fsm_stopped = true;
                     }
                 }
                 break;
@@ -715,25 +1014,37 @@ s_client_execute (s_client_t *self, event_t event)
                         signal_success (&self->client);
                     }
                     if (!self->exception) {
+                        //  save peer configuration
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ save peer configuration");
+                        save_peer_configuration (&self->client);
+                    }
+                    if (!self->exception) {
                         //  terminate
                         if (hydra_client_verbose)
                             zsys_debug ("hydra_client:          $ terminate");
-                        self->terminated = true;
+                        self->fsm_stopped = true;
                     }
                 }
                 else
                 if (self->event == expired_event) {
                     if (!self->exception) {
-                        //  signal incomplete
+                        //  signal expired
                         if (hydra_client_verbose)
-                            zsys_debug ("hydra_client:          $ signal incomplete");
-                        signal_incomplete (&self->client);
+                            zsys_debug ("hydra_client:          $ signal expired");
+                        signal_expired (&self->client);
+                    }
+                    if (!self->exception) {
+                        //  save peer configuration
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ save peer configuration");
+                        save_peer_configuration (&self->client);
                     }
                     if (!self->exception) {
                         //  terminate
                         if (hydra_client_verbose)
                             zsys_debug ("hydra_client:          $ terminate");
-                        self->terminated = true;
+                        self->fsm_stopped = true;
                     }
                 }
                 else
@@ -748,6 +1059,21 @@ s_client_execute (s_client_t *self, event_t event)
                     if (!self->exception)
                         self->state = expect_goodbye_ok_state;
                 }
+                else
+                if (self->event == error_event) {
+                    if (!self->exception) {
+                        //  signal unexpected server reply
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ signal unexpected server reply");
+                        signal_unexpected_server_reply (&self->client);
+                    }
+                    if (!self->exception) {
+                        //  terminate
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ terminate");
+                        self->fsm_stopped = true;
+                    }
+                }
                 else {
                     //  Handle unexpected protocol events
                     if (!self->exception) {
@@ -760,7 +1086,7 @@ s_client_execute (s_client_t *self, event_t event)
                         //  terminate
                         if (hydra_client_verbose)
                             zsys_debug ("hydra_client:          $ terminate");
-                        self->terminated = true;
+                        self->fsm_stopped = true;
                     }
                 }
                 break;
@@ -815,7 +1141,7 @@ s_client_handle_cmdpipe (zloop_t *loop, zsock_t *reader, void *argument)
     else
     if (streq (method, "CONSTRUCTOR")) {
         zstr_free (&self->args.endpoint);
-        zsock_recv (self->cmdpipe, "si", &self->args.endpoint, &self->args.timeout);
+        zsock_recv (self->cmdpipe, "s4", &self->args.endpoint, &self->args.timeout);
         s_client_execute (self, constructor_event);
     }
     else
@@ -823,8 +1149,8 @@ s_client_handle_cmdpipe (zloop_t *loop, zsock_t *reader, void *argument)
         s_client_execute (self, destructor_event);
     }
     else
-    if (streq (method, "FETCH")) {
-        s_client_execute (self, fetch_event);
+    if (streq (method, "SYNC")) {
+        s_client_execute (self, sync_event);
     }
     //  Cleanup pipe if any argument frames are still waiting to be eaten
     if (zsock_rcvmore (self->cmdpipe)) {
@@ -854,8 +1180,11 @@ s_client_handle_msgpipe (zloop_t *loop, zsock_t *reader, void *argument)
         if (hydra_client_verbose)
             zsys_debug ("hydra_client:      API message=%s", method);
 
-        //  Front-end shuts down msgpipe before cmdpipe
-        if (streq (method, "$TERM"))
+        //  Front-end shuts down msgpipe before cmdpipe, this little
+        //  handshake just ensures all traffic on the msgpipe has been
+        //  flushed before the calling thread continues with destroying
+        //  the actor.
+        if (streq (method, "$FLUSH"))
             zsock_signal (self->cmdpipe, 0);
         //  Cleanup pipe if any argument frames are still waiting to be eaten
         if (zsock_rcvmore (self->msgpipe)) {
@@ -935,6 +1264,7 @@ struct _hydra_client_t {
     zactor_t *actor;            //  Client actor
     zsock_t *msgpipe;           //  Pipe for async message flow
     int status;                 //  Returned by actor reply
+    char *nickname;             //  Returned by actor reply
     char *reason;               //  Returned by actor reply
 };
 
@@ -942,7 +1272,8 @@ struct _hydra_client_t {
 //  ---------------------------------------------------------------------------
 //  Create a new hydra_client
 //  Connect to server endpoint, with specified timeout in msecs (zero means wait    
-//  forever). Constructor succeeds if connection is successful.                     
+//  forever). Constructor succeeds if connection is successful. The sink endpoint is
+//  provided by the node's own server, for storing received posts.                  
 
 static int 
 hydra_client_constructor (hydra_client_t *self, const char *endpoint, uint32_t timeout);
@@ -981,14 +1312,17 @@ hydra_client_destroy (hydra_client_t **self_p)
     if (*self_p) {
         hydra_client_t *self = *self_p;
         if (self->actor && !zsys_interrupted) {
-            //  Shut down msgpipe first so that client can do clean shutdown,
-            //  sending any pending messages and handshaking goodbye to server
-            zstr_send (self->msgpipe, "$TERM");
-            zsock_wait (self->actor);
+            //  Before destroying the actor we have to flush any pending
+            //  traffic on the msgpipe, otherwise it gets lost in a fire and
+            //  forget scenario. We do this by sending $FLUSH to the msgpipe
+            //  and waiting for a signal back on the cmdpipe.
+            if (zstr_send (self->msgpipe, "$FLUSH") == 0)
+                zsock_wait (self->actor);
             hydra_client_destructor (self);
         }
         zactor_destroy (&self->actor);
         zsock_destroy (&self->msgpipe);
+        zstr_free (&self->nickname);
         zstr_free (&self->reason);
         free (self);
         *self_p = NULL;
@@ -1043,6 +1377,11 @@ s_accept_reply (hydra_client_t *self, ...)
         char *filter = va_arg (args, char *);
         while (filter) {
             if (streq (reply, filter)) {
+                if (streq (reply, "CONNECTED")) {
+                    zstr_free (&self->nickname);
+                    zsock_recv (self->actor, "is", &self->status, &self->nickname);
+                }
+                else
                 if (streq (reply, "SUCCESS")) {
                     zsock_recv (self->actor, "i", &self->status);
                 }
@@ -1069,15 +1408,16 @@ s_accept_reply (hydra_client_t *self, ...)
 
 //  ---------------------------------------------------------------------------
 //  Connect to server endpoint, with specified timeout in msecs (zero means wait    
-//  forever). Constructor succeeds if connection is successful.                     
+//  forever). Constructor succeeds if connection is successful. The sink endpoint is
+//  provided by the node's own server, for storing received posts.                  
 //  Returns >= 0 if successful, -1 if interrupted.
 
 static int 
 hydra_client_constructor (hydra_client_t *self, const char *endpoint, uint32_t timeout)
 {
     assert (self);
-    zsock_send (self->actor, "ssi", "CONSTRUCTOR", endpoint, timeout);
-    if (s_accept_reply (self, "SUCCESS", "FAILURE", NULL))
+    zsock_send (self->actor, "ss4", "CONSTRUCTOR", endpoint, timeout);
+    if (s_accept_reply (self, "CONNECTED", "FAILURE", NULL))
         return -1;              //  Interrupted or timed-out
     return self->status;
 }
@@ -1100,16 +1440,15 @@ hydra_client_destructor (hydra_client_t *self)
 
 
 //  ---------------------------------------------------------------------------
-//  Fetch all available posts from server, starting with most recent, and working   
-//  backwards, until there are no more posts, or the server disappears. TODO: add   
-//  maximum posts to fetch.                                                         
+//  Synchronize client with server. Fetches all posts that it can. Returns number of
+//  posts fetched (0 or more), or -1 if there was an error.                         
 //  Returns >= 0 if successful, -1 if interrupted.
 
 int 
-hydra_client_fetch (hydra_client_t *self)
+hydra_client_sync (hydra_client_t *self)
 {
     assert (self);
-    zsock_send (self->actor, "s", "FETCH");
+    zsock_send (self->actor, "s", "SYNC");
     if (s_accept_reply (self, "SUCCESS", "FAILURE", NULL))
         return -1;              //  Interrupted or timed-out
     return self->status;
@@ -1124,6 +1463,17 @@ hydra_client_status (hydra_client_t *self)
 {
     assert (self);
     return self->status;
+}
+
+
+//  ---------------------------------------------------------------------------
+//  Return last received nickname
+
+const char *
+hydra_client_nickname (hydra_client_t *self)
+{
+    assert (self);
+    return self->nickname;
 }
 
 

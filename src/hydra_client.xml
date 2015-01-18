@@ -26,31 +26,81 @@
     <state name = "expect hello ok" inherit = "defaults">
         <event name = "HELLO OK" next = "connected">
             <action name = "use response timeout" />
-            <action name = "signal success" />
+            <action name = "signal connected" />
         </event>
     </state>
 
     <state name = "connected" inherit = "defaults">
-        <event name = "fetch" next = "expect get post ok">
-            <action name = "prepare to get last post" />
-            <action name = "send" message = "GET POST" />
-        </event>
-        <event name = "have post" next = "finished">
-            <action name = "signal success" />
-        </event>
-        <event name = "got nothing" next = "finished">
-            <action name = "signal success" />
+        <event name = "sync" next = "have peer status">
+            <action name = "check peer status" />
         </event>
     </state>
 
-    <state name = "expect get post ok" inherit = "defaults">
-        <event name = "GET POST OK">
-            <action name = "store the post" />
-            <action name = "prepare to get previous post" />
-            <action name = "send" message = "GET POST" />
+    <state name = "have peer status">
+        <event name = "new peer" next = "scanning backwards">
+            <action name = "prepare to fetch newest post" />
+            <action name = "send" message = "NEXT OLDER" />
         </event>
-        <event name = "have post" next = "finished">
-            <action name = "signal success" />
+        <event name = "known peer" next = "scanning forwards">
+            <action name = "prepare to fetch newer post" />
+            <action name = "send" message = "NEXT NEWER" />
+        </event>
+    </state>
+
+    <!-- We're scanning backwards from newer to older posts; it's a little
+         nasty to handle these different commands in the same state, as we
+         can't handle invalid server commands. It keeps things simpler. -->
+    <state name = "scanning backwards" inherit = "defaults">
+        <event name = "NEXT OK">
+            <action name = "use this post as oldest" />
+            <action name = "skip post if duplicate" />
+            <action name = "send" message = "META" />
+        </event>
+        <event name = "NEXT EMPTY">
+            <action name = "signal sync success" />
+        </event>
+        <event name = "META OK">
+            <action name = "store post metadata" />
+            <action name = "prepare to get first chunk" />
+            <action name = "send" message = "CHUNK" />
+        </event>
+        <event name = "CHUNK OK">
+            <!-- Assume one chunk per content for now -->
+            <action name = "store post content chunk" />
+            <action name = "store the post in ledger" />
+            <action name = "save peer configuration" />
+            <action name = "send" message = "NEXT OLDER" />
+        </event>
+        <event name = "duplicate">
+            <action name = "send" message = "NEXT OLDER" />
+        </event>
+    </state>
+    
+    <!-- We're catching up with newer posts -->
+    <state name = "scanning forwards" inherit = "defaults">
+        <event name = "NEXT OK">
+            <action name = "use this post as newest" />
+            <action name = "skip post if duplicate" />
+            <action name = "send" message = "META" />
+        </event>
+        <event name = "NEXT EMPTY" next = "scanning backwards">
+            <action name = "prepare to fetch older post" />
+            <action name = "send" message = "NEXT OLDER" />
+        </event>
+        <event name = "META OK">
+            <action name = "store post metadata" />
+            <action name = "prepare to get first chunk" />
+            <action name = "send" message = "CHUNK" />
+        </event>
+        <event name = "CHUNK OK">
+            <!-- Assume one chunk per content for now -->
+            <action name = "store post content chunk" />
+            <action name = "store the post in ledger" />
+            <action name = "save peer configuration" />
+            <action name = "send" message = "NEXT NEWER" />
+        </event>
+        <event name = "duplicate">
+            <action name = "send" message = "NEXT NEWER" />
         </event>
     </state>
 
@@ -62,22 +112,25 @@
         <event name = "destructor" next = "expect goodbye ok">
             <action name = "send" message = "GOODBYE" />
         </event>
+        <event name = "error">
+            <action name = "signal unexpected server reply" />
+            <action name = "terminate" />
+        </event>
         <event name = "*">
             <action name = "signal internal error" />
             <action name = "terminate" />
         </event>
     </state>
-
-    <state name = "finished" inherit = "defaults">
-    </state>
     
     <state name = "expect goodbye ok" inherit = "defaults">
         <event name = "GOODBYE OK">
             <action name = "signal success" />
+            <action name = "save peer configuration" />
             <action name = "terminate" />
         </event>
         <event name = "expired">
-            <action name = "signal incomplete" />
+            <action name = "signal expired" />
+            <action name = "save peer configuration" />
             <action name = "terminate" />
         </event>
     </state>
@@ -85,24 +138,22 @@
     <!-- API methods -->
     <method name = "constructor" return = "status">
     Connect to server endpoint, with specified timeout in msecs (zero means
-    wait forever). Constructor succeeds if connection is successful.
+    wait forever). Constructor succeeds if connection is successful. The sink
+    endpoint is provided by the node's own server, for storing received posts.
         <field name = "endpoint" type = "string" />
         <field name = "timeout" type = "number" size = "4" />
-        <accept reply = "SUCCESS" />
+        <accept reply = "CONNECTED" />
         <accept reply = "FAILURE" />
     </method>
+
+    <reply name = "CONNECTED">
+        <field name = "status" type = "integer" />
+        <field name = "nickname" type = "string" />
+    </reply>
 
     <method name = "destructor" return = "status">
     Disconnect from server. Waits for a short timeout for confirmation from
     the server, then disconnects anyhow.
-        <accept reply = "SUCCESS" />
-        <accept reply = "FAILURE" />
-    </method>
-
-    <method name = "fetch" return = "status">
-    Fetch all available posts from server, starting with most recent,
-    and working backwards, until there are no more posts, or the server
-    disappears. TODO: add maximum posts to fetch.
         <accept reply = "SUCCESS" />
         <accept reply = "FAILURE" />
     </method>
@@ -115,4 +166,11 @@
         <field name = "status" type = "integer" />
         <field name = "reason" type = "string" />
     </reply>
+    
+    <method name = "sync" return = "status">
+    Synchronize client with server. Fetches all posts that it can. Returns
+    number of posts fetched (0 or more), or -1 if there was an error.
+        <accept reply = "SUCCESS" />
+        <accept reply = "FAILURE" />
+    </method>
 </class>

@@ -26,26 +26,49 @@
 
 /*  These are the hydra_proto messages:
 
-    HELLO - Open new connection
+    HELLO - Open new connection, provide client credentials.
         identity            string      Client identity
         nickname            string      Client nickname
 
-    HELLO_OK - Accept new connection and return most recent post, if any.
-        post_id             string      Post identifier
+    HELLO_OK - Accept new connection, provide server credentials.
         identity            string      Server identity
         nickname            string      Server nickname
 
-    GET_POST - Fetch a given post's content
-        post_id             string      Post identifier
+    NEXT_OLDER - Client requests next post that is older than the specified post ID.
+If the post ID is "HEAD", fetches the newest post that the server has.
+        ident               string      Client's oldest post ID
 
-    GET_POST_OK - Return a post's metadata and content
-        post_id             string      Post identifier
-        reply_to            string      Parent post, if any
-        previous            string      Previous post, if any
-        timestamp           string      Content date/time
-        digest              string      Content digest
-        type                string      Content type
-        content             chunk       Content body
+    NEXT_NEWER - Client requests next post that is newer than the specified post ID.
+If the post ID is "TAIL", fetches the oldest post that the server has.
+        ident               string      Client's newest post ID
+
+    NEXT_OK - Server returns a post identity to the client. This command does not
+provide all metadata, only the post identity string. Clients can then
+filter out posts they already have.
+        ident               string      Post identifier
+
+    NEXT_EMPTY - Server signals that it has no (more) posts for the client.
+
+    META - Client requests the metadata for the current post. A META command only
+makes sense after a NEXT-OLDER or NEXT-NEWER with a successful NEXT-OK
+from the server.
+
+    META_OK - Server returns the metadata for the current post (as returned by NEXT-OK).
+        subject             longstr     Subject line
+        timestamp           string      Post creation timestamp
+        parent_id           string      Parent post ID, if any
+        digest              string      Content SHA1 digest
+        mime_type           string      Content MIME type
+        content_size        number 8    Content size, octets
+
+    CHUNK - Client fetches a chunk of content data from the server, for the current
+post (as returned by NEXT-OK).
+        offset              number 8    Chunk offset in file
+        octets              number 4    Maximum chunk size to fetch
+
+    CHUNK_OK - Return a chunk of post content.
+        offset              number 8    Chunk offset in file
+        content             chunk       Content data chunk
 
     GOODBYE - Close the connection politely
 
@@ -72,11 +95,17 @@
 
 #define HYDRA_PROTO_HELLO                   1
 #define HYDRA_PROTO_HELLO_OK                2
-#define HYDRA_PROTO_GET_POST                3
-#define HYDRA_PROTO_GET_POST_OK             4
-#define HYDRA_PROTO_GOODBYE                 5
-#define HYDRA_PROTO_GOODBYE_OK              6
-#define HYDRA_PROTO_ERROR                   7
+#define HYDRA_PROTO_NEXT_OLDER              3
+#define HYDRA_PROTO_NEXT_NEWER              4
+#define HYDRA_PROTO_NEXT_OK                 5
+#define HYDRA_PROTO_NEXT_EMPTY              6
+#define HYDRA_PROTO_META                    7
+#define HYDRA_PROTO_META_OK                 8
+#define HYDRA_PROTO_CHUNK                   9
+#define HYDRA_PROTO_CHUNK_OK                10
+#define HYDRA_PROTO_GOODBYE                 11
+#define HYDRA_PROTO_GOODBYE_OK              12
+#define HYDRA_PROTO_ERROR                   13
 
 #include <czmq.h>
 
@@ -138,23 +167,17 @@ const char *
 void
     hydra_proto_set_nickname (hydra_proto_t *self, const char *value);
 
-//  Get/set the post_id field
+//  Get/set the ident field
 const char *
-    hydra_proto_post_id (hydra_proto_t *self);
+    hydra_proto_ident (hydra_proto_t *self);
 void
-    hydra_proto_set_post_id (hydra_proto_t *self, const char *value);
+    hydra_proto_set_ident (hydra_proto_t *self, const char *value);
 
-//  Get/set the reply_to field
+//  Get/set the subject field
 const char *
-    hydra_proto_reply_to (hydra_proto_t *self);
+    hydra_proto_subject (hydra_proto_t *self);
 void
-    hydra_proto_set_reply_to (hydra_proto_t *self, const char *value);
-
-//  Get/set the previous field
-const char *
-    hydra_proto_previous (hydra_proto_t *self);
-void
-    hydra_proto_set_previous (hydra_proto_t *self, const char *value);
+    hydra_proto_set_subject (hydra_proto_t *self, const char *value);
 
 //  Get/set the timestamp field
 const char *
@@ -162,17 +185,41 @@ const char *
 void
     hydra_proto_set_timestamp (hydra_proto_t *self, const char *value);
 
+//  Get/set the parent_id field
+const char *
+    hydra_proto_parent_id (hydra_proto_t *self);
+void
+    hydra_proto_set_parent_id (hydra_proto_t *self, const char *value);
+
 //  Get/set the digest field
 const char *
     hydra_proto_digest (hydra_proto_t *self);
 void
     hydra_proto_set_digest (hydra_proto_t *self, const char *value);
 
-//  Get/set the type field
+//  Get/set the mime_type field
 const char *
-    hydra_proto_type (hydra_proto_t *self);
+    hydra_proto_mime_type (hydra_proto_t *self);
 void
-    hydra_proto_set_type (hydra_proto_t *self, const char *value);
+    hydra_proto_set_mime_type (hydra_proto_t *self, const char *value);
+
+//  Get/set the content_size field
+uint64_t
+    hydra_proto_content_size (hydra_proto_t *self);
+void
+    hydra_proto_set_content_size (hydra_proto_t *self, uint64_t content_size);
+
+//  Get/set the offset field
+uint64_t
+    hydra_proto_offset (hydra_proto_t *self);
+void
+    hydra_proto_set_offset (hydra_proto_t *self, uint64_t offset);
+
+//  Get/set the octets field
+uint32_t
+    hydra_proto_octets (hydra_proto_t *self);
+void
+    hydra_proto_set_octets (hydra_proto_t *self, uint32_t octets);
 
 //  Get a copy of the content field
 zchunk_t *

@@ -15,6 +15,13 @@
     This is a simple client API for the Hydra protocol.
 @discuss
     Detailed discussion of the class, if any.
+    todo
+    - create PULL socket for receiving posts
+    - bind to some inproc endpoint, passed to each client
+    - all clients create PUSH socket and connect to this
+    - clients send incoming posts to this socket
+    - saved by server
+    
 @end
 */
 
@@ -34,13 +41,10 @@ typedef struct _client_t client_t;
 //  whatever properties and structures you need for the server.
 
 struct _server_t {
-    //  These properties must always be present in the server_t
-    //  and are set by the generated engine; do not modify them!
     zsock_t *pipe;              //  Actor pipe back to caller
     zconfig_t *config;          //  Current loaded configuration
-    
-    zfile_t *ledger;            //  Post ledger
-    const char *last_post_id;   //  Last post we stored
+    hydra_ledger_t *ledger;     //  Posts ledger
+    zsock_t *sink;              //  Sink socket
 };
 
 //  ---------------------------------------------------------------------------
@@ -48,14 +52,20 @@ struct _server_t {
 //  be passed to each action in the 'self' argument.
 
 struct _client_t {
-    //  These properties must always be present in the client_t
-    //  and are set by the generated engine; do not modify them!
     server_t *server;           //  Reference to parent server
     hydra_proto_t *message;     //  Message from and to client
+    hydra_ledger_t *ledger;     //  Posts ledger, same as server ledger
+    hydra_post_t *post;         //  Current post we're sending
+    size_t credit;              //  How many posts we'll send one client
 };
 
 //  Include the generated server engine
 #include "hydra_server_engine.inc"
+
+static int
+    s_server_handle_sink (zloop_t *loop, zsock_t *reader, void *argument);
+static zmsg_t *
+    s_server_store_post (server_t *self, zmsg_t *msg);
 
 //  Allocate properties and structures for a new server instance.
 //  Return 0 if OK, or -1 if there was an error.
@@ -63,23 +73,32 @@ struct _client_t {
 static int
 server_initialize (server_t *self)
 {
-    //  Open ledger and read to end
-    self->last_post_id = "";
-    self->ledger = zfile_new (".", "ledger.txt");
-    if (zfile_input (self->ledger) == 0) {
-        const char *post_id = zfile_readln (self->ledger);
-        while (post_id) {
-            //  Check post exists
-            char *filename = zsys_sprintf ("posts/%s", post_id);
-            if (!zsys_file_exists (filename))
-                zsys_error ("Post %s is missing", post_id);
-            zstr_free (&filename);
-            
-            self->last_post_id = post_id;
-            post_id = zfile_readln (self->ledger);
-        }
-        zfile_close (self->ledger);
+    //  Create new empty config file if we need it
+    zconfig_t *config = zconfig_load ("hydra.cfg");
+    if (!config)
+        config = zconfig_new ("root", NULL);
+    
+    char *identity = zconfig_resolve (config, "/hydra/identity", NULL);
+    if (!identity) {
+        zsys_info ("hydrad: no server identity found, regenerating");
+        zuuid_t *uuid = zuuid_new ();
+        zconfig_put (config, "/hydra/identity", zuuid_str (uuid));
+        zconfig_put (config, "/hydra/nickname", "Anonymous");
+        zconfig_save (config, "hydra.cfg");
+        zuuid_destroy (&uuid);
+        identity = zconfig_resolve (config, "/hydra/identity", NULL);
     }
+    zsys_info ("hydrad: server identity=%s", identity);
+    
+    //  Create and bind sink socket (posts will come here)
+    self->sink = zsock_new (ZMQ_PULL);
+    zsock_bind (self->sink, "inproc://%s", identity);
+    engine_handle_socket (self, self->sink, s_server_handle_sink);
+    zconfig_destroy (&config);
+    
+     //  Load post ledger
+    self->ledger = hydra_ledger_new ();
+    hydra_ledger_load (self->ledger);
     return 0;
 }
 
@@ -88,15 +107,86 @@ server_initialize (server_t *self)
 static void
 server_terminate (server_t *self)
 {
-    zfile_destroy (&self->ledger);
+    hydra_ledger_destroy (&self->ledger);
+    zsock_destroy (&self->sink);
 }
 
 //  Process server API method, return reply message if any
+//  SINK - create and bind sink PULL socket, return inproc endpoint
+//  POST - store post
 
 static zmsg_t *
 server_method (server_t *self, const char *method, zmsg_t *msg)
 {
-    return NULL;
+    zmsg_t *reply = NULL;
+    if (streq (method, "INIT")) {
+        reply = zmsg_new ();
+        zmsg_addstr (reply, zsock_endpoint (self->sink));
+    }
+    else
+    if (streq (method, "POST"))
+        reply = s_server_store_post (self, msg);
+    else {
+        zsys_error ("unknown server method '%s' - failure", method);
+        assert (false);
+    }
+    return reply;
+}
+
+static zmsg_t *
+s_server_store_post (server_t *self, zmsg_t *msg)
+{
+    char *subject = zmsg_popstr (msg);
+    hydra_post_t *post = hydra_post_new (subject);
+
+    char *parent_id = zmsg_popstr (msg);
+    hydra_post_set_parent_id (post, parent_id);
+    zstr_free (&parent_id);
+
+    char *mime_type = zmsg_popstr (msg);
+    hydra_post_set_mime_type (post, mime_type);
+    zstr_free (&mime_type);
+
+    char *arg_type = zmsg_popstr (msg);
+    if (streq (arg_type, "string")) {
+        char *content = zmsg_popstr (msg);
+        hydra_post_set_content (post, content);
+        zstr_free (&content);
+    }
+    else
+    if (streq (arg_type, "file")) {
+        char *filename = zmsg_popstr (msg);
+        hydra_post_set_file (post, filename);
+        zstr_free (&filename);
+    }
+    else
+    if (streq (arg_type, "frame")) {
+        zframe_t *frame = zmsg_pop (msg);
+        hydra_post_set_data (post, zframe_data (frame), zframe_size (frame));
+        zframe_destroy (&frame);
+    }
+    else {
+        zsys_error ("bad argument type=%s - failure", arg_type);
+        assert (false);
+    }
+    zstr_free (&arg_type);
+    zstr_free (&subject);
+
+    zmsg_t *reply = zmsg_new ();
+    zmsg_addstr (reply, hydra_post_ident (post));
+    hydra_ledger_store (self->ledger, &post);
+    return reply;
+}
+
+static int
+s_server_handle_sink (zloop_t *loop, zsock_t *reader, void *argument)
+{
+    //  Message is a single post object passed by reference
+    server_t *self = (server_t *) argument;
+    hydra_post_t *post;
+    zsock_recv (reader, "p", &post);
+    hydra_ledger_store (self->ledger, &post);
+    return 0;
 }
 
 
@@ -106,7 +196,8 @@ server_method (server_t *self, const char *method, zmsg_t *msg)
 static int
 client_initialize (client_t *self)
 {
-    //  Construct properties here
+    self->ledger = self->server->ledger;
+    self->credit = 20;
     return 0;
 }
 
@@ -115,7 +206,7 @@ client_initialize (client_t *self)
 static void
 client_terminate (client_t *self)
 {
-    //  Destroy properties here
+    hydra_post_destroy (&self->post);
 }
 
 
@@ -134,64 +225,88 @@ set_server_identity (client_t *self)
 }
 
 
-
 //  ---------------------------------------------------------------------------
-//  get_most_recent_post
+//  check_if_client_has_credit
 //
 
 static void
-get_most_recent_post (client_t *self)
+check_if_client_has_credit (client_t *self)
 {
-    hydra_proto_set_post_id (self->message, self->server->last_post_id);
-}
-
-
-//  ---------------------------------------------------------------------------
-//  get_single_post
-//
-
-static void
-get_single_post (client_t *self)
-{
-    zsys_info ("sending post=%s", hydra_proto_post_id (self->message));
-    char *filename = zsys_sprintf ("posts/%s", hydra_proto_post_id (self->message));
-    zconfig_t *post = zconfig_load (filename);
-    zstr_free (&filename);
-    if (post) {
-        //  Get post metadata into message
-        hydra_proto_set_reply_to  (self->message, zconfig_resolve (post, "/post/reply_to", ""));
-        hydra_proto_set_previous  (self->message, zconfig_resolve (post, "/post/previous", ""));
-        hydra_proto_set_timestamp (self->message, zconfig_resolve (post, "/post/timestamp", ""));
-        hydra_proto_set_digest    (self->message, zconfig_resolve (post, "/post/digest", ""));
-        hydra_proto_set_type      (self->message, zconfig_resolve (post, "/post/type", ""));
-        
-        //  Get post content into message
-        if (*hydra_proto_digest (self->message)) {
-            filename = zsys_sprintf ("contents/%s", hydra_proto_digest (self->message));
-            zchunk_t *chunk = zchunk_slurp (filename, CONTENT_MAX_SIZE);
-            if (chunk) {
-                zsys_info (" - content size=%zd", zchunk_size (chunk));
-                hydra_proto_set_content (self->message, &chunk);
-            }
-            zstr_free (&filename);
-        }
-    }
-    else {
-        hydra_proto_set_status (self->message, HYDRA_PROTO_NOT_FOUND);
+    if (--self->credit == 0) {
+        hydra_proto_set_status (self->message, HYDRA_PROTO_ACCESS_REFUSED);
         engine_set_exception (self, exception_event);
     }
 }
 
 
 //  ---------------------------------------------------------------------------
-//  allow_time_to_settle
+//  fetch_next_older_post
 //
 
 static void
-allow_time_to_settle (client_t *self)
+fetch_next_older_post (client_t *self)
 {
-    //  Give client to come back with HELLO if we restarted
-    engine_set_wakeup_event (self, 200, settled_event);
+    hydra_post_destroy (&self->post);
+    if (streq (hydra_proto_ident (self->message), "HEAD"))
+        self->post = hydra_ledger_fetch (self->ledger, hydra_ledger_size (self->ledger) - 1);
+    else {
+        //  Fetch post before (older than) specified one
+        int index = hydra_ledger_index (self->ledger, hydra_proto_ident (self->message));
+        if (index > 0)
+            self->post = hydra_ledger_fetch (self->ledger, index - 1);
+    }
+    if (self->post)
+        hydra_proto_set_ident (self->message, hydra_post_ident (self->post));
+    else
+        engine_set_exception (self, no_such_post_event);
+}
+
+
+//  ---------------------------------------------------------------------------
+//  fetch_next_newer_post
+//
+
+static void
+fetch_next_newer_post (client_t *self)
+{
+    hydra_post_destroy (&self->post);
+    if (streq (hydra_proto_ident (self->message), "TAIL"))
+        self->post = hydra_ledger_fetch (self->ledger, 0);
+    else {
+        //  Fetch post after (newer than) specified one
+        int index = hydra_ledger_index (self->ledger, hydra_proto_ident (self->message));
+        if (index >= 0)
+            self->post = hydra_ledger_fetch (self->ledger, index + 1);
+    }
+    if (self->post)
+        hydra_proto_set_ident (self->message, hydra_post_ident (self->post));
+    else
+        engine_set_exception (self, no_such_post_event);
+}
+
+
+//  ---------------------------------------------------------------------------
+//  fetch_post_metadata
+//
+
+static void
+fetch_post_metadata (client_t *self)
+{
+    assert (self->post);
+    hydra_post_encode (self->post, self->message);
+}
+
+
+//  ---------------------------------------------------------------------------
+//  fetch_post_content_chunk
+//
+
+static void
+fetch_post_content_chunk (client_t *self)
+{
+    zchunk_t *chunk = hydra_post_fetch (self->post,
+        hydra_proto_octets (self->message), hydra_proto_offset (self->message));
+    hydra_proto_set_content (self->message, &chunk);
 }
 
 
@@ -220,7 +335,7 @@ hydra_server_test (bool verbose)
     zactor_t *server = zactor_new (hydra_server, "server");
     if (verbose)
         zstr_send (server, "VERBOSE");
-    zstr_sendx (server, "CONFIGURE", "hydra.cfg", NULL);
+    zstr_sendx (server, "LOAD", "hydra.cfg", NULL);
     zstr_sendx (server, "BIND", "ipc://@/hydra_server", NULL);
 
     zsock_t *client = zsock_new (ZMQ_DEALER);

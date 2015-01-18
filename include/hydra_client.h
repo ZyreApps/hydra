@@ -35,7 +35,8 @@ typedef struct _hydra_client_t hydra_client_t;
 //  @interface
 //  Create a new hydra_client
 //  Connect to server endpoint, with specified timeout in msecs (zero means wait    
-//  forever). Constructor succeeds if connection is successful.                     
+//  forever). Constructor succeeds if connection is successful. The sink endpoint is
+//  provided by the node's own server, for storing received posts.                  
 hydra_client_t *
     hydra_client_new (const char *endpoint, uint32_t timeout);
 
@@ -56,16 +57,19 @@ zactor_t *
 zsock_t *
     hydra_client_msgpipe (hydra_client_t *self);
 
-//  Fetch all available posts from server, starting with most recent, and working   
-//  backwards, until there are no more posts, or the server disappears. TODO: add   
-//  maximum posts to fetch.                                                         
+//  Synchronize client with server. Fetches all posts that it can. Returns number of
+//  posts fetched (0 or more), or -1 if there was an error.                         
 //  Returns >= 0 if successful, -1 if interrupted.
 int 
-    hydra_client_fetch (hydra_client_t *self);
+    hydra_client_sync (hydra_client_t *self);
 
 //  Return last received status
 int 
     hydra_client_status (hydra_client_t *self);
+
+//  Return last received nickname
+const char *
+    hydra_client_nickname (hydra_client_t *self);
 
 //  Return last received reason
 const char *

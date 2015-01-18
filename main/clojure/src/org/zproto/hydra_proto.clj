@@ -25,12 +25,24 @@
 (defprotocol PHydraProto
   (hello [this identity nickname]
     [this routing-id identity nickname])
-  (hello-ok [this post-id identity nickname]
-    [this routing-id post-id identity nickname])
-  (get-post [this post-id]
-    [this routing-id post-id])
-  (get-post-ok [this post-id reply-to previous timestamp digest type content]
-    [this routing-id post-id reply-to previous timestamp digest type content])
+  (hello-ok [this identity nickname]
+    [this routing-id identity nickname])
+  (next-older [this ident]
+    [this routing-id ident])
+  (next-newer [this ident]
+    [this routing-id ident])
+  (next-ok [this ident]
+    [this routing-id ident])
+  (next-empty [this]
+    [this routing-id])
+  (meta [this]
+    [this routing-id])
+  (meta-ok [this subject timestamp parent-id digest mime-type content-size]
+    [this routing-id subject timestamp parent-id digest mime-type content-size])
+  (chunk [this offset octets]
+    [this routing-id offset octets])
+  (chunk-ok [this offset content]
+    [this routing-id offset content])
   (goodbye [this]
     [this routing-id])
   (goodbye-ok [this]
@@ -44,18 +56,42 @@
     (HydraProto/sendHello socket identity nickname))
   (hello [this routing-id identity nickname]
     (HydraProto/sendHello socket routing-id identity nickname))
-  (hello-ok [this post-id identity nickname]
-    (HydraProto/sendHello_Ok socket post-id identity nickname))
-  (hello-ok [this routing-id post-id identity nickname]
-    (HydraProto/sendHello_Ok socket routing-id post-id identity nickname))
-  (get-post [this post-id]
-    (HydraProto/sendGet_Post socket post-id))
-  (get-post [this routing-id post-id]
-    (HydraProto/sendGet_Post socket routing-id post-id))
-  (get-post-ok [this post-id reply-to previous timestamp digest type content]
-    (HydraProto/sendGet_Post_Ok socket post-id reply-to previous timestamp digest type content))
-  (get-post-ok [this routing-id post-id reply-to previous timestamp digest type content]
-    (HydraProto/sendGet_Post_Ok socket routing-id post-id reply-to previous timestamp digest type content))
+  (hello-ok [this identity nickname]
+    (HydraProto/sendHello_Ok socket identity nickname))
+  (hello-ok [this routing-id identity nickname]
+    (HydraProto/sendHello_Ok socket routing-id identity nickname))
+  (next-older [this ident]
+    (HydraProto/sendNext_Older socket ident))
+  (next-older [this routing-id ident]
+    (HydraProto/sendNext_Older socket routing-id ident))
+  (next-newer [this ident]
+    (HydraProto/sendNext_Newer socket ident))
+  (next-newer [this routing-id ident]
+    (HydraProto/sendNext_Newer socket routing-id ident))
+  (next-ok [this ident]
+    (HydraProto/sendNext_Ok socket ident))
+  (next-ok [this routing-id ident]
+    (HydraProto/sendNext_Ok socket routing-id ident))
+  (next-empty [this]
+    (HydraProto/sendNext_Empty socket))
+  (next-empty [this routing-id]
+    (HydraProto/sendNext_Empty socket routing-id))
+  (meta [this]
+    (HydraProto/sendMeta socket))
+  (meta [this routing-id]
+    (HydraProto/sendMeta socket routing-id))
+  (meta-ok [this subject timestamp parent-id digest mime-type content-size]
+    (HydraProto/sendMeta_Ok socket subject timestamp parent-id digest mime-type content-size))
+  (meta-ok [this routing-id subject timestamp parent-id digest mime-type content-size]
+    (HydraProto/sendMeta_Ok socket routing-id subject timestamp parent-id digest mime-type content-size))
+  (chunk [this offset octets]
+    (HydraProto/sendChunk socket offset octets))
+  (chunk [this routing-id offset octets]
+    (HydraProto/sendChunk socket routing-id offset octets))
+  (chunk-ok [this offset content]
+    (HydraProto/sendChunk_Ok socket offset content))
+  (chunk-ok [this routing-id offset content]
+    (HydraProto/sendChunk_Ok socket routing-id offset content))
   (goodbye [this]
     (HydraProto/sendGoodbye socket))
   (goodbye [this routing-id]
@@ -83,23 +119,32 @@
 (defn nickname! [^HydraProto msg format & opts]
  (.setNickname msg format (object-array opts)))
 
-(defn post-id! [^HydraProto msg format & opts]
- (.setPost_Id msg format (object-array opts)))
+(defn ident! [^HydraProto msg format & opts]
+ (.setIdent msg format (object-array opts)))
 
-(defn reply-to! [^HydraProto msg format & opts]
- (.setReply_To msg format (object-array opts)))
-
-(defn previous! [^HydraProto msg format & opts]
- (.setPrevious msg format (object-array opts)))
+(defn subject! [^HydraProto msg format & opts]
+ (.setSubject msg format (object-array opts)))
 
 (defn timestamp! [^HydraProto msg format & opts]
  (.setTimestamp msg format (object-array opts)))
 
+(defn parent-id! [^HydraProto msg format & opts]
+ (.setParent_Id msg format (object-array opts)))
+
 (defn digest! [^HydraProto msg format & opts]
  (.setDigest msg format (object-array opts)))
 
-(defn type! [^HydraProto msg format & opts]
- (.setType msg format (object-array opts)))
+(defn mime-type! [^HydraProto msg format & opts]
+ (.setMime_Type msg format (object-array opts)))
+
+(defn content-size! [^HydraProto msg content-size]
+ (.setContent_Size msg content-size))
+
+(defn offset! [^HydraProto msg offset]
+ (.setOffset msg offset))
+
+(defn octets! [^HydraProto msg octets]
+ (.setOctets msg octets))
 
 (defn content! [^HydraProto msg content]
  (.setContent msg content))

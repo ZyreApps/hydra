@@ -102,6 +102,8 @@ set (hydra_headers
     include/hydra_proto.h
     include/hydra_server.h
     include/hydra_client.h
+    src/hydra_post.h
+    src/hydra_ledger.h
 )
 source_group ("Header Files" FILES ${hydra_headers})
 install(FILES ${hydra_headers} DESTINATION include)
@@ -115,6 +117,8 @@ set (hydra_sources
     src/hydra_proto.c
     src/hydra_server.c
     src/hydra_client.c
+    src/hydra_post.c
+    src/hydra_ledger.c
 )
 source_group ("Source Files" FILES ${hydra_sources})
 add_library(hydra SHARED ${hydra_sources})

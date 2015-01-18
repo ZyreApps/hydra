@@ -32,9 +32,11 @@
 ;;
 (defprotocol HydraServerBackend
   (set-server-identity [this msg identity nickname])
-  (get-most-recent-post [this msg identity nickname])
-  (get-single-post [this msg post-id])
-  (allow-time-to-settle [this msg])
+  (check-if-client-has-credit [this msg ident])
+  (fetch-next-older-post [this msg ident])
+  (fetch-next-newer-post [this msg ident])
+  (fetch-post-metadata [this msg])
+  (fetch-post-content-chunk [this msg offset octets])
   (signal-command-invalid [this msg]))
 
 (defn terminate [{:keys [state]} routing-id _]
@@ -70,29 +72,26 @@
 ;;
 (def state-events {
   :start {
-    HydraProto/HELLO [ (action set-server-identity .identity .nickname) (action get-most-recent-post .identity .nickname) (send HydraProto/HELLO_OK) (next-state :connected) ]
-    HydraProto/GOODBYE [ (send HydraProto/GOODBYE_OK) (action allow-time-to-settle) (next-state :settling) ]
-    HydraProto/EXPIRED [ (action allow-time-to-settle) (next-state :settling) ]
-    HydraProto/EXCEPTION [ (send HydraProto/ERROR) (action allow-time-to-settle) (next-state :settling) ]
-    :* [ (action signal-command-invalid) (send HydraProto/ERROR) (action allow-time-to-settle) (next-state :settling) ]
+    HydraProto/HELLO [ (action set-server-identity .identity .nickname) (send HydraProto/HELLO_OK) (next-state :connected) ]
+    HydraProto/EXPIRED [ terminate ]
+    HydraProto/EXCEPTION [ (send HydraProto/ERROR) terminate ]
+    :* [ (action signal-command-invalid) (send HydraProto/ERROR) terminate ]
   }
   :connected {
-    HydraProto/GET_POST [ (action get-single-post .post_id) (send HydraProto/GET_POST_OK) ]
-    HydraProto/GOODBYE [ (send HydraProto/GOODBYE_OK) (action allow-time-to-settle) (next-state :settling) ]
-    HydraProto/EXPIRED [ (action allow-time-to-settle) (next-state :settling) ]
-    HydraProto/EXCEPTION [ (send HydraProto/ERROR) (action allow-time-to-settle) (next-state :settling) ]
-    :* [ (action signal-command-invalid) (send HydraProto/ERROR) (action allow-time-to-settle) (next-state :settling) ]
+    HydraProto/NEXT_OLDER [ (action check-if-client-has-credit .ident) (action fetch-next-older-post .ident) (send HydraProto/NEXT_OK) ]
+    HydraProto/NEXT_NEWER [ (action check-if-client-has-credit .ident) (action fetch-next-newer-post .ident) (send HydraProto/NEXT_OK) ]
+    HydraProto/NO_SUCH_POST [ (send HydraProto/NEXT_EMPTY) ]
+    HydraProto/META [ (action fetch-post-metadata) (send HydraProto/META_OK) ]
+    HydraProto/CHUNK [ (action fetch-post-content-chunk .offset .octets) (send HydraProto/CHUNK_OK) ]
+    HydraProto/GOODBYE [ (send HydraProto/GOODBYE_OK) terminate ]
+    HydraProto/EXPIRED [ terminate ]
+    HydraProto/EXCEPTION [ (send HydraProto/ERROR) terminate ]
+    :* [ (action signal-command-invalid) (send HydraProto/ERROR) terminate ]
   }
   :defaults {
-    HydraProto/GOODBYE [ (send HydraProto/GOODBYE_OK) (action allow-time-to-settle) (next-state :settling) ]
-    HydraProto/EXPIRED [ (action allow-time-to-settle) (next-state :settling) ]
-    HydraProto/EXCEPTION [ (send HydraProto/ERROR) (action allow-time-to-settle) (next-state :settling) ]
-    :* [ (action signal-command-invalid) (send HydraProto/ERROR) (action allow-time-to-settle) (next-state :settling) ]
-  }
-  :settling {
-    HydraProto/SETTLED [ terminate ]
-    HydraProto/HELLO [ (action set-server-identity .identity .nickname) (action get-most-recent-post .identity .nickname) (send HydraProto/HELLO_OK) (next-state :connected) ]
-    :* [ ]
+    HydraProto/EXPIRED [ terminate ]
+    HydraProto/EXCEPTION [ (send HydraProto/ERROR) terminate ]
+    :* [ (action signal-command-invalid) (send HydraProto/ERROR) terminate ]
   }})
 
 (def determine-actions
