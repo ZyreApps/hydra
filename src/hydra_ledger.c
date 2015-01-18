@@ -1,12 +1,12 @@
 /*  =========================================================================
     hydra_ledger - work with Hydra ledger of posts
 
-    Copyright (c) the Contributors as noted in the AUTHORS file.       
-    This file is part of zbroker, the ZeroMQ broker project.           
-                                                                       
+    Copyright (c) the Contributors as noted in the AUTHORS file.
+    This file is part of zbroker, the ZeroMQ broker project.
+
     This Source Code Form is subject to the terms of the Mozilla Public
     License, v. 2.0. If a copy of the MPL was not distributed with this
-    file, You can obtain one at http://mozilla.org/MPL/2.0/.           
+    file, You can obtain one at http://mozilla.org/MPL/2.0/.
     =========================================================================
 */
 
@@ -45,7 +45,9 @@ s_have_new_post (hydra_ledger_t *self, hydra_post_t *post, char *filename)
     }
     else {
         zsys_warning ("hydra_ledger: deleting duplicate post, filename=%s", filename);
-        zsys_file_delete (filename);
+        char *fullname = zsys_sprintf ("posts/%s", filename);
+        zsys_file_delete (fullname);
+        zstr_free (&fullname);
     }
 }
 
@@ -62,7 +64,7 @@ hydra_ledger_new (void)
         self->max_size = 256;      //  Arbitrary, this is expanded on demand
         self->posts_list = (char **) malloc (sizeof (char *) * self->max_size);
     }
-    if (self->posts_list) 
+    if (self->posts_list)
         self->post_files = zhash_new ();
     if (self->post_files)
         zhash_autofree (self->post_files);
@@ -113,7 +115,7 @@ hydra_ledger_load (hydra_ledger_t *self)
 {
     assert (self);
     assert (self->size == 0);
-    
+
     //  Load a list of all post files in the posts directory
     zdir_t *dir = zdir_new ("posts", "-");
     zfile_t **files = zdir_flatten (dir);
@@ -121,7 +123,7 @@ hydra_ledger_load (hydra_ledger_t *self)
     //  Get yyyy-mm-dd string for checking today's files
     char *today = zclock_timestr ();
     today [10] = 0;
-    
+
     zrex_t *rex = zrex_new ("^(\\d\\d\\d\\d-\\d\\d-\\d\\d)\\((\\d+)\\)$");
     assert (rex && zrex_valid (rex));
 
@@ -162,7 +164,7 @@ hydra_ledger_store (hydra_ledger_t *self, hydra_post_t **post_p)
     assert (self);
     assert (post_p && *post_p);
     hydra_post_t *post = *post_p;
-    
+
     //  Get yyyy-mm-dd string for filename
     char *today = zclock_timestr ();
     today [10] = 0;
@@ -230,12 +232,12 @@ hydra_ledger_test (bool verbose)
     zsys_dir_create (".hydra_test");
     zsys_dir_change (".hydra_test");
 
-    //  Create one pre-existing post 
+    //  Create one pre-existing post
     hydra_post_t *post = hydra_post_new ("Test post 1");
     hydra_post_set_content (post, "Hello, World");
     hydra_post_save (post, "20150108_00000001");
     hydra_post_destroy (&post);
-    
+
     //  Load ledger, it will have the one post
     hydra_ledger_t *ledger = hydra_ledger_new ();
     assert (ledger);
@@ -243,7 +245,7 @@ hydra_ledger_test (bool verbose)
     int rc = hydra_ledger_load (ledger);
     assert (rc == 1);
     assert (hydra_ledger_size (ledger) == 1);
-    
+
     //  Now create second post and save via ledger
     post = hydra_post_new ("Test post 2");
     hydra_post_set_content (post, "Hello, Again");
