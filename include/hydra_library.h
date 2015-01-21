@@ -53,12 +53,15 @@ typedef struct _hydra_server_t hydra_server_t;
 #define HYDRA_SERVER_T_DEFINED
 typedef struct _hydra_client_t hydra_client_t;
 #define HYDRA_CLIENT_T_DEFINED
+typedef struct _hydra_post_t hydra_post_t;
+#define HYDRA_POST_T_DEFINED
 
 
 //  Public API classes
 #include "hydra_proto.h"
 #include "hydra_server.h"
 #include "hydra_client.h"
+#include "hydra_post.h"
 
 #endif
 /*

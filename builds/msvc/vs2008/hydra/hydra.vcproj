@@ -397,7 +397,7 @@
       <File RelativePath="..\..\..\..\include\hydra_proto.h" />
       <File RelativePath="..\..\..\..\include\hydra_server.h" />
       <File RelativePath="..\..\..\..\include\hydra_client.h" />
-      <File RelativePath="..\..\..\..\src\hydra_post.h" />
+      <File RelativePath="..\..\..\..\include\hydra_post.h" />
       <File RelativePath="..\..\..\..\src\hydra_ledger.h" />
       <File RelativePath="..\..\..\..\include\hydra_library.h" />
     </Filter>

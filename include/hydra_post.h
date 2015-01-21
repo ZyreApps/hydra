@@ -13,8 +13,6 @@
 #ifndef __HYDRA_POST_H_INCLUDED__
 #define __HYDRA_POST_H_INCLUDED__
 
-typedef struct _hydra_post_t hydra_post_t;
-
 #ifdef __cplusplus
 extern "C" {
 #endif

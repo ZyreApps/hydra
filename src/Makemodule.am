@@ -15,6 +15,7 @@ include_HEADERS = \
     include/hydra_proto.h \
     include/hydra_server.h \
     include/hydra_client.h \
+    include/hydra_post.h \
     include/hydra_library.h
 
 src_libhydra_la_SOURCES = \

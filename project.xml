@@ -13,7 +13,7 @@
     <class name = "hydra_proto" />
     <class name = "hydra_server" />
     <class name = "hydra_client" />
-    <class name = "hydra_post"   private = "1" />
+    <class name = "hydra_post"   />
     <class name = "hydra_ledger" private = "1" />
     
     <model name = "hydra_proto" />

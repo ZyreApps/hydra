@@ -3,7 +3,7 @@
 #  Please refer to the README for information about making permanent changes.  #
 ################################################################################
 MAN1 = hydrad.1
-MAN3 = hydra.3 hydra_proto.3 hydra_server.3 hydra_client.3
+MAN3 = hydra.3 hydra_proto.3 hydra_server.3 hydra_client.3 hydra_post.3
 MAN7 = 
 MAN_DOC = $(MAN1) $(MAN3) $(MAN7)
 
@@ -41,6 +41,8 @@ hydra_proto.txt:
 hydra_server.txt:
 	zproject_mkman $<
 hydra_client.txt:
+	zproject_mkman $<
+hydra_post.txt:
 	zproject_mkman $<
 hydrad.txt:
 	zproject_mkman $<
