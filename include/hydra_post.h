@@ -111,6 +111,11 @@ HYDRA_EXPORT void
 HYDRA_EXPORT hydra_post_t *
     hydra_post_decode (hydra_proto_t *proto);
 
+//  Duplicate a post instance. Does not create a new post on disk; this
+//  provides a second instance of the same post item.
+HYDRA_EXPORT hydra_post_t *
+    hydra_post_dup (hydra_post_t *self);
+
 //  Print the post file to stdout
 HYDRA_EXPORT void
     hydra_post_print (hydra_post_t *self);

@@ -146,6 +146,8 @@ static void
 static void
     signal_connected (client_t *self);
 static void
+    signal_success (client_t *self);
+static void
     check_peer_status (client_t *self);
 static void
     prepare_to_fetch_newest_post (client_t *self);
@@ -164,21 +166,19 @@ static void
 static void
     store_post_content_chunk (client_t *self);
 static void
-    store_the_post_in_ledger (client_t *self);
+    store_complete_post (client_t *self);
 static void
     save_peer_configuration (client_t *self);
+static void
+    signal_server_not_present (client_t *self);
 static void
     use_this_post_as_newest (client_t *self);
 static void
     prepare_to_fetch_older_post (client_t *self);
 static void
-    signal_server_not_present (client_t *self);
-static void
     signal_unexpected_server_reply (client_t *self);
 static void
     signal_internal_error (client_t *self);
-static void
-    signal_success (client_t *self);
 static void
     signal_expired (client_t *self);
 
@@ -526,6 +526,12 @@ s_client_execute (s_client_t *self, event_t event)
             case connected_state:
                 if (self->event == sync_event) {
                     if (!self->exception) {
+                        //  signal success
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ signal success");
+                        signal_success (&self->client);
+                    }
+                    if (!self->exception) {
                         //  check peer status
                         if (hydra_client_verbose)
                             zsys_debug ("hydra_client:          $ check peer status");
@@ -667,6 +673,8 @@ s_client_execute (s_client_t *self, event_t event)
                             zsys_debug ("hydra_client:          $ signal sync success");
                         signal_sync_success (&self->client);
                     }
+                    if (!self->exception)
+                        self->state = connected_state;
                 }
                 else
                 if (self->event == meta_ok_event) {
@@ -699,10 +707,10 @@ s_client_execute (s_client_t *self, event_t event)
                         store_post_content_chunk (&self->client);
                     }
                     if (!self->exception) {
-                        //  store the post in ledger
+                        //  store complete post
                         if (hydra_client_verbose)
-                            zsys_debug ("hydra_client:          $ store the post in ledger");
-                        store_the_post_in_ledger (&self->client);
+                            zsys_debug ("hydra_client:          $ store complete post");
+                        store_complete_post (&self->client);
                     }
                     if (!self->exception) {
                         //  save peer configuration
@@ -858,10 +866,10 @@ s_client_execute (s_client_t *self, event_t event)
                         store_post_content_chunk (&self->client);
                     }
                     if (!self->exception) {
-                        //  store the post in ledger
+                        //  store complete post
                         if (hydra_client_verbose)
-                            zsys_debug ("hydra_client:          $ store the post in ledger");
-                        store_the_post_in_ledger (&self->client);
+                            zsys_debug ("hydra_client:          $ store complete post");
+                        store_complete_post (&self->client);
                     }
                     if (!self->exception) {
                         //  save peer configuration
@@ -1428,8 +1436,9 @@ hydra_client_destructor (hydra_client_t *self)
 
 
 //  ---------------------------------------------------------------------------
-//  Synchronize client with server. Fetches all posts that it can. Returns number of
-//  posts fetched (0 or more), or -1 if there was an error.                         
+//  Start synchronization with server. This method returns immediately, and then    
+//  signals progress via the msgpipe socket, with POST, SUCCESS, and FAILED         
+//  commands.                                                                       
 //  Returns >= 0 if successful, -1 if interrupted.
 
 int 
@@ -1437,7 +1446,7 @@ hydra_client_sync (hydra_client_t *self)
 {
     assert (self);
     zsock_send (self->actor, "s", "SYNC");
-    if (s_accept_reply (self, "SUCCESS", "FAILURE", NULL))
+    if (s_accept_reply (self, "SUCCESS", NULL))
         return -1;              //  Interrupted or timed-out
     return self->status;
 }

@@ -313,14 +313,16 @@ store_post_content_chunk (client_t *self)
 
 
 //  ---------------------------------------------------------------------------
-//  store_the_post_in_ledger
+//  store_complete_post
 //
 
 static void
-store_the_post_in_ledger (client_t *self)
+store_complete_post (client_t *self)
 {
-    //  Send post to the sink, and drop our reference to it
-    zsock_send (self->sink, "p", self->post);
+    //  Send post off to sink and to API for caller; since both recipients
+    //  will own the post, we duplicate it as we send it
+    zsock_send (self->sink, "p", hydra_post_dup (self->post));
+    zsock_send (self->msgpipe, "sp", "POST", self->post);
     self->post = NULL;
     self->received++;
 }
@@ -355,12 +357,14 @@ signal_success (client_t *self)
 
 //  ---------------------------------------------------------------------------
 //  signal_sync_success
+//  We send SUCCESS + count to msgpipe, which caller is monitoring for new
+//  posts and this completion status.
 //
 
 static void
 signal_sync_success (client_t *self)
 {
-    zsock_send (self->cmdpipe, "si", "SUCCESS", self->received);
+    zsock_send (self->msgpipe, "si", "SUCCESS", self->received);
 }
 
 
@@ -383,6 +387,7 @@ static void
 signal_server_not_present (client_t *self)
 {
     zsock_send (self->cmdpipe, "sis", "FAILURE", -1, "Server is not reachable");
+    zsock_send (self->msgpipe, "sis", "FAILURE", -1, "Server is not reachable");
 }
 
 
@@ -394,6 +399,7 @@ static void
 signal_unexpected_server_reply (client_t *self)
 {
     zsock_send (self->cmdpipe, "sis", "FAILURE", -1, "Unexpected server reply");
+    zsock_send (self->msgpipe, "sis", "FAILURE", -1, "Unexpected server reply");
 }
 
 
@@ -405,6 +411,7 @@ static void
 signal_expired (client_t *self)
 {
     zsock_send (self->cmdpipe, "sis", "FAILURE", -1, "Server disconnected");
+    zsock_send (self->msgpipe, "sis", "FAILURE", -1, "Server disconnected");
 }
 
 
@@ -416,6 +423,7 @@ static void
 signal_internal_error (client_t *self)
 {
     zsock_send (self->cmdpipe, "sis", "FAILURE", -1, "Internal server error");
+    zsock_send (self->msgpipe, "sis", "FAILURE", -1, "Internal server error");
 }
 
 

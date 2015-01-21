@@ -57,8 +57,9 @@ zactor_t *
 zsock_t *
     hydra_client_msgpipe (hydra_client_t *self);
 
-//  Synchronize client with server. Fetches all posts that it can. Returns number of
-//  posts fetched (0 or more), or -1 if there was an error.                         
+//  Start synchronization with server. This method returns immediately, and then    
+//  signals progress via the msgpipe socket, with POST, SUCCESS, and FAILED         
+//  commands.                                                                       
 //  Returns >= 0 if successful, -1 if interrupted.
 int 
     hydra_client_sync (hydra_client_t *self);

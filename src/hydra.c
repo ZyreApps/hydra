@@ -213,6 +213,8 @@ typedef struct {
     bool started;               //  Are we already running?
     bool terminated;            //  Did caller ask us to quit?
     bool local_ipc;             //  Use local IPC discovery
+    int status;                 //  Last status from any client
+    char *reason;               //  Last error reason from any client
 } self_t;
 
 static self_t *
@@ -244,6 +246,7 @@ s_self_destroy (self_t **self_p)
         zactor_destroy (&self->server);
         zlistx_destroy (&self->posts);
         zyre_destroy (&self->zyre);
+        zstr_free (&self->reason);
         free (self->directory);
         free (self);
         *self_p = NULL;
@@ -290,6 +293,12 @@ s_self_get_property (self_t *self, zmsg_t *request)
         zsock_send (self->pipe, "s", nickname);
         zstr_free (&nickname);
     }
+    else
+    if (streq (name, "STATUS"))
+        zsock_send (self->pipe, "i", self->status);
+    else
+    if (streq (name, "REASON"))
+        zsock_send (self->pipe, "s", self->reason);
     else {
         zsys_error ("hydra: - invalid GET property: %s", name);
         assert (false);
@@ -399,14 +408,37 @@ s_self_handle_zyre (self_t *self)
     if (zyre_event_type (event) == ZYRE_EVENT_ENTER) {
         char *endpoint = zyre_event_header (event, "X-HYDRA");
         hydra_client_t *client = hydra_client_new (endpoint, 1000);
-        if (client) {
-            int count = hydra_client_sync (client);
-            if (count >= 0)
-                zsys_info ("hydra: received %d posts from peer", count);
-            else
-                zsys_error ("hydra: failed - %s", hydra_client_reason (client));
-            hydra_client_destroy (&client);
+
+        if (client
+        && hydra_client_sync (client) == 0) {
+            //  Now read and process events from client actor
+            zsock_t *msgpipe = hydra_client_msgpipe (client);
+            while (true) {
+                char *command = zstr_recv (msgpipe);
+                if (!command)
+                    break;      //  Interrupted
+                if (streq (command, "POST")) {
+                    hydra_post_t *post;
+                    zsock_recv (msgpipe, "p", &post);
+                    assert (post);
+                    hydra_post_print (post);
+                    zlistx_add_end (self->posts, post);
+                }
+                else
+                if (streq (command, "SUCCESS")) {
+                    zsock_recv (msgpipe, "i", &self->status);
+                    break;
+                }
+                else
+                if (streq (command, "FAILURE")) {
+                    zstr_free (&self->reason);
+                    zsock_recv (msgpipe, "is", &self->status, &self->reason);
+                    zsys_error ("hydra: failed - %s", self->reason);
+                    break;
+                }
+            }
         }
+        hydra_client_destroy (&client);
     }
     zyre_event_destroy (&event);
 }

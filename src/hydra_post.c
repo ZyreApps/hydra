@@ -406,6 +406,27 @@ hydra_post_fetch (hydra_post_t *self, size_t size, size_t offset)
 
 
 //  --------------------------------------------------------------------------
+//  Duplicate a post instance. Does not create a new post on disk; this
+//  provides a second instance of the same post item.
+
+hydra_post_t *
+hydra_post_dup (hydra_post_t *self)
+{
+    assert (self);
+    hydra_post_t *copy = hydra_post_new (self->subject);
+    if (copy) {
+        strcpy (copy->ident, self->ident);
+        strcpy (self->timestamp, self->timestamp);
+        strcpy (copy->parent_id, self->parent_id);
+        copy->mime_type = strdup (self->mime_type);
+        strcpy (copy->digest, self->digest);
+        copy->content_size = self->content_size;
+    }
+    return copy;
+}
+
+
+//  --------------------------------------------------------------------------
 //  Print the post file to stdout
 
 void
@@ -456,6 +477,9 @@ hydra_post_test (bool verbose)
     assert (chunk);
     assert (zchunk_size (chunk) == 12);
     zchunk_destroy (&chunk);
+
+    hydra_post_t *copy = hydra_post_dup (post);
+    assert (streq (hydra_post_ident (copy), hydra_post_ident (post)));
     hydra_post_destroy (&post);
 
     //  Delete the test directory

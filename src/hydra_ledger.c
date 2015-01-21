@@ -44,7 +44,8 @@ s_have_new_post (hydra_ledger_t *self, hydra_post_t *post, char *filename)
         self->posts_list [self->size++] = strdup (hydra_post_ident (post));
     }
     else {
-        zsys_warning ("hydra_ledger: deleting duplicate post, filename=%s", filename);
+        zsys_warning ("hydra_ledger: duplicate post, ident=%s", hydra_post_ident (post));
+        zsys_warning ("hydra_ledger: deleting filename=%s", filename);
         char *fullname = zsys_sprintf ("posts/%s", filename);
         zsys_file_delete (fullname);
         zstr_free (&fullname);
