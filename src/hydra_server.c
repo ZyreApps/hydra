@@ -73,14 +73,13 @@ static zmsg_t *
 static int
 server_initialize (server_t *self)
 {
-    //  Create new empty config file if we need it
+    //  Create new config file if necessary
     zconfig_t *config = zconfig_load ("hydra.cfg");
     if (!config)
         config = zconfig_new ("root", NULL);
-    
+
     char *identity = zconfig_resolve (config, "/hydra/identity", NULL);
     if (!identity) {
-        zsys_info ("hydrad: no server identity found, regenerating");
         zuuid_t *uuid = zuuid_new ();
         zconfig_put (config, "/hydra/identity", zuuid_str (uuid));
         zconfig_put (config, "/hydra/nickname", "Anonymous");
@@ -88,8 +87,6 @@ server_initialize (server_t *self)
         zuuid_destroy (&uuid);
         identity = zconfig_resolve (config, "/hydra/identity", NULL);
     }
-    zsys_info ("hydrad: server identity=%s", identity);
-    
     //  Create and bind sink socket (posts will come here)
     self->sink = zsock_new (ZMQ_PULL);
     zsock_bind (self->sink, "inproc://%s", identity);
@@ -126,6 +123,11 @@ server_method (server_t *self, const char *method, zmsg_t *msg)
     else
     if (streq (method, "POST"))
         reply = s_server_store_post (self, msg);
+    else
+    if (streq (method, "NICKNAME")) {
+        reply = zmsg_new ();
+        zmsg_addstr (reply, zconfig_resolve (self->config, "/hydra/nickname", ""));
+    }
     else {
         zsys_error ("unknown server method '%s' - failure", method);
         assert (false);

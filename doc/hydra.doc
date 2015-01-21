@@ -1,18 +1,4 @@
-hydra(3)
-========
-
-NAME
-----
-hydra - main Hydra API
-
-SYNOPSIS
---------
-----
-Please add @interface section in ../src/hydra.c.
-----
-
-DESCRIPTION
------------
+#### hydra - main Hydra API
 
 The hydra class provides a public API to the Hydra peer to peer service.
 This service runs as a background thread (an actor), and offers a
@@ -27,12 +13,14 @@ Posts and content are held in a single directory tree, by default .hydra
 under the current working directory. You can override the location when
 calling hydra_new ().
 
-EXAMPLE
--------
-.From hydra_test method
-----
-//  Simple create/destroy test
-hydra_t *self = hydra_new (NULL);
-assert (self);
-hydra_destroy (&self);
-----
+This is the class interface:
+
+Please add @interface section in ../src/hydra.c.
+
+This is the class self test code:
+
+    //  Simple create/destroy test
+    hydra_t *self = hydra_new (NULL);
+    assert (self);
+    hydra_destroy (&self);
+

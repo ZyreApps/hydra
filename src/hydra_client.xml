@@ -32,6 +32,7 @@
 
     <state name = "connected" inherit = "defaults">
         <event name = "sync" next = "have peer status">
+            <action name = "signal success" />
             <action name = "check peer status" />
         </event>
     </state>
@@ -56,7 +57,7 @@
             <action name = "skip post if duplicate" />
             <action name = "send" message = "META" />
         </event>
-        <event name = "NEXT EMPTY">
+        <event name = "NEXT EMPTY" next = "connected">
             <action name = "signal sync success" />
         </event>
         <event name = "META OK">
@@ -67,12 +68,16 @@
         <event name = "CHUNK OK">
             <!-- Assume one chunk per content for now -->
             <action name = "store post content chunk" />
-            <action name = "store the post in ledger" />
+            <action name = "store complete post" />
             <action name = "save peer configuration" />
             <action name = "send" message = "NEXT OLDER" />
         </event>
         <event name = "duplicate">
             <action name = "send" message = "NEXT OLDER" />
+        </event>
+        <event name = "expired">
+            <action name = "signal server not present" />
+            <action name = "terminate" />
         </event>
     </state>
     
@@ -95,7 +100,7 @@
         <event name = "CHUNK OK">
             <!-- Assume one chunk per content for now -->
             <action name = "store post content chunk" />
-            <action name = "store the post in ledger" />
+            <action name = "store complete post" />
             <action name = "save peer configuration" />
             <action name = "send" message = "NEXT NEWER" />
         </event>
@@ -127,6 +132,9 @@
             <action name = "signal success" />
             <action name = "save peer configuration" />
             <action name = "terminate" />
+        </event>
+        <event name = "*">
+            <!-- Ignore anything else the server may send us -->
         </event>
         <event name = "expired">
             <action name = "signal expired" />
@@ -168,9 +176,9 @@
     </reply>
     
     <method name = "sync" return = "status">
-    Synchronize client with server. Fetches all posts that it can. Returns
-    number of posts fetched (0 or more), or -1 if there was an error.
+    Start synchronization with server. This method returns immediately, and
+    then signals progress via the msgpipe socket, with POST, SUCCESS, and
+    FAILED commands.
         <accept reply = "SUCCESS" />
-        <accept reply = "FAILURE" />
     </method>
 </class>

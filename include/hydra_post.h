@@ -13,8 +13,6 @@
 #ifndef __HYDRA_POST_H_INCLUDED__
 #define __HYDRA_POST_H_INCLUDED__
 
-typedef struct _hydra_post_t hydra_post_t;
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -112,6 +110,11 @@ HYDRA_EXPORT void
 //  Create a new post from a hydra_proto HEADER-OK message.
 HYDRA_EXPORT hydra_post_t *
     hydra_post_decode (hydra_proto_t *proto);
+
+//  Duplicate a post instance. Does not create a new post on disk; this
+//  provides a second instance of the same post item.
+HYDRA_EXPORT hydra_post_t *
+    hydra_post_dup (hydra_post_t *self);
 
 //  Print the post file to stdout
 HYDRA_EXPORT void

@@ -20,7 +20,7 @@ include $(PREBUILT_SHARED_LIBRARY)
 include $(CLEAR_VARS)
 LOCAL_MODULE := hydra
 LOCAL_C_INCLUDES := ../../include $(LIBZMQ)/include
-LOCAL_SRC_FILES := hydra_proto.c hydra_server.c hydra_client.c hydra_post.c hydra_ledger.c
+LOCAL_SRC_FILES := hydra.c hydra_proto.c hydra_server.c hydra_client.c hydra_post.c hydra_ledger.c
 LOCAL_SHARED_LIBRARIES := zmq
 include $(BUILD_SHARED_LIBRARY)
 

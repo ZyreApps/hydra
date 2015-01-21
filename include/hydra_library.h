@@ -45,18 +45,23 @@
 #endif
 
 //  Opaque class structures to allow forward references
+typedef struct _hydra_t hydra_t;
+#define HYDRA_T_DEFINED
 typedef struct _hydra_proto_t hydra_proto_t;
 #define HYDRA_PROTO_T_DEFINED
 typedef struct _hydra_server_t hydra_server_t;
 #define HYDRA_SERVER_T_DEFINED
 typedef struct _hydra_client_t hydra_client_t;
 #define HYDRA_CLIENT_T_DEFINED
+typedef struct _hydra_post_t hydra_post_t;
+#define HYDRA_POST_T_DEFINED
 
 
 //  Public API classes
 #include "hydra_proto.h"
 #include "hydra_server.h"
 #include "hydra_client.h"
+#include "hydra_post.h"
 
 #endif
 /*
