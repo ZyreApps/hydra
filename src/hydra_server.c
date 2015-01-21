@@ -187,6 +187,10 @@ s_server_handle_sink (zloop_t *loop, zsock_t *reader, void *argument)
     server_t *self = (server_t *) argument;
     hydra_post_t *post;
     zsock_recv (reader, "p", &post);
+
+    puts ("---- received  ----");
+    hydra_post_print (post);
+    
     hydra_ledger_store (self->ledger, &post);
     return 0;
 }

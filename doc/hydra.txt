@@ -8,7 +8,65 @@ hydra - main Hydra API
 SYNOPSIS
 --------
 ----
-Please add @interface section in ../src/hydra.c.
+//  Constructor, creates a new Hydra node. Note that until you start the
+//  node it is silent and invisible to other nodes on the network. You may
+//  specify the working directory, which defaults to .hydra in the current
+//  working directory. Creates the working directory if necessary.
+HYDRA_EXPORT hydra_t *
+    hydra_new (const char *directory);
+
+//  Destructor, destroys a Hydra node. When you destroy a node, any posts
+//  it is sending or receiving will be discarded.
+HYDRA_EXPORT void
+    hydra_destroy (hydra_t **self_p);
+
+//  Set node nickname; this is saved persistently in the Hydra configuration
+//  file.
+HYDRA_EXPORT void
+    hydra_set_nickname (hydra_t *self, const char *nickname);
+
+//  Return our node nickname, as previously stored in hydra.cfg, or set by
+//  the hydra_set_nickname() method. Caller must free returned string using
+//  zstr_free ().
+HYDRA_EXPORT const char *
+    hydra_nickname (hydra_t *self);
+
+//  Set the trace level to animation of main actors; this is helpful to
+//  debug the Hydra protocol flow.
+HYDRA_EXPORT void
+    hydra_set_animate (hydra_t *self);
+
+//  Set the trace level to animation of all actors including those used in
+//  security and discovery. Use this to collect diagnostic logs.
+HYDRA_EXPORT void
+    hydra_set_verbose (hydra_t *self);
+
+//  By default, Hydra needs a network interface capable of broadcast UDP
+//  traffic, e.g. WiFi or LAN interface. To run nodes on a stand-alone PC,
+//  set the local IPC option. The node will then do gossip discovery over
+//  IPC. Gossip discovery needs at exactly one node to be running in a
+//  directory called ".hydra".
+HYDRA_EXPORT void
+    hydra_set_local_ipc (hydra_t *self);
+
+//  Start node. When you start a node it begins discovery and post exchange.
+//  Returns 0 if OK, -1 if it wasn't possible to start the node.
+HYDRA_EXPORT int
+    hydra_start (hydra_t *self);
+
+//  Return next available post, if any. Does not block. If there are no posts
+//  waiting, returns NULL. The caller can read the post using the hydra_post
+//  API, and must destroy the post when done with it.
+HYDRA_EXPORT hydra_post_t *
+    hydra_fetch (hydra_t *self);
+
+//  Return the Hydra version for run-time API detection
+HYDRA_EXPORT void
+    hydra_version (int *major, int *minor, int *patch);
+
+//  Self test of this class
+HYDRA_EXPORT void
+    hydra_test (bool verbose);
 ----
 
 DESCRIPTION
@@ -34,5 +92,7 @@ EXAMPLE
 //  Simple create/destroy test
 hydra_t *self = hydra_new (NULL);
 assert (self);
+hydra_post_t *post = hydra_fetch (self);
+assert (post == NULL);
 hydra_destroy (&self);
 ----
