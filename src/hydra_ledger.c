@@ -36,6 +36,7 @@ s_have_new_post (hydra_ledger_t *self, hydra_post_t *post, char *filename)
     //  If the post is new then we store it, otherwise we get rid of it
     if (zhash_insert (self->post_files, hydra_post_ident (post), filename) == 0) {
         //  Store post ID in posts_list and bump size
+        zsys_warning ("hydra_ledger: store post, ident=%s", hydra_post_ident (post));
         if (self->size == self->max_size - 1) {
             self->max_size *= 2;
             self->posts_list = (char **) realloc (
