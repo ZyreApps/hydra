@@ -173,6 +173,22 @@ hydra_start (hydra_t *self)
 
 
 //  --------------------------------------------------------------------------
+//  Return next available post, if any. Does not block. If there are no posts 
+//  waiting, returns NULL. The caller can read the post using the hydra_post
+//  API, and must destroy the post when done with it.
+
+hydra_post_t *
+hydra_fetch (hydra_t *self)
+{
+    assert (self);
+    hydra_post_t *post;
+    zsock_send (self->actor, "s", "FETCH");
+    zsock_recv (self->actor, "p", &post);
+    return post;
+}
+
+
+//  --------------------------------------------------------------------------
 //  Return the Hydra version for run-time API detection
 
 void
@@ -192,6 +208,7 @@ typedef struct {
     zpoller_t *poller;          //  Socket poller
     zactor_t *server;           //  Hydra server instance
     zyre_t *zyre;               //  Zyre discovery service
+    zlistx_t *posts;            //  Posts to be delivered to API
     char *directory;            //  Working directory
     bool started;               //  Are we already running?
     bool terminated;            //  Did caller ask us to quit?
@@ -211,6 +228,8 @@ s_self_new (zsock_t *pipe, char *directory)
     //  give the caller opportunity to configure then, and then start.
     self->zyre = zyre_new (NULL);
     self->server = zactor_new (hydra_server, NULL);
+    self->posts = zlistx_new ();
+    zlistx_set_destructor (self->posts, (czmq_destructor *) hydra_post_destroy);
     zsock_send (self->server, "ss", "LOAD", "hydra.cfg");
     return self;
 }
@@ -223,6 +242,7 @@ s_self_destroy (self_t **self_p)
         self_t *self = *self_p;
         zpoller_destroy (&self->poller);
         zactor_destroy (&self->server);
+        zlistx_destroy (&self->posts);
         zyre_destroy (&self->zyre);
         free (self->directory);
         free (self);
@@ -323,7 +343,16 @@ s_self_start (self_t *self)
     zsock_signal (self->pipe, rc);
 }
 
-    
+
+static void
+s_self_fetch (self_t *self)
+{
+
+//     zlistx_add_end (list, post)
+    zsock_send (self->pipe, "p", zlistx_detach (self->posts, NULL));
+}
+
+
 //  --------------------------------------------------------------------------
 //  Handle a command from calling application
 
@@ -344,6 +373,9 @@ s_self_handle_pipe (self_t *self)
     else
     if (streq (command, "START"))
         s_self_start (self);
+    else
+    if (streq (command, "FETCH"))
+        s_self_fetch (self);
     else
     if (streq (command, "$TERM"))
         self->terminated = true;
@@ -420,6 +452,8 @@ hydra_test (bool verbose)
     //  Simple create/destroy test
     hydra_t *self = hydra_new (NULL);
     assert (self);
+    hydra_post_t *post = hydra_fetch (self);
+    assert (post == NULL);
     hydra_destroy (&self);
     //  @end
 

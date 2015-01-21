@@ -67,6 +67,12 @@ HYDRA_EXPORT void
 HYDRA_EXPORT int
     hydra_start (hydra_t *self);
 
+//  Return next available post, if any. Does not block. If there are no posts
+//  waiting, returns NULL. The caller can read the post using the hydra_post
+//  API, and must destroy the post when done with it.
+HYDRA_EXPORT hydra_post_t *
+    hydra_fetch (hydra_t *self);
+
 //  Return the Hydra version for run-time API detection
 HYDRA_EXPORT void
     hydra_version (int *major, int *minor, int *patch);
