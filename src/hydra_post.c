@@ -43,7 +43,7 @@ struct _hydra_post_t {
 //  Create a new post
 
 hydra_post_t *
-hydra_post_new (char *subject)
+hydra_post_new (const char *subject)
 {
     hydra_post_t *self = (hydra_post_t *) zmalloc (sizeof (hydra_post_t));
     if (self)
@@ -448,7 +448,7 @@ hydra_post_print (hydra_post_t *self)
 //  --------------------------------------------------------------------------
 //  Selftest
 
-int
+void
 hydra_post_test (bool verbose)
 {
     printf (" * hydra_post: ");
@@ -492,5 +492,4 @@ hydra_post_test (bool verbose)
     //  @end
 
     printf ("OK\n");
-    return 0;
 }

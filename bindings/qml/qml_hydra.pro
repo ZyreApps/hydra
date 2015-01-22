@@ -38,10 +38,12 @@ LIBS += -lhydra
 
 HEADERS += \
   $$SRCDIR/qml_hydra_plugin.h \
-  $$SRCDIR/QmlHydra.h 
+  $$SRCDIR/QmlHydra.h \
+  $$SRCDIR/QmlHydraPost.h 
 
 SOURCES += \
-  $$SRCDIR/QmlHydra.cpp 
+  $$SRCDIR/QmlHydra.cpp \
+  $$SRCDIR/QmlHydraPost.cpp 
 
 OBJECTS_DIR = $$BUILDDIR/.obj
 MOC_DIR     = $$BUILDDIR/.moc

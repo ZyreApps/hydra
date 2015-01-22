@@ -47,6 +47,32 @@ module Hydra
       attach_function :hydra_test, [:bool], :void, **opts
       
       require_relative 'ffi/hydra'
+      
+      attach_function :hydra_post_new, [:string], :pointer, **opts
+      attach_function :hydra_post_destroy, [:pointer], :void, **opts
+      attach_function :hydra_post_ident, [:pointer], :string, **opts
+      attach_function :hydra_post_subject, [:pointer], :string, **opts
+      attach_function :hydra_post_timestamp, [:pointer], :string, **opts
+      attach_function :hydra_post_parent_id, [:pointer], :string, **opts
+      attach_function :hydra_post_mime_type, [:pointer], :string, **opts
+      attach_function :hydra_post_digest, [:pointer], :string, **opts
+      attach_function :hydra_post_location, [:pointer], :string, **opts
+      attach_function :hydra_post_content_size, [:pointer], :pointer, **opts
+      attach_function :hydra_post_set_parent_id, [:pointer, :string], :void, **opts
+      attach_function :hydra_post_set_mime_type, [:pointer, :string], :void, **opts
+      attach_function :hydra_post_set_content, [:pointer, :string], :void, **opts
+      attach_function :hydra_post_set_data, [:pointer, :pointer, :pointer], :void, **opts
+      attach_function :hydra_post_set_file, [:pointer, :string], :int, **opts
+      attach_function :hydra_post_save, [:pointer, :string], :int, **opts
+      attach_function :hydra_post_load, [:string], :pointer, **opts
+      attach_function :hydra_post_fetch, [:pointer, :pointer, :pointer], :pointer, **opts
+      attach_function :hydra_post_encode, [:pointer, :pointer], :void, **opts
+      attach_function :hydra_post_decode, [:pointer], :pointer, **opts
+      attach_function :hydra_post_dup, [:pointer], :pointer, **opts
+      attach_function :hydra_post_print, [:pointer], :void, **opts
+      attach_function :hydra_post_test, [:bool], :void, **opts
+      
+      require_relative 'ffi/post'
     end
   end
 end

@@ -123,6 +123,7 @@ module Hydra
       def fetch
         raise DestroyedError unless @ptr
         result = ::Hydra::FFI.hydra_fetch @ptr
+        result = Post.__new result, true
         result
       end
       

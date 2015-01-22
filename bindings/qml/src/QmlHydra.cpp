@@ -58,8 +58,10 @@ int QmlHydra::start () {
 //  Return next available post, if any. Does not block. If there are no posts
 //  waiting, returns NULL. The caller can read the post using the hydra_post 
 //  API, and must destroy the post when done with it.                        
-hydra_post_t *QmlHydra::fetch () {
-    return hydra_fetch (self);
+QmlHydraPost *QmlHydra::fetch () {
+    QmlHydraPost *retQ_ = new QmlHydraPost ();
+    retQ_->self = hydra_fetch (self);
+    return retQ_;
 };
 
 

@@ -57,7 +57,7 @@ public slots:
     //  Return next available post, if any. Does not block. If there are no posts
     //  waiting, returns NULL. The caller can read the post using the hydra_post 
     //  API, and must destroy the post when done with it.                        
-    hydra_post_t *fetch ();
+    QmlHydraPost *fetch ();
 };
 
 class QmlHydraAttached : public QObject
