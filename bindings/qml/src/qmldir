@@ -1,0 +1,2 @@
+module QmlHydra
+plugin qml_hydra

@@ -1,0 +1,74 @@
+
+<class name = "hydra">
+    Main Hydra API
+    
+    <constructor>
+        Constructor, creates a new Hydra node. Note that until you start the
+        node it is silent and invisible to other nodes on the network. You may
+        specify the working directory, which defaults to .hydra in the current
+        working directory. Creates the working directory if necessary.
+        <argument name = "directory" type = "string" />
+    </constructor>
+    
+    <destructor>
+        Destructor, destroys a Hydra node. When you destroy a node, any posts
+        it is sending or receiving will be discarded.
+    </destructor>
+    
+    <method name = "set nickname">
+        Set node nickname; this is saved persistently in the Hydra configuration
+        file.
+        <argument name = "nickname" type = "string" />
+    </method>
+    
+    <method name = "nickname">
+        Return our node nickname, as previously stored in hydra.cfg, or set by
+        the hydra_set_nickname() method. Caller must free returned string using
+        zstr_free ().
+        <return type = "string" />
+    </method>
+    
+    <method name = "set animate">
+        Set the trace level to animation of main actors; this is helpful to
+        debug the Hydra protocol flow.
+    </method>
+    
+    <method name = "set verbose">
+        Set the trace level to animation of all actors including those used in
+        security and discovery. Use this to collect diagnostic logs.
+    </method>
+    
+    <method name = "set local ipc">
+        By default, Hydra needs a network interface capable of broadcast UDP
+        traffic, e.g. WiFi or LAN interface. To run nodes on a stand-alone PC,
+        set the local IPC option. The node will then do gossip discovery over
+        IPC. Gossip discovery needs at exactly one node to be running in a
+        directory called ".hydra".
+    </method>
+    
+    <method name = "start">
+        Start node. When you start a node it begins discovery and post exchange.
+        Returns 0 if OK, -1 if it wasn't possible to start the node.
+        <return type = "integer" />
+    </method>
+    
+    <method name = "fetch">
+        Return next available post, if any. Does not block. If there are no posts
+        waiting, returns NULL. The caller can read the post using the hydra_post
+        API, and must destroy the post when done with it.
+        <return type = "hydra_post" fresh = "1" />
+    </method>
+    
+    <method name = "version" singleton = "1">
+        Return the Hydra version for run-time API detection
+        <argument name = "major" type = "integer" by_reference = "1" />
+        <argument name = "minor" type = "integer" by_reference = "1" />
+        <argument name = "patch" type = "integer" by_reference = "1" />
+    </method>
+    
+    <method name = "test" singleton = "1">
+        Self test of this class
+        <argument name = "verbose" type = "boolean" />
+    </method>
+    
+</class>
