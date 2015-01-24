@@ -39,7 +39,6 @@ typedef struct {
     zconfig_t *config;          //  Own configuration data
     char *identity;             //  Own identity to send to server
     char *nickname;             //  Own nickname to send to server
-    
     zconfig_t *peer_config;     //  Peer configuration data
     hydra_post_t *post;         //  Current post we're receiving
     const char *oldest;         //  Oldest post from peer
@@ -72,7 +71,7 @@ client_initialize (client_t *self)
     self->sink = zsock_new (ZMQ_PUSH);
     int rc = zsock_connect (self->sink, "inproc://%s", self->identity);
     assert (rc == 0);
-    
+
     return 0;
 }
 
@@ -400,18 +399,6 @@ signal_unexpected_server_reply (client_t *self)
 {
     zsock_send (self->cmdpipe, "sis", "FAILURE", -1, "Unexpected server reply");
     zsock_send (self->msgpipe, "sis", "FAILURE", -1, "Unexpected server reply");
-}
-
-
-//  ---------------------------------------------------------------------------
-//  signal_expired
-//
-
-static void
-signal_expired (client_t *self)
-{
-    zsock_send (self->cmdpipe, "sis", "FAILURE", -1, "Server disconnected");
-    zsock_send (self->msgpipe, "sis", "FAILURE", -1, "Server disconnected");
 }
 
 

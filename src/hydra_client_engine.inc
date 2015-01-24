@@ -47,8 +47,8 @@ typedef enum {
     meta_ok_event = 9,
     chunk_ok_event = 10,
     duplicate_event = 11,
-    expired_event = 12,
-    destructor_event = 13,
+    destructor_event = 12,
+    expired_event = 13,
     error_event = 14,
     goodbye_ok_event = 15
 } event_t;
@@ -81,8 +81,8 @@ s_event_name [] = {
     "META_OK",
     "CHUNK_OK",
     "duplicate",
-    "expired",
     "destructor",
+    "expired",
     "ERROR",
     "GOODBYE_OK"
 };
@@ -170,17 +170,15 @@ static void
 static void
     save_peer_configuration (client_t *self);
 static void
-    signal_server_not_present (client_t *self);
-static void
     use_this_post_as_newest (client_t *self);
 static void
     prepare_to_fetch_older_post (client_t *self);
 static void
+    signal_server_not_present (client_t *self);
+static void
     signal_unexpected_server_reply (client_t *self);
 static void
     signal_internal_error (client_t *self);
-static void
-    signal_expired (client_t *self);
 
 //  Global tracing/animation indicator; we can't use a client method as
 //  that only works after construction (which we often want to trace).
@@ -465,6 +463,18 @@ s_client_execute (s_client_t *self, event_t event)
                         self->state = connected_state;
                 }
                 else
+                if (self->event == destructor_event) {
+                    if (!self->exception) {
+                        //  send GOODBYE
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ send GOODBYE");
+                        hydra_proto_set_id (self->message, HYDRA_PROTO_GOODBYE);
+                        hydra_proto_send (self->message, self->dealer);
+                    }
+                    if (!self->exception)
+                        self->state = expect_goodbye_ok_state;
+                }
+                else
                 if (self->event == expired_event) {
                     if (!self->exception) {
                         //  signal server not present
@@ -478,18 +488,6 @@ s_client_execute (s_client_t *self, event_t event)
                             zsys_debug ("hydra_client:          $ terminate");
                         self->fsm_stopped = true;
                     }
-                }
-                else
-                if (self->event == destructor_event) {
-                    if (!self->exception) {
-                        //  send GOODBYE
-                        if (hydra_client_verbose)
-                            zsys_debug ("hydra_client:          $ send GOODBYE");
-                        hydra_proto_set_id (self->message, HYDRA_PROTO_GOODBYE);
-                        hydra_proto_send (self->message, self->dealer);
-                    }
-                    if (!self->exception)
-                        self->state = expect_goodbye_ok_state;
                 }
                 else
                 if (self->event == error_event) {
@@ -541,6 +539,18 @@ s_client_execute (s_client_t *self, event_t event)
                         self->state = have_peer_status_state;
                 }
                 else
+                if (self->event == destructor_event) {
+                    if (!self->exception) {
+                        //  send GOODBYE
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ send GOODBYE");
+                        hydra_proto_set_id (self->message, HYDRA_PROTO_GOODBYE);
+                        hydra_proto_send (self->message, self->dealer);
+                    }
+                    if (!self->exception)
+                        self->state = expect_goodbye_ok_state;
+                }
+                else
                 if (self->event == expired_event) {
                     if (!self->exception) {
                         //  signal server not present
@@ -554,18 +564,6 @@ s_client_execute (s_client_t *self, event_t event)
                             zsys_debug ("hydra_client:          $ terminate");
                         self->fsm_stopped = true;
                     }
-                }
-                else
-                if (self->event == destructor_event) {
-                    if (!self->exception) {
-                        //  send GOODBYE
-                        if (hydra_client_verbose)
-                            zsys_debug ("hydra_client:          $ send GOODBYE");
-                        hydra_proto_set_id (self->message, HYDRA_PROTO_GOODBYE);
-                        hydra_proto_send (self->message, self->dealer);
-                    }
-                    if (!self->exception)
-                        self->state = expect_goodbye_ok_state;
                 }
                 else
                 if (self->event == error_event) {
@@ -737,6 +735,18 @@ s_client_execute (s_client_t *self, event_t event)
                     }
                 }
                 else
+                if (self->event == destructor_event) {
+                    if (!self->exception) {
+                        //  send GOODBYE
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ send GOODBYE");
+                        hydra_proto_set_id (self->message, HYDRA_PROTO_GOODBYE);
+                        hydra_proto_send (self->message, self->dealer);
+                    }
+                    if (!self->exception)
+                        self->state = expect_goodbye_ok_state;
+                }
+                else
                 if (self->event == expired_event) {
                     if (!self->exception) {
                         //  signal server not present
@@ -750,18 +760,6 @@ s_client_execute (s_client_t *self, event_t event)
                             zsys_debug ("hydra_client:          $ terminate");
                         self->fsm_stopped = true;
                     }
-                }
-                else
-                if (self->event == destructor_event) {
-                    if (!self->exception) {
-                        //  send GOODBYE
-                        if (hydra_client_verbose)
-                            zsys_debug ("hydra_client:          $ send GOODBYE");
-                        hydra_proto_set_id (self->message, HYDRA_PROTO_GOODBYE);
-                        hydra_proto_send (self->message, self->dealer);
-                    }
-                    if (!self->exception)
-                        self->state = expect_goodbye_ok_state;
                 }
                 else
                 if (self->event == error_event) {
@@ -896,6 +894,18 @@ s_client_execute (s_client_t *self, event_t event)
                     }
                 }
                 else
+                if (self->event == destructor_event) {
+                    if (!self->exception) {
+                        //  send GOODBYE
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ send GOODBYE");
+                        hydra_proto_set_id (self->message, HYDRA_PROTO_GOODBYE);
+                        hydra_proto_send (self->message, self->dealer);
+                    }
+                    if (!self->exception)
+                        self->state = expect_goodbye_ok_state;
+                }
+                else
                 if (self->event == expired_event) {
                     if (!self->exception) {
                         //  signal server not present
@@ -909,18 +919,6 @@ s_client_execute (s_client_t *self, event_t event)
                             zsys_debug ("hydra_client:          $ terminate");
                         self->fsm_stopped = true;
                     }
-                }
-                else
-                if (self->event == destructor_event) {
-                    if (!self->exception) {
-                        //  send GOODBYE
-                        if (hydra_client_verbose)
-                            zsys_debug ("hydra_client:          $ send GOODBYE");
-                        hydra_proto_set_id (self->message, HYDRA_PROTO_GOODBYE);
-                        hydra_proto_send (self->message, self->dealer);
-                    }
-                    if (!self->exception)
-                        self->state = expect_goodbye_ok_state;
                 }
                 else
                 if (self->event == error_event) {
@@ -955,6 +953,18 @@ s_client_execute (s_client_t *self, event_t event)
                 break;
 
             case defaults_state:
+                if (self->event == destructor_event) {
+                    if (!self->exception) {
+                        //  send GOODBYE
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ send GOODBYE");
+                        hydra_proto_set_id (self->message, HYDRA_PROTO_GOODBYE);
+                        hydra_proto_send (self->message, self->dealer);
+                    }
+                    if (!self->exception)
+                        self->state = expect_goodbye_ok_state;
+                }
+                else
                 if (self->event == expired_event) {
                     if (!self->exception) {
                         //  signal server not present
@@ -968,18 +978,6 @@ s_client_execute (s_client_t *self, event_t event)
                             zsys_debug ("hydra_client:          $ terminate");
                         self->fsm_stopped = true;
                     }
-                }
-                else
-                if (self->event == destructor_event) {
-                    if (!self->exception) {
-                        //  send GOODBYE
-                        if (hydra_client_verbose)
-                            zsys_debug ("hydra_client:          $ send GOODBYE");
-                        hydra_proto_set_id (self->message, HYDRA_PROTO_GOODBYE);
-                        hydra_proto_send (self->message, self->dealer);
-                    }
-                    if (!self->exception)
-                        self->state = expect_goodbye_ok_state;
                 }
                 else
                 if (self->event == error_event) {
@@ -1022,33 +1020,6 @@ s_client_execute (s_client_t *self, event_t event)
                         signal_success (&self->client);
                     }
                     if (!self->exception) {
-                        //  save peer configuration
-                        if (hydra_client_verbose)
-                            zsys_debug ("hydra_client:          $ save peer configuration");
-                        save_peer_configuration (&self->client);
-                    }
-                    if (!self->exception) {
-                        //  terminate
-                        if (hydra_client_verbose)
-                            zsys_debug ("hydra_client:          $ terminate");
-                        self->fsm_stopped = true;
-                    }
-                }
-                else
-                if (self->event == expired_event) {
-                    if (!self->exception) {
-                        //  signal expired
-                        if (hydra_client_verbose)
-                            zsys_debug ("hydra_client:          $ signal expired");
-                        signal_expired (&self->client);
-                    }
-                    if (!self->exception) {
-                        //  save peer configuration
-                        if (hydra_client_verbose)
-                            zsys_debug ("hydra_client:          $ save peer configuration");
-                        save_peer_configuration (&self->client);
-                    }
-                    if (!self->exception) {
                         //  terminate
                         if (hydra_client_verbose)
                             zsys_debug ("hydra_client:          $ terminate");
@@ -1066,6 +1037,21 @@ s_client_execute (s_client_t *self, event_t event)
                     }
                     if (!self->exception)
                         self->state = expect_goodbye_ok_state;
+                }
+                else
+                if (self->event == expired_event) {
+                    if (!self->exception) {
+                        //  signal server not present
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ signal server not present");
+                        signal_server_not_present (&self->client);
+                    }
+                    if (!self->exception) {
+                        //  terminate
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ terminate");
+                        self->fsm_stopped = true;
+                    }
                 }
                 else
                 if (self->event == error_event) {
