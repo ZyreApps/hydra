@@ -265,6 +265,7 @@ hydra_ledger_test (bool verbose)
     assert (post);
     assert (streq (post_ident, hydra_post_ident (post)));
     free (post_ident);
+    hydra_post_destroy (&post);
 
     //  Done, destroy ledger
     hydra_ledger_destroy (&ledger);

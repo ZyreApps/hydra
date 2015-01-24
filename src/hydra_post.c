@@ -66,10 +66,10 @@ hydra_post_destroy (hydra_post_t **self_p)
     assert (self_p);
     if (*self_p) {
         hydra_post_t *self = *self_p;
+        zstr_free (&self->subject);
+        zstr_free (&self->mime_type);
+        zstr_free (&self->location);
         zchunk_destroy (&self->content);
-        free (self->subject);
-        free (self->mime_type);
-        free (self->location);
         free (self);
         *self_p = NULL;
     }
@@ -482,6 +482,7 @@ hydra_post_test (bool verbose)
     hydra_post_t *copy = hydra_post_dup (post);
     assert (streq (hydra_post_ident (copy), hydra_post_ident (post)));
     hydra_post_destroy (&post);
+    hydra_post_destroy (&copy);
 
     //  Delete the test directory
     zsys_dir_change ("..");
