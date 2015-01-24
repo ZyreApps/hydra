@@ -208,6 +208,7 @@ typedef struct {
     zpoller_t *poller;          //  Socket poller
     zactor_t *server;           //  Hydra server instance
     zyre_t *zyre;               //  Zyre discovery service
+    zhashx_t *peers;            //  All peers we are talking to
     zlistx_t *posts;            //  Posts to be delivered to API
     char *directory;            //  Working directory
     bool started;               //  Are we already running?
@@ -230,6 +231,8 @@ s_self_new (zsock_t *pipe, char *directory)
     //  give the caller opportunity to configure then, and then start.
     self->zyre = zyre_new (NULL);
     self->server = zactor_new (hydra_server, NULL);
+    self->peers = zhashx_new ();
+    zhashx_set_destructor (self->peers, (czmq_destructor *) hydra_client_destroy);
     self->posts = zlistx_new ();
     zlistx_set_destructor (self->posts, (czmq_destructor *) hydra_post_destroy);
     zsock_send (self->server, "ss", "LOAD", "hydra.cfg");
@@ -356,8 +359,6 @@ s_self_start (self_t *self)
 static void
 s_self_fetch (self_t *self)
 {
-
-//     zlistx_add_end (list, post)
     zsock_send (self->pipe, "p", zlistx_detach (self->posts, NULL));
 }
 
@@ -398,8 +399,8 @@ s_self_handle_pipe (self_t *self)
 
 
 //  --------------------------------------------------------------------------
-//  Handle a newly discovered peer; at present we handle one peer at a time
-//  and wait on that peer until it's finished synchronizing.
+//  Handle a Zyre event; we maintain a list of peers depending on ENTER and
+//  EXIT events, and synchronize with active peers.
 
 static void
 s_self_handle_zyre (self_t *self)
@@ -407,40 +408,49 @@ s_self_handle_zyre (self_t *self)
     zyre_event_t *event = zyre_event_new (self->zyre);
     if (zyre_event_type (event) == ZYRE_EVENT_ENTER) {
         char *endpoint = zyre_event_header (event, "X-HYDRA");
+        puts (endpoint);
         hydra_client_t *client = hydra_client_new (endpoint, 1000);
-
         if (client
-        && hydra_client_sync (client) == 0) {
-            //  Now read and process events from client actor
-            zsock_t *msgpipe = hydra_client_msgpipe (client);
-            while (true) {
-                char *command = zstr_recv (msgpipe);
-                if (!command)
-                    break;      //  Interrupted
-                if (streq (command, "POST")) {
-                    hydra_post_t *post;
-                    zsock_recv (msgpipe, "p", &post);
-                    assert (post);
-                    hydra_post_print (post);
-                    zlistx_add_end (self->posts, post);
-                }
-                else
-                if (streq (command, "SUCCESS")) {
-                    zsock_recv (msgpipe, "i", &self->status);
-                    break;
-                }
-                else
-                if (streq (command, "FAILURE")) {
-                    zstr_free (&self->reason);
-                    zsock_recv (msgpipe, "is", &self->status, &self->reason);
-                    zsys_error ("hydra: failed - %s", self->reason);
-                    break;
-                }
-            }
+        && !zhashx_insert (self->peers, zyre_event_sender (event), client)) {
+            zpoller_add (self->poller, hydra_client_msgpipe (client));
+            hydra_client_sync (client);
         }
+    }
+    else
+    if (zyre_event_type (event) == ZYRE_EVENT_EXIT) {
+        hydra_client_t *client =
+            (hydra_client_t *) zhashx_lookup (self->peers, zyre_event_sender (event));
+        if (client) 
+            zpoller_remove (self->poller, hydra_client_msgpipe (client));
         hydra_client_destroy (&client);
     }
     zyre_event_destroy (&event);
+}
+
+
+//  --------------------------------------------------------------------------
+//  Handle a peer event
+
+static void
+s_self_handle_peer (self_t *self, zsock_t *msgpipe)
+{
+    char *command = zstr_recv (msgpipe);
+    if (streq (command, "POST")) {
+        hydra_post_t *post;
+        zsock_recv (msgpipe, "p", &post);
+        assert (post);
+        zlistx_add_end (self->posts, post);
+    }
+    else
+    if (streq (command, "SUCCESS"))
+        zsock_recv (msgpipe, "i", &self->status);
+    else
+    if (streq (command, "FAILURE")) {
+        zstr_free (&self->reason);
+        zsock_recv (msgpipe, "is", &self->status, &self->reason);
+        zsys_error ("hydra: failed - %s", self->reason);
+    }
+    zstr_free (&command);
 }
 
 
@@ -460,6 +470,9 @@ s_self_actor (zsock_t *pipe, void *args)
             else
             if (which == zyre_socket (self->zyre))
                 s_self_handle_zyre (self);
+            else
+            if (zsock_is (which))
+                s_self_handle_peer (self, which);
             
             if (zpoller_terminated (self->poller))
                 break;          //  Interrupted
