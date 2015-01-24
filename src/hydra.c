@@ -479,7 +479,7 @@ s_self_actor (zsock_t *pipe, void *args)
         }
     }
     else
-        zsock_signal (pipe, -1);
+        zsock_signal (pipe, -1);    //  Failed to initialize
 
     s_self_destroy (&self);
 }

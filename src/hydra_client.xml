@@ -75,10 +75,6 @@
         <event name = "duplicate">
             <action name = "send" message = "NEXT OLDER" />
         </event>
-        <event name = "expired">
-            <action name = "signal server not present" />
-            <action name = "terminate" />
-        </event>
     </state>
     
     <!-- We're catching up with newer posts -->
@@ -110,12 +106,12 @@
     </state>
 
     <state name = "defaults">
+        <event name = "destructor" next = "expect goodbye ok">
+            <action name = "send" message = "GOODBYE" />
+        </event>
         <event name = "expired">
             <action name = "signal server not present" />
             <action name = "terminate" />
-        </event>
-        <event name = "destructor" next = "expect goodbye ok">
-            <action name = "send" message = "GOODBYE" />
         </event>
         <event name = "error">
             <action name = "signal unexpected server reply" />
@@ -130,16 +126,10 @@
     <state name = "expect goodbye ok" inherit = "defaults">
         <event name = "GOODBYE OK">
             <action name = "signal success" />
-            <action name = "save peer configuration" />
             <action name = "terminate" />
         </event>
         <event name = "*">
             <!-- Ignore anything else the server may send us -->
-        </event>
-        <event name = "expired">
-            <action name = "signal expired" />
-            <action name = "save peer configuration" />
-            <action name = "terminate" />
         </event>
     </state>
 
