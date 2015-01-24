@@ -15,7 +15,7 @@ if [ $BUILD_TYPE == "default" ]; then
 
     #   zyre
     git clone git://github.com/zeromq/zyre.git
-    ( cd czmq && ./autogen.sh && ./configure && make check && sudo make install && sudo ldconfig )
+    ( cd zyre && ./autogen.sh && ./configure && make check && sudo make install && sudo ldconfig )
 
     #   Build and check this project
     ./autogen.sh && ./configure && make && make check && sudo make install
