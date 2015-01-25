@@ -177,6 +177,22 @@ hydra_post_content_size (hydra_post_t *self)
 
 
 //  --------------------------------------------------------------------------
+//  Return the post content as a string. Returns NULL if the MIME type is
+//  not "text/plain". The caller must destroy the string when finished with it.
+
+char *
+hydra_post_content (hydra_post_t *self)
+{
+    assert (self);
+    char *content = NULL;
+    if (self->content && self->mime_type
+    &&  streq (self->mime_type, "text/plain"))
+        content = zchunk_strdup (self->content);
+    return content;
+}
+
+
+//  --------------------------------------------------------------------------
 //  Set the post parent id, which must be a valid post ID
 
 void
@@ -464,6 +480,9 @@ hydra_post_test (bool verbose)
     assert (post);
     hydra_post_set_content (post, "Hello, World");
     assert (streq (hydra_post_mime_type (post), "text/plain"));
+    char *content = hydra_post_content (post);
+    assert (streq (content, "Hello, World"));
+    zstr_free (&content);
     int rc = hydra_post_save (post, "testpost");
     assert (rc == 0);
     hydra_post_destroy (&post);

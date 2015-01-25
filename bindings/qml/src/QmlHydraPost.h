@@ -51,6 +51,10 @@ public slots:
     //  Return the post content size
     size_t contentSize ();
 
+    //  Return the post content as a string. Returns NULL if the MIME type is      
+    //  not "text/plain". The caller must destroy the string when finished with it.
+    QString content ();
+
     //  Set the post parent id, which must be a valid post ID
     void setParentId (const QString &parentId);
 

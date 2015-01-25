@@ -117,6 +117,14 @@ module Hydra
         result
       end
       
+      # Return the post content as a string. Returns NULL if the MIME type is      
+      # not "text/plain". The caller must destroy the string when finished with it.
+      def content
+        raise DestroyedError unless @ptr
+        result = ::Hydra::FFI.hydra_post_content @ptr
+        result
+      end
+      
       # Set the post parent id, which must be a valid post ID
       def set_parent_id parent_id
         raise DestroyedError unless @ptr

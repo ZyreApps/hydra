@@ -52,6 +52,12 @@
         <return type = "integer" c_type = "size_t" />
     </method>
     
+    <method name = "content">
+        Return the post content as a string. Returns NULL if the MIME type is
+        not "text/plain". The caller must destroy the string when finished with it.
+        <return type = "string" fresh = "1" />
+    </method>
+    
     <method name = "set_parent_id">
         Set the post parent id, which must be a valid post ID
         <argument name = "parent_id" type = "string" />

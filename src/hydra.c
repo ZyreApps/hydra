@@ -247,6 +247,7 @@ s_self_destroy (self_t **self_p)
         self_t *self = *self_p;
         zpoller_destroy (&self->poller);
         zactor_destroy (&self->server);
+        zhashx_destroy (&self->peers);
         zlistx_destroy (&self->posts);
         zyre_destroy (&self->zyre);
         zstr_free (&self->reason);
