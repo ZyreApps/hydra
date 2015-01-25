@@ -1,2 +1,4 @@
 module QmlHydra
 plugin qml_hydra
+
+Hydra  1.0  qml/Hydra.qml
