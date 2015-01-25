@@ -5,7 +5,7 @@ import QtQuick 2.2
 ListModel {
   id: root
   
-  dynamicRoles: true // Allow childrenIdents to be set after insertion
+  dynamicRoles: true // Allow childrenIds to be set after insertion
   
   // Add a post object to the list after validation.
   // If the post is problematic, an error is printed and it is ignored.
@@ -15,8 +15,8 @@ ListModel {
     if (!_validatePost(post)) return
     var index = _findPlacementIndexFor(post)
     insert(index, post)
-    _updateChildrenIdentsOf(post, index)
-    _updateChildrenIdentsOfParentOf(post)
+    _updateChildrenIdsOf(post, index)
+    _updateChildrenIdsOfParentOf(post)
   }
   
   // Return true if the post is valid, else false
@@ -95,19 +95,19 @@ ListModel {
     return ary
   }
   
-  // Update the childrenIdents array of the given post at the given index.
-  function _updateChildrenIdentsOf(post, index) {
-    setProperty(index, "childrenIdents",
+  // Update the childrenIds array of the given post at the given index.
+  function _updateChildrenIdsOf(post, index) {
+    setProperty(index, "childrenIds",
       _findPostsMapProp("parentId", post.ident, "ident"))
   }
   
   // If the given post is a child of a known post,
-  // update the childrenIdents array of that post.
-  function _updateChildrenIdentsOfParentOf(post) {
+  // update the childrenIds array of that post.
+  function _updateChildrenIdsOfParentOf(post) {
     if (post.parentId.length > 0) {
       var parentIndex = findPostIndex('ident', post.parentId)
       if (parentIndex !== null)
-        setProperty(parentIndex, "childrenIdents",
+        setProperty(parentIndex, "childrenIds",
           _findPostsMapProp("parentId", post.parentId, "ident"))
     }
   }

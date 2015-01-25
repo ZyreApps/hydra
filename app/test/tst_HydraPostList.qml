@@ -104,22 +104,22 @@ TestCase {
     subject.addPost(cloneObject(examplePost)) // added in arbitrary order
     subject.addPost(cloneObject(childPostB))
     parentPost = subject.findPost("ident", examplePost.ident)
-    compare(parentPost.childrenIdents[0], childPostB.ident)
-    compare(parentPost.childrenIdents[1], childPostA.ident)
+    compare(parentPost.childrenIds[0], childPostB.ident)
+    compare(parentPost.childrenIds[1], childPostA.ident)
     subject.clear()
     subject.addPost(cloneObject(examplePost)) // added in arbitrary order
     subject.addPost(cloneObject(childPostA))
     subject.addPost(cloneObject(childPostB))
     parentPost = subject.findPost("ident", examplePost.ident)
-    compare(parentPost.childrenIdents[0], childPostB.ident)
-    compare(parentPost.childrenIdents[1], childPostA.ident)
+    compare(parentPost.childrenIds[0], childPostB.ident)
+    compare(parentPost.childrenIds[1], childPostA.ident)
     subject.clear()
     subject.addPost(cloneObject(childPostA))
     subject.addPost(cloneObject(childPostB))
     subject.addPost(cloneObject(examplePost)) // added in arbitrary order
     parentPost = subject.findPost("ident", examplePost.ident)
-    compare(parentPost.childrenIdents[0], childPostB.ident)
-    compare(parentPost.childrenIdents[1], childPostA.ident)
+    compare(parentPost.childrenIds[0], childPostB.ident)
+    compare(parentPost.childrenIds[1], childPostA.ident)
   }
   
   function test_findPostIndex() {
