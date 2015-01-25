@@ -7,54 +7,55 @@
     <include filename = "../license.xml" />
 
     <grammar>
-    hydra = hello *( get-post ) [ goodbye ]
-    hello = c:hello ( s:hello-ok / s:invalid / s:failed )
-    get-post = c:get-post ( s:get-post-ok / s:invalid / s:failed )
-    goodbye = c:goodbye ( s:goodbye-ok / s:invalid / s:failed )
+    hydra = hello *( get-post | heartbeat ) [ goodbye ]
+    hello = C:HELLO ( S:HELLO-OK / S:INVALID / S:FAILED )
+    get-post = C:GET-POST ( S:GET-POST-OK / S:INVALID / S:FAILED )
+    heartbeat = C:PING S:PING-OK
+    goodbye = C:GOODBYE ( S:GOODBYE-OK / S:INVALID / S:FAILED )
     </grammar>
 
-    <message name = "hello">
+    <message name = "HELLO">
         Open new connection, provide client credentials.
         <field name = "identity" type = "string">Client identity</field>
         <field name = "nickname" type = "string">Client nickname</field>
     </message>
 
-    <message name = "hello ok">
+    <message name = "HELLO OK">
         Accept new connection, provide server credentials.
         <field name = "identity" type = "string">Server identity</field>
         <field name = "nickname" type = "string">Server nickname</field>
     </message>
 
-    <message name = "next older">
+    <message name = "NEXT OLDER">
         Client requests next post that is older than the specified post ID.
         If the post ID is "HEAD", fetches the newest post that the server has.
         <field name = "ident" type = "string">Client's oldest post ID</field>
     </message>
 
-    <message name = "next newer">
+    <message name = "NEXT NEWER">
         Client requests next post that is newer than the specified post ID.
         If the post ID is "TAIL", fetches the oldest post that the server has.
         <field name = "ident" type = "string">Client's newest post ID</field>
     </message>
 
-    <message name = "next ok">
+    <message name = "NEXT OK">
         Server returns a post identity to the client. This command does not
         provide all metadata, only the post identity string. Clients can then
         filter out posts they already have.
         <field name = "ident" type = "string">Post identifier</field>
     </message>
 
-    <message name = "next empty">
+    <message name = "NEXT EMPTY">
         Server signals that it has no (more) posts for the client.
     </message>
 
-    <message name = "meta">
+    <message name = "META">
         Client requests the metadata for the current post. A META command only
         makes sense after a NEXT-OLDER or NEXT-NEWER with a successful NEXT-OK
         from the server.
     </message>
 
-    <message name = "meta ok">
+    <message name = "META OK">
         Server returns the metadata for the current post (as returned by NEXT-OK).
         <field name = "subject" type = "longstr">Subject line</field>
         <field name = "timestamp" type = "string">Post creation timestamp</field>
@@ -64,28 +65,38 @@
         <field name = "content size" type = "number" size = "8">Content size, octets</field>
     </message>
 
-    <message name = "chunk">
+    <message name = "CHUNK">
         Client fetches a chunk of content data from the server, for the current
         post (as returned by NEXT-OK).
         <field name = "offset" type = "number" size = "8">Chunk offset in file</field>
         <field name = "octets" type = "number" size = "4">Maximum chunk size to fetch</field>
     </message>
 
-    <message name = "chunk ok">
+    <message name = "CHUNK OK">
         Return a chunk of post content.
         <field name = "offset" type = "number" size = "8">Chunk offset in file</field>
         <field name = "content" type = "chunk">Content data chunk</field>
     </message>
 
-    <message name = "goodbye">
+    <message name = "PING">
+        Client pings the server. Server replies with PING-OK, or ERROR with status
+        COMMAND-INVALID if the client is not recognized (e.g. after a server restart
+        or network recovery).
+    </message>
+
+    <message name = "PING OK">
+        Server replies to a client ping.
+    </message>
+
+    <message name = "GOODBYE">
         Close the connection politely
     </message>
 
-    <message name = "goodbye ok">
+    <message name = "GOODBYE OK">
         Handshake a connection close
     </message>
 
-    <message name = "error">
+    <message name = "ERROR">
         Command failed for some specific reason
         <field name = "status" type = "number" size = "2">3-digit status code</field>
         <field name = "reason" type = "string">Printable explanation</field>

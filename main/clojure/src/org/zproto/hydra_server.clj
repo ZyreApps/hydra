@@ -31,13 +31,13 @@
 ;; the returning send function as a vector.
 ;;
 (defprotocol HydraServerBackend
-  (set-server-identity [this msg identity nickname])
-  (check-if-client-has-credit [this msg ident])
-  (fetch-next-older-post [this msg ident])
-  (fetch-next-newer-post [this msg ident])
+  (set-server-identity [this msg])
+  (signal-command-invalid [this msg])
+  (check-if-client-has-credit [this msg])
+  (fetch-next-older-post [this msg])
+  (fetch-next-newer-post [this msg])
   (fetch-post-metadata [this msg])
-  (fetch-post-content-chunk [this msg offset octets])
-  (signal-command-invalid [this msg]))
+  (fetch-post-content-chunk [this msg]))
 
 (defn terminate [{:keys [state]} routing-id _]
   (swap! state dissoc routing-id))
@@ -72,17 +72,18 @@
 ;;
 (def state-events {
   :start {
-    HydraProto/HELLO [ (action set-server-identity .identity .nickname) (send HydraProto/HELLO_OK) (next-state :connected) ]
+    HydraProto/HELLO [ (action set-server-identity) (send HydraProto/HELLO_OK) (next-state :connected) ]
+    :* [ (action signal-command-invalid) (send HydraProto/ERROR) ]
     HydraProto/EXPIRED [ terminate ]
     HydraProto/EXCEPTION [ (send HydraProto/ERROR) terminate ]
-    :* [ (action signal-command-invalid) (send HydraProto/ERROR) terminate ]
   }
   :connected {
-    HydraProto/NEXT_OLDER [ (action check-if-client-has-credit .ident) (action fetch-next-older-post .ident) (send HydraProto/NEXT_OK) ]
-    HydraProto/NEXT_NEWER [ (action check-if-client-has-credit .ident) (action fetch-next-newer-post .ident) (send HydraProto/NEXT_OK) ]
+    HydraProto/NEXT_OLDER [ (action check-if-client-has-credit) (action fetch-next-older-post) (send HydraProto/NEXT_OK) ]
+    HydraProto/NEXT_NEWER [ (action check-if-client-has-credit) (action fetch-next-newer-post) (send HydraProto/NEXT_OK) ]
     HydraProto/NO_SUCH_POST [ (send HydraProto/NEXT_EMPTY) ]
     HydraProto/META [ (action fetch-post-metadata) (send HydraProto/META_OK) ]
-    HydraProto/CHUNK [ (action fetch-post-content-chunk .offset .octets) (send HydraProto/CHUNK_OK) ]
+    HydraProto/CHUNK [ (action fetch-post-content-chunk) (send HydraProto/CHUNK_OK) ]
+    HydraProto/PING [ (send HydraProto/PING_OK) ]
     HydraProto/GOODBYE [ (send HydraProto/GOODBYE_OK) terminate ]
     HydraProto/EXPIRED [ terminate ]
     HydraProto/EXCEPTION [ (send HydraProto/ERROR) terminate ]

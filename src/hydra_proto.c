@@ -333,6 +333,12 @@ hydra_proto_recv (hydra_proto_t *self, zsock_t *input)
             }
             break;
 
+        case HYDRA_PROTO_PING:
+            break;
+
+        case HYDRA_PROTO_PING_OK:
+            break;
+
         case HYDRA_PROTO_GOODBYE:
             break;
 
@@ -593,6 +599,14 @@ hydra_proto_print (hydra_proto_t *self)
             zsys_debug ("    content=[ ... ]");
             break;
             
+        case HYDRA_PROTO_PING:
+            zsys_debug ("HYDRA_PROTO_PING:");
+            break;
+            
+        case HYDRA_PROTO_PING_OK:
+            zsys_debug ("HYDRA_PROTO_PING_OK:");
+            break;
+            
         case HYDRA_PROTO_GOODBYE:
             zsys_debug ("HYDRA_PROTO_GOODBYE:");
             break;
@@ -686,6 +700,12 @@ hydra_proto_command (hydra_proto_t *self)
             break;
         case HYDRA_PROTO_CHUNK_OK:
             return ("CHUNK_OK");
+            break;
+        case HYDRA_PROTO_PING:
+            return ("PING");
+            break;
+        case HYDRA_PROTO_PING_OK:
+            return ("PING_OK");
             break;
         case HYDRA_PROTO_GOODBYE:
             return ("GOODBYE");
@@ -1162,6 +1182,26 @@ hydra_proto_test (bool verbose)
         assert (hydra_proto_routing_id (self));
         assert (hydra_proto_offset (self) == 123);
         assert (memcmp (zchunk_data (hydra_proto_content (self)), "Captcha Diem", 12) == 0);
+    }
+    hydra_proto_set_id (self, HYDRA_PROTO_PING);
+
+    //  Send twice
+    hydra_proto_send (self, output);
+    hydra_proto_send (self, output);
+
+    for (instance = 0; instance < 2; instance++) {
+        hydra_proto_recv (self, input);
+        assert (hydra_proto_routing_id (self));
+    }
+    hydra_proto_set_id (self, HYDRA_PROTO_PING_OK);
+
+    //  Send twice
+    hydra_proto_send (self, output);
+    hydra_proto_send (self, output);
+
+    for (instance = 0; instance < 2; instance++) {
+        hydra_proto_recv (self, input);
+        assert (hydra_proto_routing_id (self));
     }
     hydra_proto_set_id (self, HYDRA_PROTO_GOODBYE);
 

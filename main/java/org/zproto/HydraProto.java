@@ -65,6 +65,12 @@ post (as returned by NEXT-OK).
         offset              number 8    Chunk offset in file
         content             chunk       Content data chunk
 
+    PING - Client pings the server. Server replies with PING-OK, or ERROR with status
+COMMAND-INVALID if the client is not recognized (e.g. after a server restart
+or network recovery).
+
+    PING_OK - Server replies to a client ping.
+
     GOODBYE - Close the connection politely
 
     GOODBYE_OK - Handshake a connection close
@@ -110,9 +116,11 @@ public class HydraProto implements java.io.Closeable
     public static final int META_OK               = 8;
     public static final int CHUNK                 = 9;
     public static final int CHUNK_OK              = 10;
-    public static final int GOODBYE               = 11;
-    public static final int GOODBYE_OK            = 12;
-    public static final int ERROR                 = 13;
+    public static final int PING                  = 11;
+    public static final int PING_OK               = 12;
+    public static final int GOODBYE               = 13;
+    public static final int GOODBYE_OK            = 14;
+    public static final int ERROR                 = 15;
 
     //  Structure of our class
     private ZFrame routingId;           // Routing_id from ROUTER, if any
@@ -356,6 +364,12 @@ public class HydraProto implements java.io.Closeable
                 self.content = self.getBlock((int) self.getNumber4());
                 break;
 
+            case PING:
+                break;
+
+            case PING_OK:
+                break;
+
             case GOODBYE:
                 break;
 
@@ -476,6 +490,12 @@ public class HydraProto implements java.io.Closeable
             frameSize += (content != null) ? content.length : 0;
             break;
 
+        case PING:
+            break;
+
+        case PING_OK:
+            break;
+
         case GOODBYE:
             break;
 
@@ -588,6 +608,12 @@ public class HydraProto implements java.io.Closeable
               } else {
                   putNumber4(0);
               }
+            break;
+
+        case PING:
+            break;
+
+        case PING_OK:
             break;
 
         case GOODBYE:
@@ -949,6 +975,58 @@ public class HydraProto implements java.io.Closeable
     }
 
 //  --------------------------------------------------------------------------
+//  Send the PING to the socket in one step
+
+    public static void sendPing (
+        Socket output)
+    {
+	sendPing (
+		    output,
+		    null);
+    }
+
+//  --------------------------------------------------------------------------
+//  Send the PING to a router socket in one step
+
+    public static void sendPing (
+        Socket output,
+	ZFrame routingId)
+    {
+        HydraProto self = new HydraProto (HydraProto.PING);
+        if (routingId != null)
+        {
+	        self.setRoutingId (routingId);
+        }
+        self.send (output);
+    }
+
+//  --------------------------------------------------------------------------
+//  Send the PING_OK to the socket in one step
+
+    public static void sendPing_Ok (
+        Socket output)
+    {
+	sendPing_Ok (
+		    output,
+		    null);
+    }
+
+//  --------------------------------------------------------------------------
+//  Send the PING_OK to a router socket in one step
+
+    public static void sendPing_Ok (
+        Socket output,
+	ZFrame routingId)
+    {
+        HydraProto self = new HydraProto (HydraProto.PING_OK);
+        if (routingId != null)
+        {
+	        self.setRoutingId (routingId);
+        }
+        self.send (output);
+    }
+
+//  --------------------------------------------------------------------------
 //  Send the GOODBYE to the socket in one step
 
     public static void sendGoodbye (
@@ -1081,6 +1159,10 @@ public class HydraProto implements java.io.Closeable
             copy.offset = this.offset;
             copy.content = this.content;
         break;
+        case PING:
+        break;
+        case PING_OK:
+        break;
         case GOODBYE:
         break;
         case GOODBYE_OK:
@@ -1190,6 +1272,14 @@ public class HydraProto implements java.io.Closeable
         case CHUNK_OK:
             System.out.println ("CHUNK_OK:");
             System.out.printf ("    offset=%d\n", (long)offset);
+            break;
+
+        case PING:
+            System.out.println ("PING:");
+            break;
+
+        case PING_OK:
+            System.out.println ("PING_OK:");
             break;
 
         case GOODBYE:
