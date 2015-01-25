@@ -58,6 +58,7 @@ module Hydra
       attach_function :hydra_post_digest, [:pointer], :string, **opts
       attach_function :hydra_post_location, [:pointer], :string, **opts
       attach_function :hydra_post_content_size, [:pointer], :pointer, **opts
+      attach_function :hydra_post_content, [:pointer], :pointer, **opts
       attach_function :hydra_post_set_parent_id, [:pointer, :string], :void, **opts
       attach_function :hydra_post_set_mime_type, [:pointer, :string], :void, **opts
       attach_function :hydra_post_set_content, [:pointer, :string], :void, **opts

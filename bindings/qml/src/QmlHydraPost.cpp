@@ -58,6 +58,16 @@ size_t QmlHydraPost::contentSize () {
 };
 
 ///
+//  Return the post content as a string. Returns NULL if the MIME type is      
+//  not "text/plain". The caller must destroy the string when finished with it.
+QString QmlHydraPost::content () {
+    char *retStr_ = hydra_post_content (self);
+    QString retQStr_ = QString (retStr_);
+    free (retStr_);
+    return retQStr_;
+};
+
+///
 //  Set the post parent id, which must be a valid post ID
 void QmlHydraPost::setParentId (const QString &parentId) {
     hydra_post_set_parent_id (self, parentId.toUtf8().data());
