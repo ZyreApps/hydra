@@ -5,7 +5,7 @@ import QtQuick 2.2
 ListModel {
   id: root
   
-  dynamicRoles: true // Allow childrenIdents to be set after insertion
+  dynamicRoles: true // Allow childrenIds to be set after insertion
   
   // Add a post object to the list after validation.
   // If the post is problematic, an error is printed and it is ignored.
@@ -15,13 +15,13 @@ ListModel {
     if (!_validatePost(post)) return
     var index = _findPlacementIndexFor(post)
     insert(index, post)
-    _updateChildrenIdentsOf(post, index)
-    _updateChildrenIdentsOfParentOf(post)
+    _updateChildrenIdsOf(post, index)
+    _updateChildrenIdsOfParentOf(post)
   }
   
   // Return true if the post is valid, else false
   function _validatePost(post) {
-    if(typeof post.parentIdent !== "string") return _invalidPost(post, "parentIdent")
+    if(typeof post.parentId    !== "string") return _invalidPost(post, "parentId")
     if(typeof post.ident       !== "string") return _invalidPost(post, "ident")
     if(typeof post.subject     !== "string") return _invalidPost(post, "subject")
     if(typeof post.content     !== "string") return _invalidPost(post, "content")
@@ -95,20 +95,20 @@ ListModel {
     return ary
   }
   
-  // Update the childrenIdents array of the given post at the given index.
-  function _updateChildrenIdentsOf(post, index) {
-    setProperty(index, "childrenIdents",
-      _findPostsMapProp("parentIdent", post.ident, "ident"))
+  // Update the childrenIds array of the given post at the given index.
+  function _updateChildrenIdsOf(post, index) {
+    setProperty(index, "childrenIds",
+      _findPostsMapProp("parentId", post.ident, "ident"))
   }
   
   // If the given post is a child of a known post,
-  // update the childrenIdents array of that post.
-  function _updateChildrenIdentsOfParentOf(post) {
-    if (post.parentIdent.length > 0) {
-      var parentIndex = findPostIndex('ident', post.parentIdent)
+  // update the childrenIds array of that post.
+  function _updateChildrenIdsOfParentOf(post) {
+    if (post.parentId.length > 0) {
+      var parentIndex = findPostIndex('ident', post.parentId)
       if (parentIndex !== null)
-        setProperty(parentIndex, "childrenIdents",
-          _findPostsMapProp("parentIdent", post.parentIdent, "ident"))
+        setProperty(parentIndex, "childrenIds",
+          _findPostsMapProp("parentId", post.parentId, "ident"))
     }
   }
 }

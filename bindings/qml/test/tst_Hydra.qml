@@ -15,6 +15,9 @@ TestCase {
   
   function test_it() {
     verify(subject)
+    console.log("starting")
+    wait(10000)
+    console.log("stopping")
   }
 }
 
