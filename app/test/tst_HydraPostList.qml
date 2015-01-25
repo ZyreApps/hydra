@@ -43,8 +43,17 @@ TestCase {
     subject.clear()
   }
   
+  // Helper function to clone a "flat" object
+  function cloneObject(obj) {
+    var clone = {}
+    for (var key in obj)
+      clone[key] = obj[key]
+    return clone
+  }
+  
   // Helper function to compare a "flat" object
   function compareObject(obj, expected) {
+    verify(obj)
     for (var key in expected) {
       compare(obj[key], expected[key],
         "key '%1' in %2".arg(key).arg(JSON.stringify(obj)))
@@ -53,6 +62,7 @@ TestCase {
   
   // Helper function to compare an array of "flat" objects
   function compareObjectArray(ary, expected) {
+    verify(ary)
     compare(ary.length, expected.length)
     for (var i=0; i < expected.length; ++i) {
       compareObject(ary[i], expected[i])
@@ -61,23 +71,74 @@ TestCase {
   
   
   function test_addPost() {
-    subject.addPost(examplePost)
+    subject.addPost(cloneObject(examplePost))
     compareObject(subject.get(0), examplePost)
   }
   
   function test_addPost_InsertsMostRecentTimestampFirst() {
-    subject.addPost(childPostA)
-    subject.addPost(examplePost) // added in arbitrary order
-    subject.addPost(childPostB)
+    subject.addPost(cloneObject(childPostA))
+    subject.addPost(cloneObject(examplePost)) // added in arbitrary order
+    subject.addPost(cloneObject(childPostB))
+    compareObject(subject.get(0), childPostB)
+    compareObject(subject.get(1), childPostA)
+    compareObject(subject.get(2), examplePost)
+    subject.clear()
+    subject.addPost(cloneObject(examplePost)) // added in arbitrary order
+    subject.addPost(cloneObject(childPostB))
+    subject.addPost(cloneObject(childPostA))
+    compareObject(subject.get(0), childPostB)
+    compareObject(subject.get(1), childPostA)
+    compareObject(subject.get(2), examplePost)
+    subject.clear()
+    subject.addPost(cloneObject(childPostA))
+    subject.addPost(cloneObject(childPostB))
+    subject.addPost(cloneObject(examplePost)) // added in arbitrary order
     compareObject(subject.get(0), childPostB)
     compareObject(subject.get(1), childPostA)
     compareObject(subject.get(2), examplePost)
   }
   
+  function test_addPost_SetsChildrenIdentsArray() {
+    var parentPost
+    subject.addPost(cloneObject(childPostA))
+    subject.addPost(cloneObject(examplePost)) // added in arbitrary order
+    subject.addPost(cloneObject(childPostB))
+    parentPost = subject.findPost("ident", examplePost.ident)
+    compare(parentPost.childrenIdents[0], childPostB.ident)
+    compare(parentPost.childrenIdents[1], childPostA.ident)
+    subject.clear()
+    subject.addPost(cloneObject(examplePost)) // added in arbitrary order
+    subject.addPost(cloneObject(childPostA))
+    subject.addPost(cloneObject(childPostB))
+    parentPost = subject.findPost("ident", examplePost.ident)
+    compare(parentPost.childrenIdents[0], childPostB.ident)
+    compare(parentPost.childrenIdents[1], childPostA.ident)
+    subject.clear()
+    subject.addPost(cloneObject(childPostA))
+    subject.addPost(cloneObject(childPostB))
+    subject.addPost(cloneObject(examplePost)) // added in arbitrary order
+    parentPost = subject.findPost("ident", examplePost.ident)
+    compare(parentPost.childrenIdents[0], childPostB.ident)
+    compare(parentPost.childrenIdents[1], childPostA.ident)
+  }
+  
+  function test_findPostIndex() {
+    subject.addPost(cloneObject(examplePost))
+    subject.addPost(cloneObject(childPostA))
+    subject.addPost(cloneObject(childPostB))
+    compareObject(subject.get(0), childPostB)
+    compareObject(subject.get(1), childPostA)
+    compareObject(subject.get(2), examplePost)
+    compare(subject.findPostIndex("ident", childPostB.ident), 0)
+    compare(subject.findPostIndex("ident", childPostA.ident), 1)
+    compare(subject.findPostIndex("ident", examplePost.ident), 2)
+    compare(subject.findPostIndex("ident", "__noSuchIdent__"), null)
+  }
+  
   function test_findPost() {
-    subject.addPost(examplePost)
-    subject.addPost(childPostA)
-    subject.addPost(childPostB)
+    subject.addPost(cloneObject(examplePost))
+    subject.addPost(cloneObject(childPostA))
+    subject.addPost(cloneObject(childPostB))
     compareObject(subject.findPost("ident", examplePost.ident), examplePost)
     compareObject(subject.findPost("ident", childPostA.ident), childPostA)
     compareObject(subject.findPost("ident", childPostB.ident), childPostB)
@@ -85,9 +146,9 @@ TestCase {
   }
   
   function test_findPosts() {
-    subject.addPost(examplePost)
-    subject.addPost(childPostA)
-    subject.addPost(childPostB)
+    subject.addPost(cloneObject(examplePost))
+    subject.addPost(cloneObject(childPostA))
+    subject.addPost(cloneObject(childPostB))
     compareObjectArray(
       subject.findPosts("parentIdent", examplePost.ident),
       [childPostB, childPostA])
