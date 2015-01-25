@@ -21,7 +21,19 @@ ListModel {
   
   // Return true if the post is valid, else false
   function _validatePost(post) {
-    return true // TODO: implement
+    if(typeof post.parentIdent !== "string") return _invalidPost(post, "parentIdent")
+    if(typeof post.ident       !== "string") return _invalidPost(post, "ident")
+    if(typeof post.subject     !== "string") return _invalidPost(post, "subject")
+    if(typeof post.content     !== "string") return _invalidPost(post, "content")
+    if(typeof post.timestamp   !== "string") return _invalidPost(post, "timestamp")
+    return true
+  }
+  
+  // Print an error for invalid post property and return false
+  function _invalidPost(post, key) {
+    console.error("ERROR: post with invalid key '%1':".arg(key),
+      JSON.stringify(post))
+    return false
   }
   
   // Return the index of the most recent post that is older
