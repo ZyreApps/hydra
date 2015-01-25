@@ -72,7 +72,7 @@ QtObject {
         var post
         while (!((post = priv.hydra.fetch()).isNULL)) {
           root.fetched ({
-            parentIdent: post.parentIdent(),
+            parentId:    post.parentId(),
             ident:       post.ident(),
             subject:     post.subject(),
             content:     post.content(),

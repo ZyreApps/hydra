@@ -21,7 +21,7 @@ ListModel {
   
   // Return true if the post is valid, else false
   function _validatePost(post) {
-    if(typeof post.parentIdent !== "string") return _invalidPost(post, "parentIdent")
+    if(typeof post.parentId    !== "string") return _invalidPost(post, "parentId")
     if(typeof post.ident       !== "string") return _invalidPost(post, "ident")
     if(typeof post.subject     !== "string") return _invalidPost(post, "subject")
     if(typeof post.content     !== "string") return _invalidPost(post, "content")
@@ -98,17 +98,17 @@ ListModel {
   // Update the childrenIdents array of the given post at the given index.
   function _updateChildrenIdentsOf(post, index) {
     setProperty(index, "childrenIdents",
-      _findPostsMapProp("parentIdent", post.ident, "ident"))
+      _findPostsMapProp("parentId", post.ident, "ident"))
   }
   
   // If the given post is a child of a known post,
   // update the childrenIdents array of that post.
   function _updateChildrenIdentsOfParentOf(post) {
-    if (post.parentIdent.length > 0) {
-      var parentIndex = findPostIndex('ident', post.parentIdent)
+    if (post.parentId.length > 0) {
+      var parentIndex = findPostIndex('ident', post.parentId)
       if (parentIndex !== null)
         setProperty(parentIndex, "childrenIdents",
-          _findPostsMapProp("parentIdent", post.parentIdent, "ident"))
+          _findPostsMapProp("parentId", post.parentId, "ident"))
     }
   }
 }
