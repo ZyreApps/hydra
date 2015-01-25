@@ -434,8 +434,10 @@ hydra_post_dup (hydra_post_t *self)
         strcpy (copy->ident, self->ident);
         strcpy (copy->timestamp, self->timestamp);
         strcpy (copy->parent_id, self->parent_id);
-        copy->mime_type = strdup (self->mime_type);
-        copy->location = strdup (self->location);
+        if (self->mime_type)
+            copy->mime_type = strdup (self->mime_type);
+        if (self->location)
+            copy->location = strdup (self->location);
         strcpy (copy->digest, self->digest);
         copy->content_size = self->content_size;
     }
