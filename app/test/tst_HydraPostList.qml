@@ -15,7 +15,7 @@ TestCase {
   }
   
   property var examplePost:({
-    parent_ident: "",
+    parentIdent: "",
     ident: "8EFC0240F18B5D4F3C7871E53978C839304B2062",
     subject: "Subject Line",
     content: "This is an example post.",
@@ -23,15 +23,15 @@ TestCase {
   })
   
   property var childPostA:({
-    parent_ident: "8EFC0240F18B5D4F3C7871E53978C839304B2062",
+    parentIdent: "8EFC0240F18B5D4F3C7871E53978C839304B2062",
     ident: "540C261DDFF56571FC2FD7DCFF5BFCA561B0C8BD",
     subject: "Re: Subject Line",
-    content: "Posts can be children by giving a parent_ident.",
+    content: "Posts can be children by giving a parentIdent.",
     timestamp: "2015-01-23T17:06:32Z",
   })
   
   property var childPostB:({
-    parent_ident: "8EFC0240F18B5D4F3C7871E53978C839304B2062",
+    parentIdent: "8EFC0240F18B5D4F3C7871E53978C839304B2062",
     ident: "58D26159DDAE9DE6DD9185924800720E90CF6A17",
     subject: "Re: Subject Line",
     content: "Child-post-to-parent-post is a many-to-one relationship.",
@@ -81,7 +81,7 @@ TestCase {
     compareObject(subject.findPost("ident", examplePost.ident), examplePost)
     compareObject(subject.findPost("ident", childPostA.ident), childPostA)
     compareObject(subject.findPost("ident", childPostB.ident), childPostB)
-    compare(subject.findPost("ident", "no_such_ident"), null)
+    compare(subject.findPost("ident", "__noSuchIdent__"), null)
   }
   
   function test_findPosts() {
@@ -89,10 +89,10 @@ TestCase {
     subject.addPost(childPostA)
     subject.addPost(childPostB)
     compareObjectArray(
-      subject.findPosts("parent_ident", examplePost.ident),
+      subject.findPosts("parentIdent", examplePost.ident),
       [childPostB, childPostA])
     compareObjectArray(
-      subject.findPosts("parent_ident", childPostA.ident),
+      subject.findPosts("parentIdent", childPostA.ident),
       [])
   }
 }
