@@ -70,6 +70,12 @@ post (as returned by NEXT-OK).
         offset              number 8    Chunk offset in file
         content             chunk       Content data chunk
 
+    PING - Client pings the server. Server replies with PING-OK, or ERROR with status
+COMMAND-INVALID if the client is not recognized (e.g. after a server restart
+or network recovery).
+
+    PING_OK - Server replies to a client ping.
+
     GOODBYE - Close the connection politely
 
     GOODBYE_OK - Handshake a connection close
@@ -103,9 +109,11 @@ post (as returned by NEXT-OK).
 #define HYDRA_PROTO_META_OK                 8
 #define HYDRA_PROTO_CHUNK                   9
 #define HYDRA_PROTO_CHUNK_OK                10
-#define HYDRA_PROTO_GOODBYE                 11
-#define HYDRA_PROTO_GOODBYE_OK              12
-#define HYDRA_PROTO_ERROR                   13
+#define HYDRA_PROTO_PING                    11
+#define HYDRA_PROTO_PING_OK                 12
+#define HYDRA_PROTO_GOODBYE                 13
+#define HYDRA_PROTO_GOODBYE_OK              14
+#define HYDRA_PROTO_ERROR                   15
 
 #include <czmq.h>
 

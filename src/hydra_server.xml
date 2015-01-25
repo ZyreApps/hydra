@@ -15,6 +15,10 @@
             <action name = "set server identity" />
             <action name = "send" message = "HELLO OK" />
         </event>
+        <event name = "*">
+            <action name = "signal command invalid" />
+            <action name = "send" message = "ERROR" />
+        </event>
     </state>
 
     <state name = "connected" inherit = "defaults">
@@ -38,6 +42,9 @@
         <event name = "CHUNK">
             <action name = "fetch post content chunk" />
             <action name = "send" message = "CHUNK OK" />
+        </event>
+        <event name = "PING">
+            <action name = "send" message = "PING OK" />
         </event>
         <event name = "GOODBYE">
             <action name = "send" message = "GOODBYE OK" />

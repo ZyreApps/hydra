@@ -67,6 +67,9 @@ int main (int argc, char *argv [])
         directory = argv [argn];
     
     hydra_t *hydra = hydra_new (directory);
+    if (!hydra)
+        exit (0);
+    
     if (testmode) {
         //  Provision the Hydra server with some test posts in a tree
         char *post_id;

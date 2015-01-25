@@ -43,6 +43,10 @@
     [this routing-id offset octets])
   (chunk-ok [this offset content]
     [this routing-id offset content])
+  (ping [this]
+    [this routing-id])
+  (ping-ok [this]
+    [this routing-id])
   (goodbye [this]
     [this routing-id])
   (goodbye-ok [this]
@@ -92,6 +96,14 @@
     (HydraProto/sendChunk_Ok socket offset content))
   (chunk-ok [this routing-id offset content]
     (HydraProto/sendChunk_Ok socket routing-id offset content))
+  (ping [this]
+    (HydraProto/sendPing socket))
+  (ping [this routing-id]
+    (HydraProto/sendPing socket routing-id))
+  (ping-ok [this]
+    (HydraProto/sendPing_Ok socket))
+  (ping-ok [this routing-id]
+    (HydraProto/sendPing_Ok socket routing-id))
   (goodbye [this]
     (HydraProto/sendGoodbye socket))
   (goodbye [this routing-id]

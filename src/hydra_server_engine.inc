@@ -38,9 +38,10 @@ typedef enum {
     no_such_post_event = 5,
     meta_event = 6,
     chunk_event = 7,
-    goodbye_event = 8,
-    expired_event = 9,
-    exception_event = 10
+    ping_event = 8,
+    goodbye_event = 9,
+    expired_event = 10,
+    exception_event = 11
 } event_t;
 
 //  Names for state machine logging and error reporting
@@ -62,6 +63,7 @@ s_event_name [] = {
     "no_such_post",
     "META",
     "CHUNK",
+    "PING",
     "GOODBYE",
     "expired",
     "exception"
@@ -128,6 +130,8 @@ static int
 static void
     set_server_identity (client_t *self);
 static void
+    signal_command_invalid (client_t *self);
+static void
     check_if_client_has_credit (client_t *self);
 static void
     fetch_next_older_post (client_t *self);
@@ -137,8 +141,6 @@ static void
     fetch_post_metadata (client_t *self);
 static void
     fetch_post_content_chunk (client_t *self);
-static void
-    signal_command_invalid (client_t *self);
 
 //  ---------------------------------------------------------------------------
 //  These methods are an internal API for actions
@@ -332,6 +334,9 @@ s_protocol_event (hydra_proto_t *message)
         case HYDRA_PROTO_CHUNK:
             return chunk_event;
             break;
+        case HYDRA_PROTO_PING:
+            return ping_event;
+            break;
         case HYDRA_PROTO_GOODBYE:
             return goodbye_event;
             break;
@@ -486,12 +491,6 @@ s_client_execute (s_client_t *self, event_t event)
                         hydra_proto_set_routing_id (self->server->message, self->routing_id);
                         hydra_proto_send (self->server->message, self->server->router);
                     }
-                    if (!self->exception) {
-                        //  terminate
-                        if (self->server->verbose)
-                            zsys_debug ("%s:         $ terminate", self->log_prefix);
-                        self->next_event = terminate_event;
-                    }
                 }
                 break;
 
@@ -587,6 +586,18 @@ s_client_execute (s_client_t *self, event_t event)
                             zsys_debug ("%s:         $ send CHUNK_OK",
                                 self->log_prefix);
                         hydra_proto_set_id (self->server->message, HYDRA_PROTO_CHUNK_OK);
+                        hydra_proto_set_routing_id (self->server->message, self->routing_id);
+                        hydra_proto_send (self->server->message, self->server->router);
+                    }
+                }
+                else
+                if (self->event == ping_event) {
+                    if (!self->exception) {
+                        //  send PING_OK
+                        if (self->server->verbose)
+                            zsys_debug ("%s:         $ send PING_OK",
+                                self->log_prefix);
+                        hydra_proto_set_id (self->server->message, HYDRA_PROTO_PING_OK);
                         hydra_proto_set_routing_id (self->server->message, self->routing_id);
                         hydra_proto_send (self->server->message, self->server->router);
                     }

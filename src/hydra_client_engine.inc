@@ -31,7 +31,9 @@ typedef enum {
     scanning_backwards_state = 5,
     scanning_forwards_state = 6,
     defaults_state = 7,
-    expect_goodbye_ok_state = 8
+    have_error_state = 8,
+    reconnecting_state = 9,
+    expect_goodbye_ok_state = 10
 } state_t;
 
 typedef enum {
@@ -50,7 +52,10 @@ typedef enum {
     destructor_event = 12,
     expired_event = 13,
     error_event = 14,
-    goodbye_ok_event = 15
+    ping_ok_event = 15,
+    command_invalid_event = 16,
+    other_event = 17,
+    goodbye_ok_event = 18
 } event_t;
 
 //  Names for state machine logging and error reporting
@@ -64,6 +69,8 @@ s_state_name [] = {
     "scanning backwards",
     "scanning forwards",
     "defaults",
+    "have error",
+    "reconnecting",
     "expect goodbye ok"
 };
 
@@ -84,6 +91,9 @@ s_event_name [] = {
     "destructor",
     "expired",
     "ERROR",
+    "PING_OK",
+    "command_invalid",
+    "other",
     "GOODBYE_OK"
 };
  
@@ -142,7 +152,7 @@ static void
 static void
     signal_bad_endpoint (client_t *self);
 static void
-    use_response_timeout (client_t *self);
+    use_heartbeat_timer (client_t *self);
 static void
     signal_connected (client_t *self);
 static void
@@ -174,11 +184,11 @@ static void
 static void
     prepare_to_fetch_older_post (client_t *self);
 static void
-    signal_server_not_present (client_t *self);
-static void
-    signal_unexpected_server_reply (client_t *self);
+    check_status_code (client_t *self);
 static void
     signal_internal_error (client_t *self);
+static void
+    signal_unhandled_error (client_t *self);
 
 //  Global tracing/animation indicator; we can't use a client method as
 //  that only works after construction (which we often want to trace).
@@ -355,6 +365,9 @@ s_protocol_event (s_client_t *self, hydra_proto_t *message)
         case HYDRA_PROTO_CHUNK_OK:
             return chunk_ok_event;
             break;
+        case HYDRA_PROTO_PING_OK:
+            return ping_ok_event;
+            break;
         case HYDRA_PROTO_GOODBYE_OK:
             return goodbye_ok_event;
             break;
@@ -448,10 +461,10 @@ s_client_execute (s_client_t *self, event_t event)
             case expect_hello_ok_state:
                 if (self->event == hello_ok_event) {
                     if (!self->exception) {
-                        //  use response timeout
+                        //  use heartbeat timer
                         if (hydra_client_verbose)
-                            zsys_debug ("hydra_client:          $ use response timeout");
-                        use_response_timeout (&self->client);
+                            zsys_debug ("hydra_client:          $ use heartbeat timer");
+                        use_heartbeat_timer (&self->client);
                     }
                     if (!self->exception) {
                         //  signal connected
@@ -477,32 +490,26 @@ s_client_execute (s_client_t *self, event_t event)
                 else
                 if (self->event == expired_event) {
                     if (!self->exception) {
-                        //  signal server not present
+                        //  send PING
                         if (hydra_client_verbose)
-                            zsys_debug ("hydra_client:          $ signal server not present");
-                        signal_server_not_present (&self->client);
-                    }
-                    if (!self->exception) {
-                        //  terminate
-                        if (hydra_client_verbose)
-                            zsys_debug ("hydra_client:          $ terminate");
-                        self->fsm_stopped = true;
+                            zsys_debug ("hydra_client:          $ send PING");
+                        hydra_proto_set_id (self->message, HYDRA_PROTO_PING);
+                        hydra_proto_send (self->message, self->dealer);
                     }
                 }
                 else
                 if (self->event == error_event) {
                     if (!self->exception) {
-                        //  signal unexpected server reply
+                        //  check status code
                         if (hydra_client_verbose)
-                            zsys_debug ("hydra_client:          $ signal unexpected server reply");
-                        signal_unexpected_server_reply (&self->client);
+                            zsys_debug ("hydra_client:          $ check status code");
+                        check_status_code (&self->client);
                     }
-                    if (!self->exception) {
-                        //  terminate
-                        if (hydra_client_verbose)
-                            zsys_debug ("hydra_client:          $ terminate");
-                        self->fsm_stopped = true;
-                    }
+                    if (!self->exception)
+                        self->state = have_error_state;
+                }
+                else
+                if (self->event == ping_ok_event) {
                 }
                 else {
                     //  Handle unexpected protocol events
@@ -553,32 +560,26 @@ s_client_execute (s_client_t *self, event_t event)
                 else
                 if (self->event == expired_event) {
                     if (!self->exception) {
-                        //  signal server not present
+                        //  send PING
                         if (hydra_client_verbose)
-                            zsys_debug ("hydra_client:          $ signal server not present");
-                        signal_server_not_present (&self->client);
-                    }
-                    if (!self->exception) {
-                        //  terminate
-                        if (hydra_client_verbose)
-                            zsys_debug ("hydra_client:          $ terminate");
-                        self->fsm_stopped = true;
+                            zsys_debug ("hydra_client:          $ send PING");
+                        hydra_proto_set_id (self->message, HYDRA_PROTO_PING);
+                        hydra_proto_send (self->message, self->dealer);
                     }
                 }
                 else
                 if (self->event == error_event) {
                     if (!self->exception) {
-                        //  signal unexpected server reply
+                        //  check status code
                         if (hydra_client_verbose)
-                            zsys_debug ("hydra_client:          $ signal unexpected server reply");
-                        signal_unexpected_server_reply (&self->client);
+                            zsys_debug ("hydra_client:          $ check status code");
+                        check_status_code (&self->client);
                     }
-                    if (!self->exception) {
-                        //  terminate
-                        if (hydra_client_verbose)
-                            zsys_debug ("hydra_client:          $ terminate");
-                        self->fsm_stopped = true;
-                    }
+                    if (!self->exception)
+                        self->state = have_error_state;
+                }
+                else
+                if (self->event == ping_ok_event) {
                 }
                 else {
                     //  Handle unexpected protocol events
@@ -749,32 +750,26 @@ s_client_execute (s_client_t *self, event_t event)
                 else
                 if (self->event == expired_event) {
                     if (!self->exception) {
-                        //  signal server not present
+                        //  send PING
                         if (hydra_client_verbose)
-                            zsys_debug ("hydra_client:          $ signal server not present");
-                        signal_server_not_present (&self->client);
-                    }
-                    if (!self->exception) {
-                        //  terminate
-                        if (hydra_client_verbose)
-                            zsys_debug ("hydra_client:          $ terminate");
-                        self->fsm_stopped = true;
+                            zsys_debug ("hydra_client:          $ send PING");
+                        hydra_proto_set_id (self->message, HYDRA_PROTO_PING);
+                        hydra_proto_send (self->message, self->dealer);
                     }
                 }
                 else
                 if (self->event == error_event) {
                     if (!self->exception) {
-                        //  signal unexpected server reply
+                        //  check status code
                         if (hydra_client_verbose)
-                            zsys_debug ("hydra_client:          $ signal unexpected server reply");
-                        signal_unexpected_server_reply (&self->client);
+                            zsys_debug ("hydra_client:          $ check status code");
+                        check_status_code (&self->client);
                     }
-                    if (!self->exception) {
-                        //  terminate
-                        if (hydra_client_verbose)
-                            zsys_debug ("hydra_client:          $ terminate");
-                        self->fsm_stopped = true;
-                    }
+                    if (!self->exception)
+                        self->state = have_error_state;
+                }
+                else
+                if (self->event == ping_ok_event) {
                 }
                 else {
                     //  Handle unexpected protocol events
@@ -908,32 +903,26 @@ s_client_execute (s_client_t *self, event_t event)
                 else
                 if (self->event == expired_event) {
                     if (!self->exception) {
-                        //  signal server not present
+                        //  send PING
                         if (hydra_client_verbose)
-                            zsys_debug ("hydra_client:          $ signal server not present");
-                        signal_server_not_present (&self->client);
-                    }
-                    if (!self->exception) {
-                        //  terminate
-                        if (hydra_client_verbose)
-                            zsys_debug ("hydra_client:          $ terminate");
-                        self->fsm_stopped = true;
+                            zsys_debug ("hydra_client:          $ send PING");
+                        hydra_proto_set_id (self->message, HYDRA_PROTO_PING);
+                        hydra_proto_send (self->message, self->dealer);
                     }
                 }
                 else
                 if (self->event == error_event) {
                     if (!self->exception) {
-                        //  signal unexpected server reply
+                        //  check status code
                         if (hydra_client_verbose)
-                            zsys_debug ("hydra_client:          $ signal unexpected server reply");
-                        signal_unexpected_server_reply (&self->client);
+                            zsys_debug ("hydra_client:          $ check status code");
+                        check_status_code (&self->client);
                     }
-                    if (!self->exception) {
-                        //  terminate
-                        if (hydra_client_verbose)
-                            zsys_debug ("hydra_client:          $ terminate");
-                        self->fsm_stopped = true;
-                    }
+                    if (!self->exception)
+                        self->state = have_error_state;
+                }
+                else
+                if (self->event == ping_ok_event) {
                 }
                 else {
                     //  Handle unexpected protocol events
@@ -967,10 +956,34 @@ s_client_execute (s_client_t *self, event_t event)
                 else
                 if (self->event == expired_event) {
                     if (!self->exception) {
-                        //  signal server not present
+                        //  send PING
                         if (hydra_client_verbose)
-                            zsys_debug ("hydra_client:          $ signal server not present");
-                        signal_server_not_present (&self->client);
+                            zsys_debug ("hydra_client:          $ send PING");
+                        hydra_proto_set_id (self->message, HYDRA_PROTO_PING);
+                        hydra_proto_send (self->message, self->dealer);
+                    }
+                }
+                else
+                if (self->event == error_event) {
+                    if (!self->exception) {
+                        //  check status code
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ check status code");
+                        check_status_code (&self->client);
+                    }
+                    if (!self->exception)
+                        self->state = have_error_state;
+                }
+                else
+                if (self->event == ping_ok_event) {
+                }
+                else {
+                    //  Handle unexpected protocol events
+                    if (!self->exception) {
+                        //  signal internal error
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ signal internal error");
+                        signal_internal_error (&self->client);
                     }
                     if (!self->exception) {
                         //  terminate
@@ -979,13 +992,33 @@ s_client_execute (s_client_t *self, event_t event)
                         self->fsm_stopped = true;
                     }
                 }
-                else
-                if (self->event == error_event) {
+                break;
+
+            case have_error_state:
+                if (self->event == command_invalid_event) {
                     if (!self->exception) {
-                        //  signal unexpected server reply
+                        //  use connect timeout
                         if (hydra_client_verbose)
-                            zsys_debug ("hydra_client:          $ signal unexpected server reply");
-                        signal_unexpected_server_reply (&self->client);
+                            zsys_debug ("hydra_client:          $ use connect timeout");
+                        use_connect_timeout (&self->client);
+                    }
+                    if (!self->exception) {
+                        //  send HELLO
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ send HELLO");
+                        hydra_proto_set_id (self->message, HYDRA_PROTO_HELLO);
+                        hydra_proto_send (self->message, self->dealer);
+                    }
+                    if (!self->exception)
+                        self->state = reconnecting_state;
+                }
+                else
+                if (self->event == other_event) {
+                    if (!self->exception) {
+                        //  signal unhandled error
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ signal unhandled error");
+                        signal_unhandled_error (&self->client);
                     }
                     if (!self->exception) {
                         //  terminate
@@ -993,6 +1026,61 @@ s_client_execute (s_client_t *self, event_t event)
                             zsys_debug ("hydra_client:          $ terminate");
                         self->fsm_stopped = true;
                     }
+                }
+                else {
+                    //  Handle unexpected internal events
+                    zsys_warning ("hydra_client: unhandled event %s in %s",
+                        s_event_name [self->event], s_state_name [self->state]);
+                    assert (false);
+                }
+                break;
+
+            case reconnecting_state:
+                if (self->event == hello_ok_event) {
+                    if (!self->exception) {
+                        //  use heartbeat timer
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ use heartbeat timer");
+                        use_heartbeat_timer (&self->client);
+                    }
+                    if (!self->exception)
+                        self->state = connected_state;
+                }
+                else
+                if (self->event == destructor_event) {
+                    if (!self->exception) {
+                        //  send GOODBYE
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ send GOODBYE");
+                        hydra_proto_set_id (self->message, HYDRA_PROTO_GOODBYE);
+                        hydra_proto_send (self->message, self->dealer);
+                    }
+                    if (!self->exception)
+                        self->state = expect_goodbye_ok_state;
+                }
+                else
+                if (self->event == expired_event) {
+                    if (!self->exception) {
+                        //  send PING
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ send PING");
+                        hydra_proto_set_id (self->message, HYDRA_PROTO_PING);
+                        hydra_proto_send (self->message, self->dealer);
+                    }
+                }
+                else
+                if (self->event == error_event) {
+                    if (!self->exception) {
+                        //  check status code
+                        if (hydra_client_verbose)
+                            zsys_debug ("hydra_client:          $ check status code");
+                        check_status_code (&self->client);
+                    }
+                    if (!self->exception)
+                        self->state = have_error_state;
+                }
+                else
+                if (self->event == ping_ok_event) {
                 }
                 else {
                     //  Handle unexpected protocol events
@@ -1041,32 +1129,26 @@ s_client_execute (s_client_t *self, event_t event)
                 else
                 if (self->event == expired_event) {
                     if (!self->exception) {
-                        //  signal server not present
+                        //  send PING
                         if (hydra_client_verbose)
-                            zsys_debug ("hydra_client:          $ signal server not present");
-                        signal_server_not_present (&self->client);
-                    }
-                    if (!self->exception) {
-                        //  terminate
-                        if (hydra_client_verbose)
-                            zsys_debug ("hydra_client:          $ terminate");
-                        self->fsm_stopped = true;
+                            zsys_debug ("hydra_client:          $ send PING");
+                        hydra_proto_set_id (self->message, HYDRA_PROTO_PING);
+                        hydra_proto_send (self->message, self->dealer);
                     }
                 }
                 else
                 if (self->event == error_event) {
                     if (!self->exception) {
-                        //  signal unexpected server reply
+                        //  check status code
                         if (hydra_client_verbose)
-                            zsys_debug ("hydra_client:          $ signal unexpected server reply");
-                        signal_unexpected_server_reply (&self->client);
+                            zsys_debug ("hydra_client:          $ check status code");
+                        check_status_code (&self->client);
                     }
-                    if (!self->exception) {
-                        //  terminate
-                        if (hydra_client_verbose)
-                            zsys_debug ("hydra_client:          $ terminate");
-                        self->fsm_stopped = true;
-                    }
+                    if (!self->exception)
+                        self->state = have_error_state;
+                }
+                else
+                if (self->event == ping_ok_event) {
                 }
                 else {
                     //  Handle unexpected protocol events

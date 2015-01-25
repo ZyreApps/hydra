@@ -36,6 +36,7 @@ typedef struct {
     hydra_proto_t *message;     //  Message from and to server
     client_args_t *args;        //  Arguments from methods
 
+    int heartbeat_timer;        //  Timeout for heartbeats to server
     zconfig_t *config;          //  Own configuration data
     char *identity;             //  Own identity to send to server
     char *nickname;             //  Own nickname to send to server
@@ -72,6 +73,9 @@ client_initialize (client_t *self)
     int rc = zsock_connect (self->sink, "inproc://%s", self->identity);
     assert (rc == 0);
 
+    //  We'll ping the server once per second
+    self->heartbeat_timer = 1000;
+    
     return 0;
 }
 
@@ -125,14 +129,15 @@ set_client_identity (client_t *self)
 
 
 //  ---------------------------------------------------------------------------
-//  use_response_timeout
+//  use_heartbeat_timer
 //
 
 static void
-use_response_timeout (client_t *self)
+use_heartbeat_timer (client_t *self)
 {
-    engine_set_timeout (self, 1000);
+    engine_set_timeout (self, self->heartbeat_timer);
 }
+
 
 
 //  ---------------------------------------------------------------------------
@@ -368,6 +373,20 @@ signal_sync_success (client_t *self)
 
 
 //  ---------------------------------------------------------------------------
+//  check_status_code
+//
+
+static void
+check_status_code (client_t *self)
+{
+    if (hydra_proto_status (self->message) == HYDRA_PROTO_COMMAND_INVALID)
+        engine_set_next_event (self, command_invalid_event);
+    else
+        engine_set_next_event (self, other_event);
+}
+
+
+//  ---------------------------------------------------------------------------
 //  signal_bad_endpoint
 //
 
@@ -379,26 +398,14 @@ signal_bad_endpoint (client_t *self)
 
 
 //  ---------------------------------------------------------------------------
-//  signal_server_not_present
+//  signal_unhandled_error
 //
 
 static void
-signal_server_not_present (client_t *self)
+signal_unhandled_error (client_t *self)
 {
-    zsock_send (self->cmdpipe, "sis", "FAILURE", -1, "Server is not reachable");
-    zsock_send (self->msgpipe, "sis", "FAILURE", -1, "Server is not reachable");
-}
-
-
-//  ---------------------------------------------------------------------------
-//  signal_unexpected_server_reply
-//
-
-static void
-signal_unexpected_server_reply (client_t *self)
-{
-    zsock_send (self->cmdpipe, "sis", "FAILURE", -1, "Unexpected server reply");
-    zsock_send (self->msgpipe, "sis", "FAILURE", -1, "Unexpected server reply");
+    zsock_send (self->cmdpipe, "sis", "FAILURE", -1, "Unhandled error");
+    zsock_send (self->msgpipe, "sis", "FAILURE", -1, "Unhandled error");
 }
 
 

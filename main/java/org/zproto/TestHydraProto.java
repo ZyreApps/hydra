@@ -136,6 +136,20 @@ public class TestHydraProto
         assertTrue (java.util.Arrays.equals("Captcha Diem".getBytes(), self.content ()));
         self.destroy ();
 
+        self = new HydraProto (HydraProto.PING);
+        self.send (output);
+
+        self = HydraProto.recv (input);
+        assert (self != null);
+        self.destroy ();
+
+        self = new HydraProto (HydraProto.PING_OK);
+        self.send (output);
+
+        self = HydraProto.recv (input);
+        assert (self != null);
+        self.destroy ();
+
         self = new HydraProto (HydraProto.GOODBYE);
         self.send (output);
 
