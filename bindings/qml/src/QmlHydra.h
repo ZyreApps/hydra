@@ -17,11 +17,13 @@
 class QmlHydra : public QObject
 {
     Q_OBJECT
+    Q_PROPERTY(bool isNULL READ isNULL)
     
 public:
     hydra_t *self;
     
-    QmlHydra() { self = NULL; } // TODO: prevent declarative use - could lead to SEGV
+    QmlHydra() { self = NULL; }
+    bool isNULL() { return self == NULL; }
     
     static QObject* qmlAttachedProperties(QObject* object); // defined in QmlHydra.cpp
     
