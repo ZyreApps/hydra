@@ -63,7 +63,7 @@ HYDRA_EXPORT size_t
 
 //  Return the post content as a string. Returns NULL if the MIME type is      
 //  not "text/plain". The caller must destroy the string when finished with it.
-HYDRA_EXPORT char *
+HYDRA_EXPORT const char *
     hydra_post_content (hydra_post_t *self);
 
 //  Set the post parent id, which must be a valid post ID
@@ -131,6 +131,7 @@ HYDRA_EXPORT void
 HYDRA_EXPORT void
     hydra_post_test (bool verbose);
 //  @end
+
 
 #ifdef __cplusplus
 }

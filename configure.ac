@@ -145,7 +145,6 @@ LIBS="${PREVIOUS_LIBS}"
 
 # Platform specific checks
 hydra_on_mingw32="no"
-hydra_on_cygwin="no"
 hydra_on_android="no"
 
 # Host specific checks
@@ -237,7 +236,6 @@ case "${host_os}" in
         # Define on Cygwin to enable all library features
         CPPFLAGS="-D_GNU_SOURCE $CPPFLAGS"
         AC_DEFINE(HYDRA_HAVE_CYGWIN, 1, [Have Cygwin])
-        hydra_on_cygwin="yes"
         ;;
     *)
         AC_MSG_ERROR([unsupported system: ${host_os}.])
@@ -273,7 +271,6 @@ if test "x$GCC" = "xyes"; then
 fi
 
 AM_CONDITIONAL(ON_MINGW, test "x$hydra_on_mingw32" = "xyes")
-AM_CONDITIONAL(ON_CYGWIN, test "x$hydra_on_cygwin" = "xyes")
 AM_CONDITIONAL(ON_ANDROID, test "x$hydra_on_android" = "xyes")
 AM_CONDITIONAL(INSTALL_MAN, test "x$hydra_install_man" = "xyes")
 AM_CONDITIONAL(BUILD_DOC, test "x$hydra_build_doc" = "xyes")

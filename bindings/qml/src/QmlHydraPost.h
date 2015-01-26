@@ -17,13 +17,11 @@
 class QmlHydraPost : public QObject
 {
     Q_OBJECT
-    Q_PROPERTY(bool isNULL READ isNULL)
     
 public:
     hydra_post_t *self;
     
-    QmlHydraPost() { self = NULL; }
-    bool isNULL() { return self == NULL; }
+    QmlHydraPost() { self = NULL; } // TODO: prevent declarative use - could lead to SEGV
     
     static QObject* qmlAttachedProperties(QObject* object); // defined in QmlHydraPost.cpp
     
@@ -55,7 +53,7 @@ public slots:
 
     //  Return the post content as a string. Returns NULL if the MIME type is      
     //  not "text/plain". The caller must destroy the string when finished with it.
-    QString content ();
+    const QString content ();
 
     //  Set the post parent id, which must be a valid post ID
     void setParentId (const QString &parentId);

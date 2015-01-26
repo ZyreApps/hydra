@@ -60,30 +60,27 @@ size_t QmlHydraPost::contentSize () {
 ///
 //  Return the post content as a string. Returns NULL if the MIME type is      
 //  not "text/plain". The caller must destroy the string when finished with it.
-QString QmlHydraPost::content () {
-    char *retStr_ = hydra_post_content (self);
-    QString retQStr_ = QString (retStr_);
-    free (retStr_);
-    return retQStr_;
+const QString QmlHydraPost::content () {
+    return QString (hydra_post_content (self));
 };
 
 ///
 //  Set the post parent id, which must be a valid post ID
 void QmlHydraPost::setParentId (const QString &parentId) {
-    hydra_post_set_parent_id (self, parentId.toUtf8().data());
+    return hydra_post_set_parent_id (self, parentId.toUtf8().data());
 };
 
 ///
 //  Set the post MIME type
 void QmlHydraPost::setMimeType (const QString &mimeType) {
-    hydra_post_set_mime_type (self, mimeType.toUtf8().data());
+    return hydra_post_set_mime_type (self, mimeType.toUtf8().data());
 };
 
 ///
 //  Set the post content to a text string. Recalculates the post digest from
 //  from the new content value. Sets the MIME type to text/plain.           
 void QmlHydraPost::setContent (const QString &content) {
-    hydra_post_set_content (self, content.toUtf8().data());
+    return hydra_post_set_content (self, content.toUtf8().data());
 };
 
 ///
@@ -91,7 +88,7 @@ void QmlHydraPost::setContent (const QString &content) {
 //  from the chunk contents. Takes ownership of the chunk. The data is not
 //  stored on disk until you call hydra_post_save.                        
 void QmlHydraPost::setData (const void *data, size_t size) {
-    hydra_post_set_data (self, data, size);
+    return hydra_post_set_data (self, data, size);
 };
 
 ///
@@ -122,7 +119,7 @@ zchunk_t *QmlHydraPost::fetch (size_t size, size_t offset) {
 ///
 //  Encode a post metadata to a hydra_proto message
 void QmlHydraPost::encode (hydra_proto_t *proto) {
-    hydra_post_encode (self, proto);
+    return hydra_post_encode (self, proto);
 };
 
 ///
@@ -137,7 +134,7 @@ QmlHydraPost *QmlHydraPost::dup () {
 ///
 //  Print the post file to stdout
 void QmlHydraPost::print () {
-    hydra_post_print (self);
+    return hydra_post_print (self);
 };
 
 
@@ -167,7 +164,7 @@ QmlHydraPost *QmlHydraPostAttached::decode (hydra_proto_t *proto) {
 ///
 //  Self test of this class
 void QmlHydraPostAttached::test (bool verbose) {
-    hydra_post_test (verbose);
+    return hydra_post_test (verbose);
 };
 
 ///
@@ -181,7 +178,7 @@ QmlHydraPost *QmlHydraPostAttached::construct (const QString &subject) {
 ///
 //  Destroy the post
 void QmlHydraPostAttached::destruct (QmlHydraPost *qmlSelf) {
-    hydra_post_destroy (&qmlSelf->self);
+    return hydra_post_destroy (&qmlSelf->self);
 };
 
 /*

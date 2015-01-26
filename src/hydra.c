@@ -189,6 +189,57 @@ hydra_fetch (hydra_t *self)
 
 
 //  --------------------------------------------------------------------------
+//  Store a new post provided as a null-terminated string. Returns post ID for
+//  the newly created post, or NULL if it was impossible to store the post.
+//  Caller must free post ID when finished with it.
+
+const char *
+hydra_store_string (hydra_t *self, const char *subject, const char *parent_id,
+                    const char *mime_type, const char *content)
+{
+    char *post_id;
+    zsock_send (self->actor, "ssssss", "POST", subject, parent_id, mime_type,
+                "string", content);
+    zsock_recv (self->actor, "s", &post_id);
+    return post_id;
+}
+
+
+//  --------------------------------------------------------------------------
+//  Store a new post located in a file somewhere on disk. Returns post ID for
+//  the newly created post, or NULL if it was impossible to store the post.
+//  Caller must free post ID when finished with it.
+
+const char *
+hydra_store_file (hydra_t *self, const char *subject, const char *parent_id,
+                  const char *mime_type, const char *filename)
+{
+    char *post_id;
+    zsock_send (self->actor, "ssssss", "POST", subject, parent_id, mime_type,
+                "file", filename);
+    zsock_recv (self->actor, "s", &post_id);
+    return post_id;
+}
+
+
+//  --------------------------------------------------------------------------
+//  Store a new post provided as a chunk of data. Returns post ID for
+//  the newly created post, or NULL if it was impossible to store the post.
+//  Caller must free post ID when finished with it.
+
+const char *
+hydra_store_chunk (hydra_t *self, const char *subject, const char *parent_id,
+                   const char *mime_type, zchunk_t *chunk)
+{
+    char *post_id;
+    zsock_send (self->actor, "ssssss", "POST", subject, parent_id, mime_type,
+                "chunk", chunk);
+    zsock_recv (self->actor, "s", &post_id);
+    return post_id;
+}
+
+
+//  --------------------------------------------------------------------------
 //  Return the Hydra version for run-time API detection
 
 void
@@ -364,6 +415,19 @@ s_self_fetch (self_t *self)
 }
 
 
+static void
+s_self_post (self_t *self, zmsg_t *request)
+{
+    zstr_sendm (self->server, "POST");
+    zsock_send (self->server, "m", request);
+    char *post_id = zstr_recv (self->server);
+    if (post_id) {
+        zstr_send (self->pipe, post_id);
+        zstr_free (&post_id);
+    }
+}
+
+
 //  --------------------------------------------------------------------------
 //  Handle a command from calling application
 
@@ -387,6 +451,9 @@ s_self_handle_pipe (self_t *self)
     else
     if (streq (command, "FETCH"))
         s_self_fetch (self);
+    else
+    if (streq (command, "POST"))
+        s_self_post (self, request);
     else
     if (streq (command, "$TERM"))
         self->terminated = true;
@@ -498,6 +565,10 @@ hydra_test (bool verbose)
     //  Simple create/destroy test
     hydra_t *self = hydra_new (NULL);
     assert (self);
+    char *post_id = (char *) hydra_store_string (self, "This is a string",
+                                        "", "text/plain", "Hello, World");
+    assert (post_id);
+    
     hydra_post_t *post = hydra_fetch (self);
     assert (post == NULL);
     hydra_destroy (&self);

@@ -1,4 +1,3 @@
-
 <class name = "hydra">
     Main Hydra API
     
@@ -58,6 +57,39 @@
         API, and must destroy the post when done with it.
         <return type = "hydra_post" fresh = "1" />
     </method>
+
+    <method name = "store string">
+        Store a new post provided as a null-terminated string. Returns post ID for
+        the newly created post, or NULL if it was impossible to store the post.
+        Caller must free post ID when finished with it.
+        <argument name = "subject" type = "string" />
+        <argument name = "parent_id" type = "string" />
+        <argument name = "mime_type" type = "string" />
+        <argument name = "content" type = "string" />
+        <return type = "string" fresh = "1" />
+    </method>
+        
+    <method name = "store file">
+        Store a new post located in a file somewhere on disk. Returns post ID for
+        the newly created post, or NULL if it was impossible to store the post.
+        Caller must free post ID when finished with it.
+        <argument name = "subject" type = "string" />
+        <argument name = "parent_id" type = "string" />
+        <argument name = "mime_type" type = "string" />
+        <argument name = "filename" type = "string" />
+        <return type = "string" fresh = "1" />
+    </method>
+
+    <method name = "store chunk">
+        Store a new post provided as a chunk of data. Returns post ID for
+        the newly created post, or NULL if it was impossible to store the post.
+        Caller must free post ID when finished with it.
+        <argument name = "subject" type = "string" />
+        <argument name = "parent_id" type = "string" />
+        <argument name = "mime_type" type = "string" />
+        <argument name = "chunk" type = "zchunk" />
+        <return type = "string" fresh = "1" />
+    </method>
     
     <method name = "version" singleton = "1">
         Return the Hydra version for run-time API detection
@@ -70,5 +102,4 @@
         Self test of this class
         <argument name = "verbose" type = "boolean" />
     </method>
-    
 </class>

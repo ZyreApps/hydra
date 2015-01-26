@@ -12,7 +12,7 @@
 //  Set node nickname; this is saved persistently in the Hydra configuration
 //  file.                                                                   
 void QmlHydra::setNickname (const QString &nickname) {
-    hydra_set_nickname (self, nickname.toUtf8().data());
+    return hydra_set_nickname (self, nickname.toUtf8().data());
 };
 
 ///
@@ -27,14 +27,14 @@ const QString QmlHydra::nickname () {
 //  Set the trace level to animation of main actors; this is helpful to
 //  debug the Hydra protocol flow.                                     
 void QmlHydra::setAnimate () {
-    hydra_set_animate (self);
+    return hydra_set_animate (self);
 };
 
 ///
 //  Set the trace level to animation of all actors including those used in
 //  security and discovery. Use this to collect diagnostic logs.          
 void QmlHydra::setVerbose () {
-    hydra_set_verbose (self);
+    return hydra_set_verbose (self);
 };
 
 ///
@@ -44,7 +44,7 @@ void QmlHydra::setVerbose () {
 //  IPC. Gossip discovery needs at exactly one node to be running in a    
 //  directory called ".hydra".                                            
 void QmlHydra::setLocalIpc () {
-    hydra_set_local_ipc (self);
+    return hydra_set_local_ipc (self);
 };
 
 ///
@@ -64,6 +64,30 @@ QmlHydraPost *QmlHydra::fetch () {
     return retQ_;
 };
 
+///
+//  Store a new post provided as a null-terminated string. Returns post ID for
+//  the newly created post, or NULL if it was impossible to store the post.   
+//  Caller must free post ID when finished with it.                           
+const QString QmlHydra::storeString (const QString &subject, const QString &parentId, const QString &mimeType, const QString &content) {
+    return QString (hydra_store_string (self, subject.toUtf8().data(), parentId.toUtf8().data(), mimeType.toUtf8().data(), content.toUtf8().data()));
+};
+
+///
+//  Store a new post located in a file somewhere on disk. Returns post ID for
+//  the newly created post, or NULL if it was impossible to store the post.  
+//  Caller must free post ID when finished with it.                          
+const QString QmlHydra::storeFile (const QString &subject, const QString &parentId, const QString &mimeType, const QString &filename) {
+    return QString (hydra_store_file (self, subject.toUtf8().data(), parentId.toUtf8().data(), mimeType.toUtf8().data(), filename.toUtf8().data()));
+};
+
+///
+//  Store a new post provided as a chunk of data. Returns post ID for      
+//  the newly created post, or NULL if it was impossible to store the post.
+//  Caller must free post ID when finished with it.                        
+const QString QmlHydra::storeChunk (const QString &subject, const QString &parentId, const QString &mimeType, zchunk_t *chunk) {
+    return QString (hydra_store_chunk (self, subject.toUtf8().data(), parentId.toUtf8().data(), mimeType.toUtf8().data(), chunk));
+};
+
 
 QObject* QmlHydra::qmlAttachedProperties(QObject* object) {
     return new QmlHydraAttached(object);
@@ -73,13 +97,13 @@ QObject* QmlHydra::qmlAttachedProperties(QObject* object) {
 ///
 //  Return the Hydra version for run-time API detection
 void QmlHydraAttached::version (int *major, int *minor, int *patch) {
-    hydra_version (major, minor, patch);
+    return hydra_version (major, minor, patch);
 };
 
 ///
 //  Self test of this class
 void QmlHydraAttached::test (bool verbose) {
-    hydra_test (verbose);
+    return hydra_test (verbose);
 };
 
 ///
@@ -97,7 +121,7 @@ QmlHydra *QmlHydraAttached::construct (const QString &directory) {
 //  Destructor, destroys a Hydra node. When you destroy a node, any posts
 //  it is sending or receiving will be discarded.                        
 void QmlHydraAttached::destruct (QmlHydra *qmlSelf) {
-    hydra_destroy (&qmlSelf->self);
+    return hydra_destroy (&qmlSelf->self);
 };
 
 /*
