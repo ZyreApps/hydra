@@ -162,7 +162,7 @@ s_server_store_post (server_t *self, zmsg_t *msg)
         zstr_free (&filename);
     }
     else
-    if (streq (arg_type, "frame")) {
+    if (streq (arg_type, "chunk")) {
         zframe_t *frame = zmsg_pop (msg);
         hydra_post_set_data (post, zframe_data (frame), zframe_size (frame));
         zframe_destroy (&frame);

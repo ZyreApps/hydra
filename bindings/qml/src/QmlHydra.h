@@ -17,13 +17,11 @@
 class QmlHydra : public QObject
 {
     Q_OBJECT
-    Q_PROPERTY(bool isNULL READ isNULL)
     
 public:
     hydra_t *self;
     
-    QmlHydra() { self = NULL; }
-    bool isNULL() { return self == NULL; }
+    QmlHydra() { self = NULL; } // TODO: prevent declarative use - could lead to SEGV
     
     static QObject* qmlAttachedProperties(QObject* object); // defined in QmlHydra.cpp
     
@@ -60,6 +58,21 @@ public slots:
     //  waiting, returns NULL. The caller can read the post using the hydra_post 
     //  API, and must destroy the post when done with it.                        
     QmlHydraPost *fetch ();
+
+    //  Store a new post provided as a null-terminated string. Returns post ID for
+    //  the newly created post, or NULL if it was impossible to store the post.   
+    //  Caller must free post ID when finished with it.                           
+    const QString storeString (const QString &subject, const QString &parentId, const QString &mimeType, const QString &content);
+
+    //  Store a new post located in a file somewhere on disk. Returns post ID for
+    //  the newly created post, or NULL if it was impossible to store the post.  
+    //  Caller must free post ID when finished with it.                          
+    const QString storeFile (const QString &subject, const QString &parentId, const QString &mimeType, const QString &filename);
+
+    //  Store a new post provided as a chunk of data. Returns post ID for      
+    //  the newly created post, or NULL if it was impossible to store the post.
+    //  Caller must free post ID when finished with it.                        
+    const QString storeChunk (const QString &subject, const QString &parentId, const QString &mimeType, zchunk_t *chunk);
 };
 
 class QmlHydraAttached : public QObject

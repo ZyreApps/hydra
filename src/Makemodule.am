@@ -39,12 +39,6 @@ src_libhydra_la_LDFLAGS += \
     -avoid-version
 endif
 
-if ON_CYGWIN
-src_libhydra_la_LDFLAGS += \
-    -no-undefined \
-    -avoid-version
-endif
-
 src_libhydra_la_LIBADD = ${project_libs}
 
 bin_PROGRAMS += src/hydrad

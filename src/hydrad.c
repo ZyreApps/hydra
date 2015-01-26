@@ -84,7 +84,7 @@ int main (int argc, char *argv [])
         zsock_recv (server, "s", &post_id);
 
         zsock_send (server, "sssssb", "POST", "This is a blob of data", post_id,
-                    "*/*", "frame", "ABCDEFGHIJ", 10);
+                    "*/*", "chunk", "ABCDEFGHIJ", 10);
         zstr_free (&post_id);
         zsock_recv (server, "s", &post_id);
         zstr_free (&post_id);

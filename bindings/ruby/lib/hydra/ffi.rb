@@ -24,7 +24,7 @@ module Hydra
       @available = true
     rescue LoadError
       warn ""
-      warn "WARNING: ::Hydra::FFI is not available without libhydra."
+      warn "WARNING: Hydra::FFI is not available without libhydra."
       warn ""
       @available = false
     end
@@ -43,6 +43,9 @@ module Hydra
       attach_function :hydra_set_local_ipc, [:pointer], :void, **opts
       attach_function :hydra_start, [:pointer], :int, **opts
       attach_function :hydra_fetch, [:pointer], :pointer, **opts
+      attach_function :hydra_store_string, [:pointer, :string, :string, :string, :string], :string, **opts
+      attach_function :hydra_store_file, [:pointer, :string, :string, :string, :string], :string, **opts
+      attach_function :hydra_store_chunk, [:pointer, :string, :string, :string, :pointer], :string, **opts
       attach_function :hydra_version, [:pointer, :pointer, :pointer], :void, **opts
       attach_function :hydra_test, [:bool], :void, **opts
       
@@ -58,7 +61,7 @@ module Hydra
       attach_function :hydra_post_digest, [:pointer], :string, **opts
       attach_function :hydra_post_location, [:pointer], :string, **opts
       attach_function :hydra_post_content_size, [:pointer], :pointer, **opts
-      attach_function :hydra_post_content, [:pointer], :pointer, **opts
+      attach_function :hydra_post_content, [:pointer], :string, **opts
       attach_function :hydra_post_set_parent_id, [:pointer, :string], :void, **opts
       attach_function :hydra_post_set_mime_type, [:pointer, :string], :void, **opts
       attach_function :hydra_post_set_content, [:pointer, :string], :void, **opts
