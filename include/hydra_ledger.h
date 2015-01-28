@@ -42,7 +42,7 @@ HYDRA_EXPORT int
 //  to the ledger, and then destroys the post. Use in place of            
 //  hydra_post_save to ensure post filenames are correctly generated.     
 HYDRA_EXPORT int
-    hydra_ledger_store (hydra_ledger_t *self, hydra_post_t *post_p);
+    hydra_ledger_store (hydra_ledger_t *self, hydra_post_t **post_p);
 
 //  Return post at specified index; if the index does not refer to a valid
 //  post, returns NULL.                                                   

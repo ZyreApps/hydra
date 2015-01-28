@@ -27,7 +27,7 @@ int QmlHydraLedger::load () {
 //  to the ledger, and then destroys the post. Use in place of            
 //  hydra_post_save to ensure post filenames are correctly generated.     
 int QmlHydraLedger::store (QmlHydraPost *postP) {
-    return hydra_ledger_store (self, postP->self);
+    return hydra_ledger_store (self, &postP->self);
 };
 
 ///

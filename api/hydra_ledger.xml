@@ -26,7 +26,7 @@
         to the ledger, and then destroys the post. Use in place of
         hydra_post_save to ensure post filenames are correctly generated.
         <return type = "integer" c_type = "int" />
-        <argument name = "post_p" type = "hydra_post" />
+        <argument name = "post_p" type = "hydra_post" by_reference = "1" />
     </method>
 
     <method name = "fetch">
