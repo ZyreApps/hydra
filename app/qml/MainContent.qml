@@ -36,7 +36,10 @@ Rectangle {
     id: layout
     anchors.fill: parent
     
+    onHeightChanged: console.log(height)
     property bool landscape: width >= height
+    property bool small: (width+height) < 1500 // arbitrarily chosen for phones
+    
     rows:    landscape ? 1 : 2
     columns: landscape ? 2 : 1
     
@@ -59,6 +62,8 @@ Rectangle {
       Layout.fillWidth: true
       Layout.fillHeight: true
       clip: true
+      // Hide on small devices when postCreator is visible
+      visible: !(layout.small && postCreator.visible)
     }
   }
 }
