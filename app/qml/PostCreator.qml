@@ -10,7 +10,7 @@ Item {
   
   property alias subject: subjectField.text
   property alias content: textContentField.text
-  property alias location: imageContentPathField.text
+  property alias location: imageContentBrowser.text
   property string parentId: ""
   property string parentSubject: ""
   
@@ -25,6 +25,7 @@ Item {
     location = ""
     parentId = ""
     parentSubject = ""
+    imageContentBrowser.clear()
   }
   
   GroupBox {
@@ -87,62 +88,11 @@ Item {
         visible: typePlainText.checked
       }
       
-      ColumnLayout {
-        id: imageContentLayout
+      PostCreatorImageBrowser {
+        id: imageContentBrowser
         Layout.fillWidth: true
         Layout.fillHeight: true
         visible: typeImageFile.checked
-        
-        FileDialog { // This file dialog is currently very ugly on Android...
-          id: imageContentDialog
-          title: "Select an image file..."
-          folder: "file:///sdcard"
-          onFileUrlChanged: {
-            imageContentPathField.text = fileUrl
-            imageContentPathField.accepted()
-          }
-        }
-        RowLayout {
-          Layout.fillWidth: true
-          Layout.fillHeight: true
-          Button {
-            id: imageContentBrowseButton
-            Layout.fillWidth: true
-            text: "Browse"
-            onClicked: imageContentDialog.open()
-          }
-          TextField {
-            id: imageContentPathField
-            Layout.fillWidth: true
-            placeholderText: "/path/to/the/image..."
-            onAccepted: imageContentPreview.source = text
-          }
-        }
-        Image {
-          id: imageContentPreview
-          Layout.fillWidth: true
-          Layout.fillHeight: true
-          fillMode: Image.PreserveAspectFit
-          
-          MouseArea {
-            anchors.fill: parent
-            onClicked: imageContentLargePreview.visible = true
-            enabled: imageContentPreview.status == Image.Ready
-          }
-        }
-        Image {
-          id: imageContentLargePreview
-          parent: root
-          anchors.fill: parent
-          fillMode: Image.PreserveAspectFit
-          visible: false
-          source: imageFilePreview.source
-          
-          MouseArea {
-            anchors.fill: parent
-            onClicked: imageFileLargePreview.visible = false
-          }
-        }
       }
       
       Item {

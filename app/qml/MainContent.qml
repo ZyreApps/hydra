@@ -36,7 +36,6 @@ Rectangle {
     id: layout
     anchors.fill: parent
     
-    onHeightChanged: console.log(height)
     property bool landscape: width >= height
     property bool small: (width+height) < 1500 // arbitrarily chosen for phones
     

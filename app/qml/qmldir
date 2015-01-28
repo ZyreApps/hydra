@@ -6,4 +6,5 @@ Post         1.0  Post.qml
 PostLabel    1.0  PostLabel.qml
 PostStream   1.0  PostStream.qml
 PostCreator  1.0  PostCreator.qml
-CameraView   1.0  CameraView.qml
+PostCreatorImageBrowser  1.0  PostCreatorImageBrowser.qml
+PostCreatorCameraView    1.0  PostCreatorCameraView.qml
