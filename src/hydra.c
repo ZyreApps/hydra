@@ -193,7 +193,7 @@ hydra_fetch (hydra_t *self)
 //  the newly created post, or NULL if it was impossible to store the post.
 //  Caller must free post ID when finished with it.
 
-const char *
+char *
 hydra_store_string (hydra_t *self, const char *subject, const char *parent_id,
                     const char *mime_type, const char *content)
 {
@@ -210,7 +210,7 @@ hydra_store_string (hydra_t *self, const char *subject, const char *parent_id,
 //  the newly created post, or NULL if it was impossible to store the post.
 //  Caller must free post ID when finished with it.
 
-const char *
+char *
 hydra_store_file (hydra_t *self, const char *subject, const char *parent_id,
                   const char *mime_type, const char *filename)
 {
@@ -227,7 +227,7 @@ hydra_store_file (hydra_t *self, const char *subject, const char *parent_id,
 //  the newly created post, or NULL if it was impossible to store the post.
 //  Caller must free post ID when finished with it.
 
-const char *
+char *
 hydra_store_chunk (hydra_t *self, const char *subject, const char *parent_id,
                    const char *mime_type, zchunk_t *chunk)
 {
@@ -565,7 +565,7 @@ hydra_test (bool verbose)
     //  Simple create/destroy test
     hydra_t *self = hydra_new (NULL);
     assert (self);
-    char *post_id = (char *) hydra_store_string (self, "This is a string",
+    char *post_id = hydra_store_string (self, "This is a string",
                                         "", "text/plain", "Hello, World");
     assert (post_id);
     
