@@ -175,7 +175,7 @@ s_server_store_post (server_t *self, zmsg_t *msg)
 
     zmsg_t *reply = zmsg_new ();
     zmsg_addstr (reply, hydra_post_ident (post));
-    hydra_ledger_store (self->ledger, &post);
+    hydra_ledger_store (self->ledger, post);
     return reply;
 }
 
@@ -186,11 +186,7 @@ s_server_handle_sink (zloop_t *loop, zsock_t *reader, void *argument)
     server_t *self = (server_t *) argument;
     hydra_post_t *post;
     zsock_recv (reader, "p", &post);
-
-    puts ("---- received  ----");
-    hydra_post_print (post);
-    
-    hydra_ledger_store (self->ledger, &post);
+    hydra_ledger_store (self->ledger, post);
     return 0;
 }
 

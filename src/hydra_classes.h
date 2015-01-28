@@ -21,6 +21,5 @@
 #include "../include/hydra.h"
 
 //  Internal API
-#include "hydra_ledger.h"
 
 #endif

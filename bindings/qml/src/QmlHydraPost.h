@@ -79,7 +79,8 @@ public slots:
 
     //  Save the post to disk under the specified filename. Returns 0 if OK, -1 
     //  if the file could not be created. Posts are always stored in the "posts"
-    //  subdirectory of the current working directory.                          
+    //  subdirectory of the current working directory. Note: for internal use   
+    //  only.                                                                   
     int save (const QString &filename);
 
     //  Fetch a chunk of content for the post. The caller specifies the size and 

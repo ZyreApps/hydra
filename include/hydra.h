@@ -102,7 +102,6 @@ HYDRA_EXPORT void
     hydra_test (bool verbose);
 //  @end
 
-
 #ifdef __cplusplus
 }
 #endif
