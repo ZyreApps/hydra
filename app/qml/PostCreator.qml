@@ -7,10 +7,31 @@ import QtQuick.Dialogs 1.1
 
 Item {
   id: root
+  
+  property alias subject: subjectField.text
+  property alias content: textContentField.text
+  property alias location: imageContentPathField.text
+  property string parentId: ""
+  property string parentSubject: ""
+  
+  
+  function storePost() {
+    // TODO: implement
+  }
+  
+  function clear() {
+    subject = ""
+    content = ""
+    location = ""
+    parentId = ""
+    parentSubject = ""
+  }
+  
   GroupBox {
     width: parent.width * 0.9
     height: parent.height
     anchors.centerIn: parent
+    
     GridLayout {
       Layout.maximumWidth: parent.width
       anchors.fill: parent
@@ -22,6 +43,13 @@ Item {
         text: "Create a new post"
         font.pointSize: dummyLabel.font.pointSize * 1.25
         font.weight: Font.Bold
+      }
+      
+      PostLabel {
+        text: "Parent Post: \"%1\"".arg(root.parentSubject)
+        font.pointSize: dummyLabel.font.pointSize * 1.125
+        font.weight: Font.Bold
+        visible: root.parentId.length > 0
       }
       
       TextField {
@@ -69,7 +97,6 @@ Item {
           id: imageContentDialog
           title: "Select an image file..."
           folder: "file:///sdcard"
-          onFolderChanged: console.log("FOLDER:", folder)
           onFileUrlChanged: {
             imageContentPathField.text = fileUrl
             imageContentPathField.accepted()
@@ -129,12 +156,13 @@ Item {
           id: sendButton
           Layout.fillWidth: true
           text: "Send"
+          onClicked: { root.storePost(); root.clear(); root.visible = false }
         }
         Button {
           id: cancelButton
           Layout.fillWidth: true
           text: "Cancel"
-            onClicked: imageFileLargePreview.open()
+          onClicked: { root.clear(); root.visible = false }
         }
       }
     }

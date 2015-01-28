@@ -6,6 +6,7 @@ import QtQuick.Window 2.1
 
 
 Rectangle {
+  id: globalRoot
   width: 640
   height: 480
   
@@ -14,9 +15,18 @@ Rectangle {
   
   property MenuBar mainMenu: MenuBar {
     Menu {
-      title: "File"
+      title: "&File"
       MenuItem {
-        text: "Exit"
+        text: "&Create a post"
+        onTriggered: postCreator.visible = true
+      }
+      MenuItem {
+        property bool running: true
+        text: running ? "&Stop sharing" : "&Start sharing"
+        enabled: false // TODO: Implement
+      }
+      MenuItem {
+        text: "E&xit"
         onTriggered: Qt.quit()
       }
     }
@@ -26,11 +36,12 @@ Rectangle {
     id: layout
     anchors.fill: parent
     
-    property bool landscape: Screen.primaryOrientation==Qt.LandscapeOrientation
+    property bool landscape: width >= height
     rows:    landscape ? 1 : 2
     columns: landscape ? 2 : 1
     
     PostCreator {
+      id: postCreator
       Layout.row: 1
       Layout.column: layout.landscape ? 2 : 1
       Layout.rowSpan: 1
@@ -40,6 +51,7 @@ Rectangle {
       clip: true
     }
     PostStream {
+      id: postStream
       Layout.row: layout.landscape ? 1 : 2
       Layout.column: 1
       Layout.rowSpan: 1

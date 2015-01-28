@@ -48,6 +48,7 @@ GroupBox {
   })
   
   
+  property string ident:       post.ident       || ""
   property string subject:     post.subject     || ""
   property string textContent: post.textContent || ""
   property var replies:        post.replies     || []
@@ -96,7 +97,26 @@ GroupBox {
   
   Menu {
     id: contextMenu
-    MenuItem { text: "Reply to this post" }
-    MenuItem { text: "Delete this post" }
+    MenuItem {
+      text: "&Create a new post"
+      onTriggered: postCreator.visible = true
+    }
+    MenuItem {
+      text: "&Reply to this post"
+      onTriggered: {
+        postCreator.parentSubject = root.subject
+        postCreator.parentId = root.ident
+        postCreator.visible = true
+      }
+    }
+    MenuItem {
+      text: "&Delete this post"
+      enabled: false // TODO: Implement
+    }
+    MenuItem {
+      property bool running: true
+      text: running ? "&Stop sharing" : "&Start sharing"
+      enabled: false // TODO: Implement
+    }
   }
 }
