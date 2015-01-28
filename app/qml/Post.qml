@@ -11,7 +11,7 @@ GroupBox {
   // TODO: get rid of this mock data and use real posts
   property var post: ({
     subject: "Welcome to Edgenet:Hydra",
-    textContent: "The goal of the Hydra project is to explore and learn "+
+    content: "The goal of the Hydra project is to explore and learn "+
       "how to share knowledge and information across short-lived wireless "+
       "networks between mobile users. Hydra exploits \"proximity networks\", "+
       "that is the physical closeness of individuals. The Hydra project is "+
@@ -22,7 +22,7 @@ GroupBox {
   })
   
   property var reply1: ({
-    textContent: "Plausibly, Hydra could evolve into a fully decentralized "+
+    content: "Plausibly, Hydra could evolve into a fully decentralized "+
       "social network, closely mapping and amplifying existing human "+
       "protocols for knowledge and information sharing. However at this "+
       "stage, Hydra is simply a model for exchanging cat photos.",
@@ -30,7 +30,7 @@ GroupBox {
   })
   
   property var reply2: ({
-    textContent: "Note that Hydra is not a mesh network and does no "+
+    content: "Note that Hydra is not a mesh network and does no "+
       "forwarding or routing. This is deliberate. We assume that peers "+
       "move around too rapidly for routing knowledge to ever be valid. "+
       "All a peer can ever know is \"I can talk to this other peer, for now.\"",
@@ -38,7 +38,7 @@ GroupBox {
   })
   
   property var reply3: ({
-    textContent: "Hydra is aimed, in its current incarnation, at technical "+
+    content: "Hydra is aimed, in its current incarnation, at technical "+
       "conferences, weddings, parties, and funerals. The participants are "+
       "in rough proximity, for a period of hours or days. They share a "+
       "strong set of interests. They implicitly trust each other, yet do "+
@@ -48,10 +48,12 @@ GroupBox {
   })
   
   
-  property string ident:       post.ident       || ""
-  property string subject:     post.subject     || ""
-  property string textContent: post.textContent || ""
-  property var replies:        post.replies     || []
+  property string ident:    post.ident    || ""
+  property string subject:  post.subject  || ""
+  property string mimeType: post.mimeType || ""
+  property string content:  post.content  || ""
+  property string location: post.location || ""
+  property var replies:     post.replies  || []
   
   ColumnLayout {
     id: layout
@@ -63,14 +65,25 @@ GroupBox {
       id: subjectLabel
       text: root.subject
       menu: contextMenu
-      font.pointSize: textContentLabel.font.pointSize * 1.5
+      font.pointSize: contentLabel.font.pointSize * 1.5
       font.weight: Font.Bold
     }
     
     PostLabel {
-      id: textContentLabel
-      text: root.textContent
+      id: contentLabel
+      text: root.content
       menu: contextMenu
+    }
+    
+    Image {
+      Layout.fillHeight: true
+      Layout.fillWidth: true
+      Layout.maximumWidth: parent.width
+      Layout.preferredHeight: parent.width * sourceSize.height / sourceSize.width
+      id: contentImage
+      fillMode: Image.PreserveAspectFit
+      source: visible ? "file://" + root.location : ""
+      visible: root.location.length > 0
     }
     
     CheckBox {
