@@ -1,6 +1,7 @@
 
 Main  1.0  main.qml
 
+MainContent  1.0  MainContent.qml
 Post         1.0  Post.qml
 PostLabel    1.0  PostLabel.qml
 PostStream   1.0  PostStream.qml

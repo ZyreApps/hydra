@@ -1,0 +1,12 @@
+<RCC>
+    <qresource prefix="/">
+        <file>qmldir</file>
+        <file>main.qml</file>
+        <file>MainContent.qml</file>
+        <file>Post.qml</file>
+        <file>PostCreator.qml</file>
+        <file>PostLabel.qml</file>
+        <file>PostStream.qml</file>
+        <file>HydraPostList.qml</file>
+    </qresource>
+</RCC>

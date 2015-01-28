@@ -25,7 +25,7 @@ module Hydra
         Proc.new do
           ptr_ptr = ::FFI::MemoryPointer.new :pointer
           ptr_ptr.write_pointer ptr
-          Hydra::FFI.hydra_post_destroy ptr_ptr
+          ::Hydra::FFI.hydra_post_destroy ptr_ptr
         end
       end
       # Return internal pointer
@@ -47,7 +47,7 @@ module Hydra
       # Create a new post
       def self.new subject
         subject = String(subject)
-        ptr = Hydra::FFI.hydra_post_new subject
+        ptr = ::Hydra::FFI.hydra_post_new subject
         
         __new ptr
       end
@@ -55,8 +55,8 @@ module Hydra
       # Destroy the post
       def destroy
         return unless @ptr
-        self_p = self_p.__ptr_give_ref
-        result = Hydra::FFI.hydra_post_destroy self_p
+        self_p = __ptr_give_ref
+        result = ::Hydra::FFI.hydra_post_destroy self_p
         result
       end
       
@@ -64,56 +64,56 @@ module Hydra
       # type, and content digest, and return post ID to caller.             
       def ident
         raise DestroyedError unless @ptr
-        result = Hydra::FFI.hydra_post_ident @ptr
+        result = ::Hydra::FFI.hydra_post_ident @ptr
         result
       end
       
       # Return the post subject, if set
       def subject
         raise DestroyedError unless @ptr
-        result = Hydra::FFI.hydra_post_subject @ptr
+        result = ::Hydra::FFI.hydra_post_subject @ptr
         result
       end
       
       # Return the post timestamp
       def timestamp
         raise DestroyedError unless @ptr
-        result = Hydra::FFI.hydra_post_timestamp @ptr
+        result = ::Hydra::FFI.hydra_post_timestamp @ptr
         result
       end
       
       # Return the post parent id, or empty string if not set
       def parent_id
         raise DestroyedError unless @ptr
-        result = Hydra::FFI.hydra_post_parent_id @ptr
+        result = ::Hydra::FFI.hydra_post_parent_id @ptr
         result
       end
       
       # Return the post MIME type, if set
       def mime_type
         raise DestroyedError unless @ptr
-        result = Hydra::FFI.hydra_post_mime_type @ptr
+        result = ::Hydra::FFI.hydra_post_mime_type @ptr
         result
       end
       
       # Return the post content digest
       def digest
         raise DestroyedError unless @ptr
-        result = Hydra::FFI.hydra_post_digest @ptr
+        result = ::Hydra::FFI.hydra_post_digest @ptr
         result
       end
       
       # Return the post content location
       def location
         raise DestroyedError unless @ptr
-        result = Hydra::FFI.hydra_post_location @ptr
+        result = ::Hydra::FFI.hydra_post_location @ptr
         result
       end
       
       # Return the post content size
       def content_size
         raise DestroyedError unless @ptr
-        result = Hydra::FFI.hydra_post_content_size @ptr
+        result = ::Hydra::FFI.hydra_post_content_size @ptr
         result
       end
       
@@ -121,7 +121,7 @@ module Hydra
       # not "text/plain". The caller must destroy the string when finished with it.
       def content
         raise DestroyedError unless @ptr
-        result = Hydra::FFI.hydra_post_content @ptr
+        result = ::Hydra::FFI.hydra_post_content @ptr
         result
       end
       
@@ -129,7 +129,7 @@ module Hydra
       def set_parent_id parent_id
         raise DestroyedError unless @ptr
         parent_id = String(parent_id)
-        result = Hydra::FFI.hydra_post_set_parent_id @ptr, parent_id
+        result = ::Hydra::FFI.hydra_post_set_parent_id @ptr, parent_id
         result
       end
       
@@ -137,7 +137,7 @@ module Hydra
       def set_mime_type mime_type
         raise DestroyedError unless @ptr
         mime_type = String(mime_type)
-        result = Hydra::FFI.hydra_post_set_mime_type @ptr, mime_type
+        result = ::Hydra::FFI.hydra_post_set_mime_type @ptr, mime_type
         result
       end
       
@@ -146,7 +146,7 @@ module Hydra
       def set_content content
         raise DestroyedError unless @ptr
         content = String(content)
-        result = Hydra::FFI.hydra_post_set_content @ptr, content
+        result = ::Hydra::FFI.hydra_post_set_content @ptr, content
         result
       end
       
@@ -155,7 +155,7 @@ module Hydra
       # stored on disk until you call hydra_post_save.                        
       def set_data data, size
         raise DestroyedError unless @ptr
-        result = Hydra::FFI.hydra_post_set_data @ptr, data, size
+        result = ::Hydra::FFI.hydra_post_set_data @ptr, data, size
         result
       end
       
@@ -165,7 +165,7 @@ module Hydra
       def set_file location
         raise DestroyedError unless @ptr
         location = String(location)
-        result = Hydra::FFI.hydra_post_set_file @ptr, location
+        result = ::Hydra::FFI.hydra_post_set_file @ptr, location
         result
       end
       
@@ -175,7 +175,7 @@ module Hydra
       def save filename
         raise DestroyedError unless @ptr
         filename = String(filename)
-        result = Hydra::FFI.hydra_post_save @ptr, filename
+        result = ::Hydra::FFI.hydra_post_save @ptr, filename
         result
       end
       
@@ -184,7 +184,7 @@ module Hydra
       # instance if the file could be loaded, else returns null.                 
       def self.load filename
         filename = String(filename)
-        result = Hydra::FFI.hydra_post_load filename
+        result = ::Hydra::FFI.hydra_post_load filename
         result = Post.__new result, true
         result
       end
@@ -195,20 +195,20 @@ module Hydra
       # when finished with it.                                                   
       def fetch size, offset
         raise DestroyedError unless @ptr
-        result = Hydra::FFI.hydra_post_fetch @ptr, size, offset
+        result = ::Hydra::FFI.hydra_post_fetch @ptr, size, offset
         result
       end
       
       # Encode a post metadata to a hydra_proto message
       def encode proto
         raise DestroyedError unless @ptr
-        result = Hydra::FFI.hydra_post_encode @ptr, proto
+        result = ::Hydra::FFI.hydra_post_encode @ptr, proto
         result
       end
       
       # Create a new post from a hydra_proto HEADER-OK message.
       def self.decode proto
-        result = Hydra::FFI.hydra_post_decode proto
+        result = ::Hydra::FFI.hydra_post_decode proto
         result = Post.__new result, true
         result
       end
@@ -217,7 +217,7 @@ module Hydra
       # provides a second instance of the same post item.                  
       def dup
         raise DestroyedError unless @ptr
-        result = Hydra::FFI.hydra_post_dup @ptr
+        result = ::Hydra::FFI.hydra_post_dup @ptr
         result = Post.__new result, true
         result
       end
@@ -225,14 +225,14 @@ module Hydra
       # Print the post file to stdout
       def print
         raise DestroyedError unless @ptr
-        result = Hydra::FFI.hydra_post_print @ptr
+        result = ::Hydra::FFI.hydra_post_print @ptr
         result
       end
       
       # Self test of this class
       def self.test verbose
         verbose = !(0==verbose||!verbose) # boolean
-        result = Hydra::FFI.hydra_post_test verbose
+        result = ::Hydra::FFI.hydra_post_test verbose
         result
       end
     end

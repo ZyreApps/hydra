@@ -78,19 +78,19 @@ HYDRA_EXPORT hydra_post_t *
 //  Store a new post provided as a null-terminated string. Returns post ID for
 //  the newly created post, or NULL if it was impossible to store the post.   
 //  Caller must free post ID when finished with it.                           
-HYDRA_EXPORT const char *
+HYDRA_EXPORT char *
     hydra_store_string (hydra_t *self, const char *subject, const char *parent_id, const char *mime_type, const char *content);
 
 //  Store a new post located in a file somewhere on disk. Returns post ID for
 //  the newly created post, or NULL if it was impossible to store the post.  
 //  Caller must free post ID when finished with it.                          
-HYDRA_EXPORT const char *
+HYDRA_EXPORT char *
     hydra_store_file (hydra_t *self, const char *subject, const char *parent_id, const char *mime_type, const char *filename);
 
 //  Store a new post provided as a chunk of data. Returns post ID for      
 //  the newly created post, or NULL if it was impossible to store the post.
 //  Caller must free post ID when finished with it.                        
-HYDRA_EXPORT const char *
+HYDRA_EXPORT char *
     hydra_store_chunk (hydra_t *self, const char *subject, const char *parent_id, const char *mime_type, zchunk_t *chunk);
 
 //  Return the Hydra version for run-time API detection

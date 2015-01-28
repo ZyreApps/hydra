@@ -21,6 +21,23 @@ QtObject {
   // The post object is a static object containing the post's properties.
   signal fetched(var post)
   
+  // Enter the given post object into hydra storage for sharing.
+  signal store(var post)
+  onStore: {
+    if (post.location && post.location.length > 0)
+      priv.hydra.storeFile(
+        post.subject || "",
+        post.parentId || "",
+        post.mimeType || "",
+        post.location)
+    else
+      priv.hydra.storeString(
+        post.subject || "",
+        post.parentId || "",
+        post.mimeType || "text/plain",
+        post.content || "")
+  }
+  
   // Creat and destroy the service along with this object
   Component.onCompleted: priv.createHydra()
   Component.onDestruction: priv.destroyHydra()

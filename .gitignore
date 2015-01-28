@@ -72,3 +72,6 @@ src/app/jni/output
 notes.txt
 doit
 
+# Qt application build environment files
+app/*.pro.user
+build-hydra-*/

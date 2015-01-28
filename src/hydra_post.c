@@ -180,7 +180,7 @@ hydra_post_content_size (hydra_post_t *self)
 //  Return the post content as a string. Returns NULL if the MIME type is
 //  not "text/plain". The caller must destroy the string when finished with it.
 
-const char *
+char *
 hydra_post_content (hydra_post_t *self)
 {
     assert (self);
@@ -482,7 +482,7 @@ hydra_post_test (bool verbose)
     assert (post);
     hydra_post_set_content (post, "Hello, World");
     assert (streq (hydra_post_mime_type (post), "text/plain"));
-    char *content = (char *) hydra_post_content (post);
+    char *content = hydra_post_content (post);
     assert (streq (content, "Hello, World"));
     zstr_free (&content);
     int rc = hydra_post_save (post, "testpost");

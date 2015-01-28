@@ -5,7 +5,7 @@
 
 require 'spec_helper'
 
-describe Hydra::FFI do
+describe ::Hydra::FFI do
   it { should be }
 end
 

@@ -25,7 +25,7 @@ module Hydra
         Proc.new do
           ptr_ptr = ::FFI::MemoryPointer.new :pointer
           ptr_ptr.write_pointer ptr
-          Hydra::FFI.hydra_destroy ptr_ptr
+          ::Hydra::FFI.hydra_destroy ptr_ptr
         end
       end
       # Return internal pointer
@@ -50,7 +50,7 @@ module Hydra
       # working directory. Creates the working directory if necessary.        
       def self.new directory
         directory = String(directory)
-        ptr = Hydra::FFI.hydra_new directory
+        ptr = ::Hydra::FFI.hydra_new directory
         
         __new ptr
       end
@@ -59,8 +59,8 @@ module Hydra
       # it is sending or receiving will be discarded.                        
       def destroy
         return unless @ptr
-        self_p = self_p.__ptr_give_ref
-        result = Hydra::FFI.hydra_destroy self_p
+        self_p = __ptr_give_ref
+        result = ::Hydra::FFI.hydra_destroy self_p
         result
       end
       
@@ -69,7 +69,7 @@ module Hydra
       def set_nickname nickname
         raise DestroyedError unless @ptr
         nickname = String(nickname)
-        result = Hydra::FFI.hydra_set_nickname @ptr, nickname
+        result = ::Hydra::FFI.hydra_set_nickname @ptr, nickname
         result
       end
       
@@ -78,7 +78,7 @@ module Hydra
       # zstr_free ().                                                          
       def nickname
         raise DestroyedError unless @ptr
-        result = Hydra::FFI.hydra_nickname @ptr
+        result = ::Hydra::FFI.hydra_nickname @ptr
         result
       end
       
@@ -86,7 +86,7 @@ module Hydra
       # debug the Hydra protocol flow.                                     
       def set_animate
         raise DestroyedError unless @ptr
-        result = Hydra::FFI.hydra_set_animate @ptr
+        result = ::Hydra::FFI.hydra_set_animate @ptr
         result
       end
       
@@ -94,7 +94,7 @@ module Hydra
       # security and discovery. Use this to collect diagnostic logs.          
       def set_verbose
         raise DestroyedError unless @ptr
-        result = Hydra::FFI.hydra_set_verbose @ptr
+        result = ::Hydra::FFI.hydra_set_verbose @ptr
         result
       end
       
@@ -105,7 +105,7 @@ module Hydra
       # directory called ".hydra".                                            
       def set_local_ipc
         raise DestroyedError unless @ptr
-        result = Hydra::FFI.hydra_set_local_ipc @ptr
+        result = ::Hydra::FFI.hydra_set_local_ipc @ptr
         result
       end
       
@@ -113,7 +113,7 @@ module Hydra
       # Returns 0 if OK, -1 if it wasn't possible to start the node.            
       def start
         raise DestroyedError unless @ptr
-        result = Hydra::FFI.hydra_start @ptr
+        result = ::Hydra::FFI.hydra_start @ptr
         result
       end
       
@@ -122,7 +122,7 @@ module Hydra
       # API, and must destroy the post when done with it.                        
       def fetch
         raise DestroyedError unless @ptr
-        result = Hydra::FFI.hydra_fetch @ptr
+        result = ::Hydra::FFI.hydra_fetch @ptr
         result = Post.__new result, true
         result
       end
@@ -136,7 +136,7 @@ module Hydra
         parent_id = String(parent_id)
         mime_type = String(mime_type)
         content = String(content)
-        result = Hydra::FFI.hydra_store_string @ptr, subject, parent_id, mime_type, content
+        result = ::Hydra::FFI.hydra_store_string @ptr, subject, parent_id, mime_type, content
         result
       end
       
@@ -149,7 +149,7 @@ module Hydra
         parent_id = String(parent_id)
         mime_type = String(mime_type)
         filename = String(filename)
-        result = Hydra::FFI.hydra_store_file @ptr, subject, parent_id, mime_type, filename
+        result = ::Hydra::FFI.hydra_store_file @ptr, subject, parent_id, mime_type, filename
         result
       end
       
@@ -161,20 +161,20 @@ module Hydra
         subject = String(subject)
         parent_id = String(parent_id)
         mime_type = String(mime_type)
-        result = Hydra::FFI.hydra_store_chunk @ptr, subject, parent_id, mime_type, chunk
+        result = ::Hydra::FFI.hydra_store_chunk @ptr, subject, parent_id, mime_type, chunk
         result
       end
       
       # Return the Hydra version for run-time API detection
       def self.version major, minor, patch
-        result = Hydra::FFI.hydra_version major, minor, patch
+        result = ::Hydra::FFI.hydra_version major, minor, patch
         result
       end
       
       # Self test of this class
       def self.test verbose
         verbose = !(0==verbose||!verbose) # boolean
-        result = Hydra::FFI.hydra_test verbose
+        result = ::Hydra::FFI.hydra_test verbose
         result
       end
     end
