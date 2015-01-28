@@ -568,6 +568,7 @@ hydra_test (bool verbose)
     char *post_id = hydra_store_string (self, "This is a string",
                                         "", "text/plain", "Hello, World");
     assert (post_id);
+    zstr_free (&post_id);
     
     hydra_post_t *post = hydra_fetch (self);
     assert (post == NULL);
