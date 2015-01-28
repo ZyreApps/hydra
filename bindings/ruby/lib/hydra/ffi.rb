@@ -77,6 +77,17 @@ module Hydra
       attach_function :hydra_post_test, [:bool], :void, **opts
       
       require_relative 'ffi/post'
+      
+      attach_function :hydra_ledger_new, [], :pointer, **opts
+      attach_function :hydra_ledger_destroy, [:pointer], :void, **opts
+      attach_function :hydra_ledger_size, [:pointer], :pointer, **opts
+      attach_function :hydra_ledger_load, [:pointer], :int, **opts
+      attach_function :hydra_ledger_store, [:pointer, :pointer], :int, **opts
+      attach_function :hydra_ledger_fetch, [:pointer, :int], :pointer, **opts
+      attach_function :hydra_ledger_index, [:pointer, :string], :int, **opts
+      attach_function :hydra_ledger_test, [:bool], :void, **opts
+      
+      require_relative 'ffi/ledger'
     end
   end
 end

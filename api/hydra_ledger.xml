@@ -1,0 +1,50 @@
+<class name = "hydra_ledger">
+    work with Hydra ledger of posts
+    
+    <constructor>
+        Create a new empty ledger instance.
+    </constructor>
+    
+    <destructor>
+        Destroy the ledger
+    </destructor>
+    
+    <method name = "size">
+        Return ledger size, i.e. number of posts stored in the ledger.
+        <return type = "integer" c_type = "size_t" />
+    </method>
+    
+    <method name = "load">
+        Load the ledger data from disk, from the specified directory. Returns 
+        the number of posts loaded, or -1 if there was an error reading the
+        directory.
+        <return type = "integer" c_type = "int" />
+    </method>
+    
+    <method name = "store">
+        Save a post via the ledger. This saves the post to disk, adds the post
+        to the ledger, and then destroys the post. Use in place of
+        hydra_post_save to ensure post filenames are correctly generated.
+        <return type = "integer" c_type = "int" />
+        <argument name = "post_p" type = "hydra_post" />
+    </method>
+
+    <method name = "fetch">
+        Return post at specified index; if the index does not refer to a valid
+        post, returns NULL.
+        <return type = "hydra_post" fresh = "1" />
+        <argument name = "index" type = "integer" c_type = "int" />
+    </method>
+
+    <method name = "index">
+        Lookup post in ledger and return post index (0 .. size - 1); if the post
+        does not exist, returns -1.
+        <return type = "integer" c_type = "int" />
+        <argument name = "post_id" type = "string" />
+    </method>
+
+    <method name = "test" singleton = "1">
+        Self test of this class
+        <argument name = "verbose" type = "boolean" />
+    </method>
+</class>

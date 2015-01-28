@@ -107,7 +107,7 @@ set (hydra_headers
     include/hydra_server.h
     include/hydra_client.h
     include/hydra_post.h
-    src/hydra_ledger.h
+    include/hydra_ledger.h
 )
 source_group ("Header Files" FILES ${hydra_headers})
 install(FILES ${hydra_headers} DESTINATION include)

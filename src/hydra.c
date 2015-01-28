@@ -287,6 +287,7 @@ s_self_new (zsock_t *pipe, char *directory)
     self->posts = zlistx_new ();
     zlistx_set_destructor (self->posts, (czmq_destructor *) hydra_post_destroy);
     zsock_send (self->server, "ss", "LOAD", "hydra.cfg");
+    zsock_send (self->server, "sss", "SET", "server/timeout", "2000");
     return self;
 }
 

@@ -15,9 +15,12 @@ class QmlHydra;
 class QmlHydraAttached;
 class QmlHydraPost;
 class QmlHydraPostAttached;
+class QmlHydraLedger;
+class QmlHydraLedgerAttached;
 
 #include "QmlHydra.h"
 #include "QmlHydraPost.h"
+#include "QmlHydraLedger.h"
 
 class QmlHydraPlugin : public QQmlExtensionPlugin
 {
@@ -31,6 +34,8 @@ public:
         qmlRegisterType<QmlHydraAttached>();
         qmlRegisterType<QmlHydraPost> (uri, 1, 0, "QmlHydraPost");
         qmlRegisterType<QmlHydraPostAttached>();
+        qmlRegisterType<QmlHydraLedger> (uri, 1, 0, "QmlHydraLedger");
+        qmlRegisterType<QmlHydraLedgerAttached>();
     };
 };
 

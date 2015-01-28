@@ -93,7 +93,8 @@ HYDRA_EXPORT int
 
 //  Save the post to disk under the specified filename. Returns 0 if OK, -1 
 //  if the file could not be created. Posts are always stored in the "posts"
-//  subdirectory of the current working directory.                          
+//  subdirectory of the current working directory. Note: for internal use   
+//  only.                                                                   
 HYDRA_EXPORT int
     hydra_post_save (hydra_post_t *self, const char *filename);
 
@@ -131,7 +132,6 @@ HYDRA_EXPORT void
 HYDRA_EXPORT void
     hydra_post_test (bool verbose);
 //  @end
-
 
 #ifdef __cplusplus
 }
