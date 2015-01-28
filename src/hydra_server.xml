@@ -23,12 +23,10 @@
 
     <state name = "connected" inherit = "defaults">
         <event name = "NEXT OLDER">
-            <action name = "check if client has credit" />
             <action name = "fetch next older post" />
             <action name = "send" message = "NEXT OK" />
         </event>
         <event name = "NEXT NEWER">
-            <action name = "check if client has credit" />
             <action name = "fetch next newer post" />
             <action name = "send" message = "NEXT OK" />
         </event>

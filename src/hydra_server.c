@@ -56,7 +56,6 @@ struct _client_t {
     hydra_proto_t *message;     //  Message from and to client
     hydra_ledger_t *ledger;     //  Posts ledger, same as server ledger
     hydra_post_t *post;         //  Current post we're sending
-    size_t credit;              //  How many posts we'll send one client
 };
 
 //  Include the generated server engine
@@ -203,7 +202,6 @@ static int
 client_initialize (client_t *self)
 {
     self->ledger = self->server->ledger;
-    self->credit = 20;
     return 0;
 }
 
@@ -228,20 +226,6 @@ set_server_identity (client_t *self)
     assert (identity);
     hydra_proto_set_identity (self->message, identity);
     hydra_proto_set_nickname (self->message, nickname);
-}
-
-
-//  ---------------------------------------------------------------------------
-//  check_if_client_has_credit
-//
-
-static void
-check_if_client_has_credit (client_t *self)
-{
-    if (--self->credit == 0) {
-        hydra_proto_set_status (self->message, HYDRA_PROTO_ACCESS_REFUSED);
-        engine_set_exception (self, exception_event);
-    }
 }
 
 
