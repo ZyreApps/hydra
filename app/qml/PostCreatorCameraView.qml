@@ -11,8 +11,8 @@ ColumnLayout {
   property alias hasImage: cameraView.hasImage
   property alias location: cameraView.location
   function clear() {
-    locationField.hasImage = false
-    locationField.location = ""
+    cameraView.hasImage = false
+    cameraView.location = ""
   }
   
   CameraView {
