@@ -80,7 +80,7 @@ module Hydra
       # hydra_post_save to ensure post filenames are correctly generated.     
       def store post_p
         raise DestroyedError unless @ptr
-        post_p = post_p.__ptr if post_p
+        post_p = post_p.__ptr_give_ref
         result = ::Hydra::FFI.hydra_ledger_store @ptr, post_p
         result
       end

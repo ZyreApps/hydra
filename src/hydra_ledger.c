@@ -161,10 +161,11 @@ hydra_ledger_load (hydra_ledger_t *self)
 //  to ensure post filenames are correctly generated.
 
 int
-hydra_ledger_store (hydra_ledger_t *self, hydra_post_t *post)
+hydra_ledger_store (hydra_ledger_t *self, hydra_post_t **post_p)
 {
     assert (self);
-    assert (post);
+    assert (post_p && *post_p);
+    hydra_post_t *post = *post_p;
 
     //  Get yyyy-mm-dd string for filename
     char *today = zclock_timestr ();
@@ -174,7 +175,8 @@ hydra_ledger_store (hydra_ledger_t *self, hydra_post_t *post)
                filename, hydra_post_content_size (post));
     int rc = hydra_post_save (post, filename);
     s_have_new_post (self, post, filename);
-    hydra_post_destroy (&post);
+    hydra_post_destroy (post_p);
+    *post_p = NULL;
     zstr_free (&filename);
     zstr_free (&today);
     return rc;
@@ -250,7 +252,7 @@ hydra_ledger_test (bool verbose)
     post = hydra_post_new ("Test post 2");
     hydra_post_set_content (post, "Hello, Again");
     char *post_ident = strdup (hydra_post_ident (post));
-    hydra_ledger_store (ledger, post);
+    hydra_ledger_store (ledger, &post);
     assert (hydra_ledger_size (ledger) == 2);
 
     //  Test index method
