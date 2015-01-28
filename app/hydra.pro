@@ -1,4 +1,7 @@
 
+# Folder containing updates to the Android package template
+ANDROID_PACKAGE_SOURCE_DIR = $$PWD/android
+
 TEMPLATE = app
 
 QT += qml quick widgets
@@ -14,4 +17,5 @@ QML_IMPORT_PATH =
 # Default rules for deployment.
 include(deployment.pri)
 
-DISTFILES +=
+DISTFILES += \
+    android/AndroidManifest.xml

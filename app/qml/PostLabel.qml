@@ -21,10 +21,12 @@ Label {
     id: mouseArea
     anchors.fill: parent
     acceptedButtons: Qt.LeftButton | Qt.RightButton
-    onPressAndHold: if(menu) menu.popup()
-    onClicked: {
-      console.log (mouse.button)
-      if(menu && mouse.button == Qt.RightButton) menu.popup()
-    }
+    
+    onPressAndHold:
+      if(menu)
+        menu.popup()
+    onClicked:
+      if(menu && mouse.button == Qt.RightButton)
+        menu.popup()
   }
 }

@@ -7,10 +7,35 @@ import QtQuick.Dialogs 1.1
 
 Item {
   id: root
+  
+  property alias subject: subjectField.text
+  property alias content: textContentField.text
+  property alias locationFile: imageContentBrowser.location
+  property alias locationCamera: imageContentCamera.location
+  property string parentId: ""
+  property string parentSubject: ""
+  
+  
+  function storePost() {
+    // TODO: implement
+  }
+  
+  function clear() {
+    subject = ""
+    content = ""
+    locationFile = ""
+    locationCamera = ""
+    parentId = ""
+    parentSubject = ""
+    imageContentBrowser.clear()
+    imageContentCamera.clear()
+  }
+  
   GroupBox {
     width: parent.width * 0.9
     height: parent.height
     anchors.centerIn: parent
+    
     GridLayout {
       Layout.maximumWidth: parent.width
       anchors.fill: parent
@@ -24,6 +49,13 @@ Item {
         font.weight: Font.Bold
       }
       
+      PostLabel {
+        text: "Parent Post: \"%1\"".arg(root.parentSubject)
+        font.pointSize: dummyLabel.font.pointSize * 1.125
+        font.weight: Font.Bold
+        visible: root.parentId.length > 0
+      }
+      
       TextField {
         id: subjectField
         Layout.fillWidth: true
@@ -35,7 +67,7 @@ Item {
         ExclusiveGroup { id: typeGroup }
         RadioButton {
           id: typePlainText
-          text: "Plain Text"
+          text: "Text"
           exclusiveGroup: typeGroup
           checked: true // Default
         }
@@ -46,7 +78,7 @@ Item {
         }
         RadioButton {
           id: typeCameraImage
-          text: "Camera Image"
+          text: "Camera"
           exclusiveGroup: typeGroup
         }
       }
@@ -59,63 +91,18 @@ Item {
         visible: typePlainText.checked
       }
       
-      ColumnLayout {
-        id: imageContentLayout
+      PostCreatorImageBrowser {
+        id: imageContentBrowser
         Layout.fillWidth: true
         Layout.fillHeight: true
         visible: typeImageFile.checked
-        
-        FileDialog { // This file dialog is currently very ugly on Android...
-          id: imageContentDialog
-          title: "Select an image file..."
-          folder: "file:///sdcard"
-          onFolderChanged: console.log("FOLDER:", folder)
-          onFileUrlChanged: {
-            imageContentPathField.text = fileUrl
-            imageContentPathField.accepted()
-          }
-        }
-        RowLayout {
-          Layout.fillWidth: true
-          Layout.fillHeight: true
-          Button {
-            id: imageContentBrowseButton
-            Layout.fillWidth: true
-            text: "Browse"
-            onClicked: imageContentDialog.open()
-          }
-          TextField {
-            id: imageContentPathField
-            Layout.fillWidth: true
-            placeholderText: "/path/to/the/image..."
-            onAccepted: imageContentPreview.source = text
-          }
-        }
-        Image {
-          id: imageContentPreview
-          Layout.fillWidth: true
-          Layout.fillHeight: true
-          fillMode: Image.PreserveAspectFit
-          
-          MouseArea {
-            anchors.fill: parent
-            onClicked: imageContentLargePreview.visible = true
-            enabled: imageContentPreview.status == Image.Ready
-          }
-        }
-        Image {
-          id: imageContentLargePreview
-          parent: root
-          anchors.fill: parent
-          fillMode: Image.PreserveAspectFit
-          visible: false
-          source: imageFilePreview.source
-          
-          MouseArea {
-            anchors.fill: parent
-            onClicked: imageFileLargePreview.visible = false
-          }
-        }
+      }
+      
+      PostCreatorCameraView {
+        id: imageContentCamera
+        Layout.fillWidth: true
+        Layout.fillHeight: true
+        visible: typeCameraImage.checked
       }
       
       Item {
@@ -129,12 +116,13 @@ Item {
           id: sendButton
           Layout.fillWidth: true
           text: "Send"
+          onClicked: { root.storePost(); root.clear(); root.visible = false }
         }
         Button {
           id: cancelButton
           Layout.fillWidth: true
           text: "Cancel"
-            onClicked: imageFileLargePreview.open()
+          onClicked: { root.clear(); root.visible = false }
         }
       }
     }
