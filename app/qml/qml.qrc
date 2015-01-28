@@ -7,6 +7,9 @@
         <file>PostCreator.qml</file>
         <file>PostLabel.qml</file>
         <file>PostStream.qml</file>
+        <file>PostCreatorImageBrowser.qml</file>
+        <file>PostCreatorCameraView.qml</file>
+        <file>CameraView.qml</file>
         <file>HydraPostList.qml</file>
     </qresource>
 </RCC>
