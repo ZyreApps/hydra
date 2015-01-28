@@ -30,6 +30,15 @@ ColumnLayout {
     }
   }
   
+  // Don't run the camera unless we are actively viewing its output
+  Component.onCompleted: camera.stop()
+  onIsFullscreenChanged: {
+    if (isFullscreen)
+      camera.start()
+    else
+      camera.stop()
+  }
+  
   ColumnLayout {
     id: imageContainer
     Layout.fillWidth: true
