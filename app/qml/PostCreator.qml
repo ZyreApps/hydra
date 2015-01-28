@@ -67,7 +67,7 @@ Item {
         ExclusiveGroup { id: typeGroup }
         RadioButton {
           id: typePlainText
-          text: "Plain Text"
+          text: "Text"
           exclusiveGroup: typeGroup
           checked: true // Default
         }
@@ -78,7 +78,7 @@ Item {
         }
         RadioButton {
           id: typeCameraImage
-          text: "Camera Image"
+          text: "Camera"
           exclusiveGroup: typeGroup
         }
       }
