@@ -132,8 +132,6 @@ static void
 static void
     signal_command_invalid (client_t *self);
 static void
-    check_if_client_has_credit (client_t *self);
-static void
     fetch_next_older_post (client_t *self);
 static void
     fetch_next_newer_post (client_t *self);
@@ -497,12 +495,6 @@ s_client_execute (s_client_t *self, event_t event)
             case connected_state:
                 if (self->event == next_older_event) {
                     if (!self->exception) {
-                        //  check if client has credit
-                        if (self->server->verbose)
-                            zsys_debug ("%s:         $ check if client has credit", self->log_prefix);
-                        check_if_client_has_credit (&self->client);
-                    }
-                    if (!self->exception) {
                         //  fetch next older post
                         if (self->server->verbose)
                             zsys_debug ("%s:         $ fetch next older post", self->log_prefix);
@@ -520,12 +512,6 @@ s_client_execute (s_client_t *self, event_t event)
                 }
                 else
                 if (self->event == next_newer_event) {
-                    if (!self->exception) {
-                        //  check if client has credit
-                        if (self->server->verbose)
-                            zsys_debug ("%s:         $ check if client has credit", self->log_prefix);
-                        check_if_client_has_credit (&self->client);
-                    }
                     if (!self->exception) {
                         //  fetch next newer post
                         if (self->server->verbose)
