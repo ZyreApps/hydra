@@ -8,7 +8,7 @@ import QtQuick.Dialogs 1.1
 ColumnLayout {
   id: root
   
-  property alias text: locationField.text
+  property alias location: locationField.text
   function clear() {
     locationField.text = ""
     locationField.accepted()
@@ -44,7 +44,6 @@ ColumnLayout {
     Layout.fillWidth: true
     Layout.fillHeight: true
     fillMode: Image.PreserveAspectFit
-    smooth: true
     
     MouseArea {
       anchors.fill: parent
@@ -63,7 +62,6 @@ ColumnLayout {
       anchors.fill: parent
       fillMode: Image.PreserveAspectFit
       source: imagePreview.source
-      smooth: true
     }
     MouseArea {
       anchors.fill: parent

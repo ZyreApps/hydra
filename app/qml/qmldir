@@ -8,3 +8,4 @@ PostStream   1.0  PostStream.qml
 PostCreator  1.0  PostCreator.qml
 PostCreatorImageBrowser  1.0  PostCreatorImageBrowser.qml
 PostCreatorCameraView    1.0  PostCreatorCameraView.qml
+CameraView   1.0  CameraView.qml

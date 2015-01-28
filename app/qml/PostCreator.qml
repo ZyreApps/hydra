@@ -10,7 +10,8 @@ Item {
   
   property alias subject: subjectField.text
   property alias content: textContentField.text
-  property alias location: imageContentBrowser.text
+  property alias locationFile: imageContentBrowser.location
+  property alias locationCamera: imageContentCamera.location
   property string parentId: ""
   property string parentSubject: ""
   
@@ -22,10 +23,12 @@ Item {
   function clear() {
     subject = ""
     content = ""
-    location = ""
+    locationFile = ""
+    locationCamera = ""
     parentId = ""
     parentSubject = ""
     imageContentBrowser.clear()
+    imageContentCamera.clear()
   }
   
   GroupBox {
@@ -93,6 +96,13 @@ Item {
         Layout.fillWidth: true
         Layout.fillHeight: true
         visible: typeImageFile.checked
+      }
+      
+      PostCreatorCameraView {
+        id: imageContentCamera
+        Layout.fillWidth: true
+        Layout.fillHeight: true
+        visible: typeCameraImage.checked
       }
       
       Item {
