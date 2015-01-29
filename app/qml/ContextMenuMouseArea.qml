@@ -10,6 +10,7 @@ MouseArea {
   acceptedButtons: Qt.LeftButton | Qt.RightButton
   
   property Menu menu
+  visible: !!menu
   
   onPressAndHold:
     if(menu)
