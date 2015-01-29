@@ -4,11 +4,15 @@ import QtQuick.Controls 1.2
 import QtQuick.Layouts 1.1
 import QtQuick.Window 2.1
 
+import QmlHydra 1.0
+
 
 Rectangle {
   id: globalRoot
   width: 640
   height: 480
+  
+  Hydra { id: globalHydra }
   
   SystemPalette { id: colors; colorGroup: SystemPalette.Inactive }
   color: colors.window

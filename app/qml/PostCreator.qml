@@ -17,7 +17,26 @@ Item {
   
   
   function storePost() {
-    // TODO: implement
+    var post = {}
+    post.subject = root.subject
+    post.parentId = root.parentId
+    
+    if (typePlainText.checked) {
+      post.content = content
+      post.mimeType = "text/plain"
+    }
+    else
+    if (typeImageFile.checked) {
+      post.location = locationFile
+      post.mimeType = "image/*" // TODO: detect and set mimeType
+    }
+    else
+    if (typeCameraImage.checked) {
+      post.location = locationCamera
+      post.mimeType = "image/*" // TODO: detect and set mimeType
+    }
+    
+    globalHydra.store(post)
   }
   
   function clear() {
