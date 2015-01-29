@@ -5,6 +5,7 @@ import QtQuick.Layouts 1.1
 
 
 ListView {
+  id: postStream
   model: HydraPostList { id: postList }
   Connections { target: globalHydra; onFetched: postList.addPost(post) }
   

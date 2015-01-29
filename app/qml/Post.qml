@@ -9,11 +9,17 @@ GroupBox {
   
   property var post: model
   
-  property string ident:    post.ident    || ""
-  property string subject:  post.subject  || ""
-  property string mimeType: post.mimeType || ""
-  property string content:  post.content  || ""
-  property string location: post.location || ""
+  property string ident:      post.ident      || ""
+  property string parentId:   post.parentId   || ""
+  property string timestamp:  post.timestamp  || ""
+  property string subject:    post.subject    || ""
+  property string mimeType:   post.mimeType   || ""
+  property string content:    post.content    || ""
+  property string location:   post.location   || ""
+  
+  property var parentPost: {
+    postList.findPost('ident', root.parentId)
+  }
   
   property var replies:  {
     var ary = []
@@ -25,6 +31,10 @@ GroupBox {
     return ary
   }
   
+  property alias showReplies: showRepliesCheckBox.checked
+  
+  property bool hasParent: !!parentPost
+  property bool isNested: false // Overriden when nested
   property bool isImage: root.mimeType.indexOf("image/") == 0
   
   ColumnLayout {
@@ -39,6 +49,32 @@ GroupBox {
       menu: contextMenu
       font.pointSize: contentLabel.font.pointSize * 1.5
       font.weight: Font.Bold
+    }
+    
+    PostLabel {
+      id: timeLabel
+      property var date: new Date(root.timestamp)
+      text: date.toLocaleDateString() + " " + date.toLocaleTimeString()
+      menu: contextMenu
+      font.pointSize: contentLabel.font.pointSize * 0.75
+      font.weight: Font.Bold
+    }
+    
+    PostLabel {
+      id: parentLabel
+      text: "Go to parent post: \"%1\"".arg(root.hasParent ? root.parentPost.subject : "")
+      visible: root.hasParent && !root.isNested
+      font.pointSize: contentLabel.font.pointSize * 0.75
+      font.italic: true
+      font.underline: true
+      MouseArea {
+        anchors.fill: parent
+        onClicked: {
+          var index = postList.findPostIndex('ident', root.parentId)
+          if (index !== null)
+            postStream.positionViewAtIndex(index, ListView.Center)
+        }
+      }
     }
     
     PostLabel {
@@ -77,7 +113,10 @@ GroupBox {
         Layout.fillWidth: true
         active: showRepliesCheckBox.checked
         source: "Post.qml"
-        Component.onCompleted: item.post = root.replies[index]
+        Component.onCompleted: {
+          item.post = root.replies[index]
+          item.isNested = true
+        }
       }
     }
   }
