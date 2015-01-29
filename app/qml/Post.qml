@@ -9,11 +9,12 @@ GroupBox {
   
   property var post: model
   
-  property string ident:    post.ident    || ""
-  property string subject:  post.subject  || ""
-  property string mimeType: post.mimeType || ""
-  property string content:  post.content  || ""
-  property string location: post.location || ""
+  property string ident:      post.ident      || ""
+  property string timestamp:  post.timestamp  || ""
+  property string subject:    post.subject    || ""
+  property string mimeType:   post.mimeType   || ""
+  property string content:    post.content    || ""
+  property string location:   post.location   || ""
   
   property var replies:  {
     var ary = []
@@ -38,6 +39,15 @@ GroupBox {
       text: root.subject
       menu: contextMenu
       font.pointSize: contentLabel.font.pointSize * 1.5
+      font.weight: Font.Bold
+    }
+    
+    PostLabel {
+      id: timeLabel
+      property var date: new Date(root.timestamp)
+      text: date.toLocaleDateString() + " " + date.toLocaleTimeString()
+      menu: contextMenu
+      font.pointSize: contentLabel.font.pointSize * 0.75
       font.weight: Font.Bold
     }
     
