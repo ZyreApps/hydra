@@ -406,9 +406,10 @@ zchunk_t *
 hydra_post_fetch (hydra_post_t *self, size_t size, size_t offset)
 {
     assert (self);
-
     if (self->content)
         return zchunk_dup (self->content);
+    if (size == 0)
+        size = self->content_size;
     else {
         zfile_t *file = zfile_new (NULL, self->location);
         if (zfile_input (file) == 0) {
