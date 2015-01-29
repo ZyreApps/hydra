@@ -23,22 +23,7 @@ QtObject {
   
   // Enter the given post object into hydra storage for sharing.
   signal store(var post)
-  onStore: {
-    if (post.location && post.location.length > 0)
-      priv.hydra.storeFile(
-        post.subject || "",
-        post.parentId || "",
-        post.mimeType || "",
-        post.location)
-    else
-      priv.hydra.storeString(
-        post.subject || "",
-        post.parentId || "",
-        post.mimeType || "text/plain",
-        post.content || "")
-    
-    root.fetched(post) // Echo back to self - TODO: do better here
-  }
+  onStore: priv.store(post)
   
   // Creat and destroy the service along with this object
   Component.onCompleted: priv.createHydra()
@@ -84,8 +69,37 @@ QtObject {
       QmlHydraLedger.destruct(ledger)
     }
     
+    function store(post) {
+      post.subject  = post.subject  || ""
+      post.parentId = post.parentId || ""
+      post.mimeType = post.mimeType || ""
+      post.content  = post.content  || ""
+      post.location = post.location || ""
+      
+      if (post.location.length > 0)
+        hydra.storeFile(
+          post.subject, post.parentId, post.mimeType, post.location)
+      else
+        hydra.storeString(
+          post.subject, post.parentId, post.mimeType, post.content)
+      
+      echoStored(post) // Echo back to self to simulate fetch for viewing
+    }
+    
+    function echoStored(post) {
+      var echo = QmlHydraPost.construct(post.subject)
+      echo.setParentId(post.parentId)
+      echo.setMimeType(post.mimeType)
+      
+      if (post.location.length > 0)
+        echo.setFile(post.location)
+      else
+        echo.setContent(post.content)
+      
+      handleFetched(echo)
+    }
+    
     function handleFetched(post) {
-      post.print()
       root.fetched ({
         parentId:    post.parentId(),
         ident:       post.ident(),
