@@ -5,7 +5,9 @@ import QtQuick.Layouts 1.1
 
 
 ListView {
-  model: 9
+  model: HydraPostList { id: postList }
+  Connections { target: globalHydra; onFetched: postList.addPost(post) }
+  
   delegate: Post {
     width: parent.width * 0.9
     anchors.horizontalCenter: parent.horizontalCenter

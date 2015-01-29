@@ -185,9 +185,15 @@ hydra_post_content (hydra_post_t *self)
 {
     assert (self);
     char *content = NULL;
-    if (self->content && self->mime_type
-    &&  streq (self->mime_type, "text/plain"))
-        content = zchunk_strdup (self->content);
+    if (self->mime_type && streq (self->mime_type, "text/plain")) {
+        if (self->content)
+            return zchunk_strdup (self->content);
+        zchunk_t *chunk = hydra_post_fetch (self, 0, 0); // TODO: limit max size
+        if (chunk) {
+            content = zchunk_strdup (chunk);
+        }
+        zchunk_destroy (&chunk);
+    }
     return content;
 }
 
@@ -349,6 +355,7 @@ hydra_post_load (const char *filename)
         self->location = strdup (location);
         strcpy (self->digest, digest);
         self->content_size = atoll (zconfig_resolve (root, "/post/content-size", "0"));
+        zchunk_destroy (&self->content);
     }
     zconfig_destroy (&root);
     return self;
@@ -406,16 +413,16 @@ zchunk_t *
 hydra_post_fetch (hydra_post_t *self, size_t size, size_t offset)
 {
     assert (self);
-
     if (self->content)
         return zchunk_dup (self->content);
-    else {
-        zfile_t *file = zfile_new (NULL, self->location);
-        if (zfile_input (file) == 0) {
-            zchunk_t *chunk = zfile_read (file, size, offset);
-            zfile_destroy (&file);
-            return chunk;
-        }
+    if (size == 0)
+        size = self->content_size;
+    
+    zfile_t *file = zfile_new (NULL, self->location);
+    if (zfile_input (file) == 0) {
+        zchunk_t *chunk = zfile_read (file, size, offset);
+        zfile_destroy (&file);
+        return chunk;
     }
     return NULL;
 }
@@ -483,6 +490,7 @@ hydra_post_test (bool verbose)
     hydra_post_set_content (post, "Hello, World");
     assert (streq (hydra_post_mime_type (post), "text/plain"));
     char *content = hydra_post_content (post);
+    assert (content);
     assert (streq (content, "Hello, World"));
     zstr_free (&content);
     int rc = hydra_post_save (post, "testpost");
@@ -494,6 +502,10 @@ hydra_post_test (bool verbose)
     assert (hydra_post_content_size (post) == 12);
     if (verbose)
         hydra_post_print (post);
+    content = hydra_post_content (post);
+    assert (content);
+    assert (streq (content, "Hello, World"));
+    zstr_free (&content);
     zchunk_t *chunk = hydra_post_fetch (
         post, hydra_post_content_size (post), 0);
     assert (chunk);

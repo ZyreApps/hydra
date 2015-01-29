@@ -7,53 +7,25 @@ import QtQuick.Layouts 1.1
 GroupBox {
   id: root
   
-  ///
-  // TODO: get rid of this mock data and use real posts
-  property var post: ({
-    subject: "Welcome to Edgenet:Hydra",
-    content: "The goal of the Hydra project is to explore and learn "+
-      "how to share knowledge and information across short-lived wireless "+
-      "networks between mobile users. Hydra exploits \"proximity networks\", "+
-      "that is the physical closeness of individuals. The Hydra project is "+
-      "part of the edgenet experiment to design and build decentralized "+
-      "networks, with no dependency on broadband Internet nor "+
-      "centralized services.",
-    replies: [reply1, reply2, reply3]
-  })
-  
-  property var reply1: ({
-    content: "Plausibly, Hydra could evolve into a fully decentralized "+
-      "social network, closely mapping and amplifying existing human "+
-      "protocols for knowledge and information sharing. However at this "+
-      "stage, Hydra is simply a model for exchanging cat photos.",
-    replies: []
-  })
-  
-  property var reply2: ({
-    content: "Note that Hydra is not a mesh network and does no "+
-      "forwarding or routing. This is deliberate. We assume that peers "+
-      "move around too rapidly for routing knowledge to ever be valid. "+
-      "All a peer can ever know is \"I can talk to this other peer, for now.\"",
-    replies: []
-  })
-  
-  property var reply3: ({
-    content: "Hydra is aimed, in its current incarnation, at technical "+
-      "conferences, weddings, parties, and funerals. The participants are "+
-      "in rough proximity, for a period of hours or days. They share a "+
-      "strong set of interests. They implicitly trust each other, yet do "+
-      "not care about identities. They mainly want to share photos and "+
-      "comments on photos.",
-    replies: []
-  })
-  
+  property var post: model
   
   property string ident:    post.ident    || ""
   property string subject:  post.subject  || ""
   property string mimeType: post.mimeType || ""
   property string content:  post.content  || ""
   property string location: post.location || ""
-  property var replies:     post.replies  || []
+  
+  property var replies:  {
+    var ary = []
+    for (var i in post.childrenIds) {
+      var reply = postList.findPost("ident", post.childrenIds[i])
+      if (reply)
+        ary.push(reply)
+    }
+    return ary
+  }
+  
+  property bool isImage: root.mimeType.indexOf("image/") == 0
   
   ColumnLayout {
     id: layout
@@ -79,11 +51,13 @@ GroupBox {
       Layout.fillHeight: true
       Layout.fillWidth: true
       Layout.maximumWidth: parent.width
+      Layout.maximumHeight: parent.width * 1.25
       Layout.preferredHeight: parent.width * sourceSize.height / sourceSize.width
       id: contentImage
       fillMode: Image.PreserveAspectFit
       source: visible ? "file://" + root.location : ""
-      visible: root.location.length > 0
+      visible: root.isImage && root.location.length > 0
+      ContextMenuMouseArea { menu: contextMenu }
     }
     
     CheckBox {

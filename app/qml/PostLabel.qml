@@ -14,19 +14,6 @@ Label {
   verticalAlignment: Text.AlignVCenter
   wrapMode: Text.Wrap
   
-  property Menu menu
-  
-  // Popup the given context menu on right click or long press
-  MouseArea {
-    id: mouseArea
-    anchors.fill: parent
-    acceptedButtons: Qt.LeftButton | Qt.RightButton
-    
-    onPressAndHold:
-      if(menu)
-        menu.popup()
-    onClicked:
-      if(menu && mouse.button == Qt.RightButton)
-        menu.popup()
-  }
+  property alias menu: mouseArea.menu
+  ContextMenuMouseArea { id: mouseArea }
 }

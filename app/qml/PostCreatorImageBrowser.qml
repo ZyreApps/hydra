@@ -19,7 +19,7 @@ ColumnLayout {
     title: "Select an image file..."
     folder: "file:///sdcard"
     onFileUrlChanged: {
-      locationField.text = fileUrl
+      locationField.text = fileUrl.toString().replace(/^(file:\/\/)/,"")
       locationField.accepted()
     }
   }

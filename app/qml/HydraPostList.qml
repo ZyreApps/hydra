@@ -21,11 +21,13 @@ ListModel {
   
   // Return true if the post is valid, else false
   function _validatePost(post) {
-    if(typeof post.parentId    !== "string") return _invalidPost(post, "parentId")
-    if(typeof post.ident       !== "string") return _invalidPost(post, "ident")
-    if(typeof post.subject     !== "string") return _invalidPost(post, "subject")
-    if(typeof post.content     !== "string") return _invalidPost(post, "content")
-    if(typeof post.timestamp   !== "string") return _invalidPost(post, "timestamp")
+    if(typeof post.parentId  !== "string") return _invalidPost(post, "parentId")
+    if(typeof post.ident     !== "string") return _invalidPost(post, "ident")
+    if(typeof post.subject   !== "string") return _invalidPost(post, "subject")
+    if(typeof post.mimeType  !== "string") return _invalidPost(post, "mimeType")
+    if(typeof post.content   !== "string") return _invalidPost(post, "content")
+    if(typeof post.location  !== "string") return _invalidPost(post, "location")
+    if(typeof post.timestamp !== "string") return _invalidPost(post, "timestamp")
     return true
   }
   

@@ -4,12 +4,13 @@
         <file>main.qml</file>
         <file>MainContent.qml</file>
         <file>Post.qml</file>
-        <file>PostCreator.qml</file>
         <file>PostLabel.qml</file>
         <file>PostStream.qml</file>
+        <file>PostCreator.qml</file>
+        <file>CameraView.qml</file>
+        <file>ContextMenuMouseArea.qml</file>
         <file>PostCreatorImageBrowser.qml</file>
         <file>PostCreatorCameraView.qml</file>
-        <file>CameraView.qml</file>
         <file>HydraPostList.qml</file>
     </qresource>
 </RCC>
