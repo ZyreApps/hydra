@@ -6,8 +6,9 @@ Post         1.0  Post.qml
 PostLabel    1.0  PostLabel.qml
 PostStream   1.0  PostStream.qml
 PostCreator  1.0  PostCreator.qml
+CameraView   1.0  CameraView.qml
+ContextMenuMouseArea     1.0  ContextMenuMouseArea.qml
 PostCreatorImageBrowser  1.0  PostCreatorImageBrowser.qml
 PostCreatorCameraView    1.0  PostCreatorCameraView.qml
-CameraView   1.0  CameraView.qml
 
 HydraPostList  1.0  HydraPostList.qml

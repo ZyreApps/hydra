@@ -57,6 +57,7 @@ GroupBox {
       fillMode: Image.PreserveAspectFit
       source: visible ? "file://" + root.location : ""
       visible: root.isImage && root.location.length > 0
+      ContextMenuMouseArea { menu: contextMenu }
     }
     
     CheckBox {
