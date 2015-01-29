@@ -12,7 +12,12 @@ Rectangle {
   width: 640
   height: 480
   
-  Hydra { id: globalHydra }
+  Hydra {
+    id: globalHydra
+    directory: (qmlContextHomeDirectory || "/tmp") + "/hydra"
+    verbose: true
+    animate: true
+  }
   
   SystemPalette { id: colors; colorGroup: SystemPalette.Inactive }
   color: colors.window
