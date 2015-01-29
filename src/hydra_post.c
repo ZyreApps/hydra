@@ -185,9 +185,14 @@ hydra_post_content (hydra_post_t *self)
 {
     assert (self);
     char *content = NULL;
-    if (self->content && self->mime_type
-    &&  streq (self->mime_type, "text/plain"))
-        content = zchunk_strdup (self->content);
+    if (self->mime_type && streq (self->mime_type, "text/plain")) {
+        if (self->content)
+            return zchunk_strdup (self->content);
+        zchunk_t *chunk = hydra_post_fetch (self, 0, 0); // TODO: limit max size
+        if (chunk)
+            content = zchunk_strdup (chunk);
+        zchunk_destroy (&chunk);
+    }
     return content;
 }
 
@@ -495,6 +500,9 @@ hydra_post_test (bool verbose)
     assert (hydra_post_content_size (post) == 12);
     if (verbose)
         hydra_post_print (post);
+    content = hydra_post_content (post);
+    assert (streq (content, "Hello, World"));
+    zstr_free (&content);
     zchunk_t *chunk = hydra_post_fetch (
         post, hydra_post_content_size (post), 0);
     assert (chunk);
