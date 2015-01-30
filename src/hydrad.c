@@ -70,26 +70,6 @@ int main (int argc, char *argv [])
     if (!hydra)
         exit (0);
     
-    if (testmode) {
-        //  Provision the Hydra server with some test posts in a tree
-        char *post_id;
-        zactor_t *server = zactor_new (hydra_server, NULL);
-        zsock_send (server, "ssssss", "POST", "This is a string", "", "text/plain",
-                    "string", "Hello, World");
-        zsock_recv (server, "s", &post_id);
-
-        zsock_send (server, "ssssss", "POST", "This is a disk file", post_id,
-                    "text/zpl", "file", "hydra.cfg");
-        zstr_free (&post_id);
-        zsock_recv (server, "s", &post_id);
-
-        zsock_send (server, "sssssb", "POST", "This is a blob of data", post_id,
-                    "*/*", "chunk", "ABCDEFGHIJ", 10);
-        zstr_free (&post_id);
-        zsock_recv (server, "s", &post_id);
-        zstr_free (&post_id);
-        zactor_destroy (&server);
-    }
     if (verbose)
         hydra_set_animate (hydra);
     if (zverbose)
