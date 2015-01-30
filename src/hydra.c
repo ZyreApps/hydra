@@ -482,13 +482,15 @@ s_self_handle_zyre (self_t *self)
 {
     zyre_event_t *event = zyre_event_new (self->zyre);
     if (zyre_event_type (event) == ZYRE_EVENT_ENTER) {
+        //  Only connect to Hydra nodes (not other Zyre nodes)
         char *endpoint = zyre_event_header (event, "X-HYDRA");
-        puts (endpoint);
-        hydra_client_t *client = hydra_client_new (endpoint, 1000);
-        if (client
-        && !zhashx_insert (self->peers, zyre_event_sender (event), client)) {
-            zpoller_add (self->poller, hydra_client_msgpipe (client));
-            hydra_client_sync (client);
+        if (endpoint) {
+            hydra_client_t *client = hydra_client_new (endpoint, 1000);
+            if (client
+            && !zhashx_insert (self->peers, zyre_event_sender (event), client)) {
+                zpoller_add (self->poller, hydra_client_msgpipe (client));
+                hydra_client_sync (client);
+            }
         }
     }
     else
