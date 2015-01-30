@@ -32,20 +32,23 @@ int main (int argc, char *argv [])
 
     int argn = 1;
     if (argn < argc && streq (argv [argn], "-h")) {
-        puts ("syntax: hydrad [-v] [-z] [ [-t] [-i] directory ]");
+        puts ("syntax: hydrad [-v] [-z] [ [-t] [-i] [-n HOSTNAME] directory ]");
         puts (" -- defaults to .hydra in current directory");
         puts (" -v = run Hydra protocol in verbose mode");
         puts (" -z = run Zyre discovery in verbose mode");
         puts (" -t = create some test posts");
         puts (" -i = run over ipc:// without networking");
+        puts (" -n HOSTNAME = specify a custom hostname for hydrad to use");
         exit (0);
     }
     bool verbose = false;
     bool zverbose = false;
     bool testmode = false;
     bool localhost = false;
+    bool lookforvalue = false;
     char *directory = ".hydra";
-    while (argn < argc && *argv [argn] == '-') {
+    char *hostname = NULL;
+    while (argn < argc && (*argv [argn] == '-' || lookforvalue)) {
         if (streq (argv [argn], "-v"))
             verbose = true;
         else
@@ -57,6 +60,14 @@ int main (int argc, char *argv [])
         else
         if (streq (argv [argn], "-i"))
             localhost = true;
+        else
+        if (streq (argv [argn], "-n"))
+            lookforvalue = true;
+        else
+        if (lookforvalue) {
+            hostname = argv [argn];
+            lookforvalue = false;
+        }
         else {
             puts ("Invalid option, run hydrad -h to see options");
             exit (0);
@@ -96,6 +107,8 @@ int main (int argc, char *argv [])
         hydra_set_verbose (hydra);
     if (localhost)
         hydra_set_local_ipc (hydra);
+    if (hostname)
+        hydra_set_hostname (hydra, hostname);
     
     hydra_start (hydra);
     while (!zsys_interrupted)
