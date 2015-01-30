@@ -158,6 +158,17 @@ hydra_set_local_ipc (hydra_t *self)
     zsock_send (self->actor, "sss", "SET", "LOCAL IPC", "1");
 }
 
+//  --------------------------------------------------------------------------
+//  By default, Hydra uses your hostname via zsys_hostname ().            
+//  Use this function to set some other hostname. Useful when using VMs,  
+//  containers, etc.                                                      
+
+void
+hydra_set_hostname (hydra_t *self, const char *hostname)
+{
+    assert (self);
+    zsock_send (self->actor, "sss", "SET", "HOSTNAME", hostname);
+}
 
 //  --------------------------------------------------------------------------
 //  Start node. When you start a node it begins discovery and post exchange.
@@ -265,6 +276,7 @@ typedef struct {
     bool started;               //  Are we already running?
     bool terminated;            //  Did caller ask us to quit?
     bool local_ipc;             //  Use local IPC discovery
+    char *hostname;             //  Custom hostname
     int status;                 //  Last status from any client
     char *reason;               //  Last error reason from any client
 } self_t;
@@ -329,6 +341,10 @@ s_self_set_property (self_t *self, zmsg_t *request)
     else
     if (streq (name, "LOCAL IPC"))
         self->local_ipc = atoi (value);
+    else
+    if (streq (name, "HOSTNAME")) {
+        self->hostname = strdup(value);
+    }
     else {
         zsys_error ("hydra: - invalid SET property: %s", name);
         assert (false);
@@ -388,14 +404,18 @@ s_self_start (self_t *self)
         zsock_send (self->server, "s", "PORT");
         zsock_recv (self->server, "si", NULL, &port_nbr);
 
-        //  Get our hostname via a zbeacon instance, and construct endpoint
-        zactor_t *beacon = zactor_new (zbeacon, NULL);
-        assert (beacon);
-        zsock_send (beacon, "si", "CONFIGURE", 31415);
-        char *hostname = zstr_recv (beacon);
-        endpoint = zsys_sprintf ("tcp://%s:%d", hostname, port_nbr);
-        zstr_free (&hostname);
-        zactor_destroy (&beacon);
+        if (self->hostname)
+            endpoint = zsys_sprintf ("tcp://%s:%d", self->hostname, port_nbr);
+        else {
+            //  Get our hostname via a zbeacon instance, and construct endpoint
+            zactor_t *beacon = zactor_new (zbeacon, NULL);
+            assert (beacon);
+            zsock_send (beacon, "si", "CONFIGURE", 31415);
+            char *hostname = zstr_recv (beacon);
+            endpoint = zsys_sprintf ("tcp://%s:%d", hostname, port_nbr);
+            zstr_free (&hostname);
+            zactor_destroy (&beacon);
+        }
     }
     zsys_info ("hydra: Hydra server started on %s", endpoint);
     zyre_set_header (self->zyre, "X-HYDRA", "%s", endpoint);

@@ -64,6 +64,12 @@ HYDRA_EXPORT void
 HYDRA_EXPORT void
     hydra_set_local_ipc (hydra_t *self);
 
+//  By default, Hydra uses your hostname via zsys_hostname ().            
+//  Use this function to set some other hostname. Useful when using VMs,  
+//  containers, etc.                                                      
+HYDRA_EXPORT void
+    hydra_set_hostname (hydra_t *self, const char *hostname);
+
 //  Start node. When you start a node it begins discovery and post exchange.
 //  Returns 0 if OK, -1 if it wasn't possible to start the node.            
 HYDRA_EXPORT int
