@@ -48,6 +48,13 @@ void QmlHydra::setLocalIpc () {
 };
 
 ///
+//  By default, Hydra uses your hostname via zbeacon. Use this function to
+//  set some other hostname. Useful when using VMs, containers, etc.      
+void QmlHydra::setHostname (const QString &hostname) {
+    hydra_set_hostname (self, hostname.toUtf8().data());
+};
+
+///
 //  Start node. When you start a node it begins discovery and post exchange.
 //  Returns 0 if OK, -1 if it wasn't possible to start the node.            
 int QmlHydra::start () {

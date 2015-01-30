@@ -24,7 +24,7 @@ android {
     error(The HYDRA_ROOT directory does not exist: $$HYDRA_ROOT)
   }
   # Build the hydra library for android unless it is already built
-  !system(bash $$HYDRA_ROOT/builds/qt-android/build.sh) {
+  !system($$HYDRA_ROOT/builds/qt-android/build.sh) {
     error(Failed to build the hydra C library with $$HYDRA_ROOT/builds/qt-android/build.sh)
   }
   

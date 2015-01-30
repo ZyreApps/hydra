@@ -41,6 +41,7 @@ module Hydra
       attach_function :hydra_set_animate, [:pointer], :void, **opts
       attach_function :hydra_set_verbose, [:pointer], :void, **opts
       attach_function :hydra_set_local_ipc, [:pointer], :void, **opts
+      attach_function :hydra_set_hostname, [:pointer, :string], :void, **opts
       attach_function :hydra_start, [:pointer], :int, **opts
       attach_function :hydra_fetch, [:pointer], :pointer, **opts
       attach_function :hydra_store_string, [:pointer, :string, :string, :string, :string], :pointer, **opts
