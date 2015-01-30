@@ -109,6 +109,15 @@ module Hydra
         result
       end
       
+      # By default, Hydra uses your hostname via zbeacon. Use this function to
+      # set some other hostname. Useful when using VMs, containers, etc.      
+      def set_hostname hostname
+        raise DestroyedError unless @ptr
+        hostname = String(hostname)
+        result = ::Hydra::FFI.hydra_set_hostname @ptr, hostname
+        result
+      end
+      
       # Start node. When you start a node it begins discovery and post exchange.
       # Returns 0 if OK, -1 if it wasn't possible to start the node.            
       def start

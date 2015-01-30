@@ -46,9 +46,9 @@
     </method>
     
     <method name = "set hostname">
-        By default, Hydra uses your hostname via zsys_hostname ().
-        Use this function to set some other hostname. Useful when using VMs,
-        containers, etc.
+        By default, Hydra uses your hostname via zbeacon. Use this function to
+        set some other hostname. Useful when using VMs, containers, etc.
+        <argument name = "hostname" type = "string" />
     </method>
     
     <method name = "start">

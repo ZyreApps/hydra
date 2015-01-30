@@ -64,9 +64,8 @@ HYDRA_EXPORT void
 HYDRA_EXPORT void
     hydra_set_local_ipc (hydra_t *self);
 
-//  By default, Hydra uses your hostname via zsys_hostname ().            
-//  Use this function to set some other hostname. Useful when using VMs,  
-//  containers, etc.                                                      
+//  By default, Hydra uses your hostname via zbeacon. Use this function to
+//  set some other hostname. Useful when using VMs, containers, etc.      
 HYDRA_EXPORT void
     hydra_set_hostname (hydra_t *self, const char *hostname);
 

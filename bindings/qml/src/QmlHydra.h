@@ -52,6 +52,10 @@ public slots:
     //  directory called ".hydra".                                            
     void setLocalIpc ();
 
+    //  By default, Hydra uses your hostname via zbeacon. Use this function to
+    //  set some other hostname. Useful when using VMs, containers, etc.      
+    void setHostname (const QString &hostname);
+
     //  Start node. When you start a node it begins discovery and post exchange.
     //  Returns 0 if OK, -1 if it wasn't possible to start the node.            
     int start ();
