@@ -387,9 +387,15 @@ s_self_start (self_t *self)
         zsock_send (self->server, "ss", "BIND", "tcp://*:*");
         zsock_send (self->server, "s", "PORT");
         zsock_recv (self->server, "si", NULL, &port_nbr);
-        char *hostname = zsys_hostname ();
+
+        //  Get our hostname via a zbeacon instance, and construct endpoint
+        zactor_t *beacon = zactor_new (zbeacon, NULL);
+        assert (beacon);
+        zsock_send (beacon, "si", "CONFIGURE", 31415);
+        char *hostname = zstr_recv (beacon);
         endpoint = zsys_sprintf ("tcp://%s:%d", hostname, port_nbr);
         zstr_free (&hostname);
+        zactor_destroy (&beacon);
     }
     zsys_info ("hydra: Hydra server started on %s", endpoint);
     zyre_set_header (self->zyre, "X-HYDRA", "%s", endpoint);
