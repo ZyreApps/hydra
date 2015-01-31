@@ -15,8 +15,6 @@ Rectangle {
   Hydra {
     id: globalHydra
     directory: (qmlContextHomeDirectory || "/tmp") + "/hydra"
-    verbose: true
-    animate: true
   }
   
   SystemPalette { id: colors; colorGroup: SystemPalette.Inactive }
@@ -30,9 +28,18 @@ Rectangle {
         onTriggered: postCreator.visible = true
       }
       MenuItem {
-        property bool running: true
-        text: running ? "&Stop sharing" : "&Start sharing"
-        enabled: false // TODO: Implement
+        // property alias verbose: globalHydra.verbose
+        text: "&Verbose logging"
+        checkable: true
+        onCheckedChanged: globalHydra.verbose = checked
+        checked: globalHydra.verbose
+      }
+      MenuItem {
+        // property alias animate: globalHydra.animate
+        text: "&Verbose discovery"
+        checkable: true
+        onCheckedChanged: globalHydra.animate = checked
+        checked: globalHydra.animate
       }
       MenuItem {
         text: "E&xit"

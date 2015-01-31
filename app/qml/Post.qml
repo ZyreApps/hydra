@@ -83,6 +83,13 @@ GroupBox {
       menu: contextMenu
     }
     
+    CheckBox {
+      id: showImageCheckBox
+      Layout.alignment: Qt.AlignHCenter
+      text: "Show image"
+      visible: root.isImage && root.location.length > 0
+    }
+    
     Image {
       Layout.fillHeight: true
       Layout.fillWidth: true
@@ -92,7 +99,7 @@ GroupBox {
       id: contentImage
       fillMode: Image.PreserveAspectFit
       source: visible ? "file://" + root.location : ""
-      visible: root.isImage && root.location.length > 0
+      visible: showImageCheckBox.visible && showImageCheckBox.checked
       ContextMenuMouseArea { menu: contextMenu }
     }
     
@@ -137,11 +144,6 @@ GroupBox {
     }
     MenuItem {
       text: "&Delete this post"
-      enabled: false // TODO: Implement
-    }
-    MenuItem {
-      property bool running: true
-      text: running ? "&Stop sharing" : "&Start sharing"
       enabled: false // TODO: Implement
     }
   }

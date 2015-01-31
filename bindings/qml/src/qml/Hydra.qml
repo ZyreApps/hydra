@@ -9,10 +9,19 @@ QtObject {
   
   // Properties of the C hydra class
   property var nickname: undefined
+  property var hostname: undefined
   property string directory: "/tmp/hydra"
   property bool useLocalIPC: false
   property bool verbose: false
   property bool animate: false
+  
+  // Restart the hydra service when any one of these properties changes
+  onNicknameChanged:    priv.restartHydra()
+  onHostnameChanged:    priv.restartHydra()
+  onDirectoryChanged: { priv.restartHydra(); priv.fetchInitialFromLedger() }
+  onUseLocalIPCChanged: priv.restartHydra()
+  onVerboseChanged:     priv.restartHydra()
+  onAnimateChanged:     priv.restartHydra()
   
   // Properties of the QML wrapper
   property int fetchInterval: 500 // how often to check for new messages (in ms)
@@ -26,7 +35,7 @@ QtObject {
   onStore: priv.store(post)
   
   // Creat and destroy the service along with this object
-  Component.onCompleted: priv.createHydra()
+  Component.onCompleted: { priv.createHydra(); priv.fetchInitialFromLedger() }
   Component.onDestruction: priv.destroyHydra()
   
   // Allow QtObjects to be nested freely within (to no effect)
@@ -49,15 +58,25 @@ QtObject {
         if (root.animate)     hydra.setAnimate()
         if (root.useLocalIPC) hydra.setLocalIpc()
         if (root.nickname)    hydra.setNickname(root.nickname)
+        if (root.hostname)    hydra.setHostname(root.hostname)
         
         hydra.start()            // Start the underlying hydra actors
-        fetchInitialFromLedger() // Grab existing posts from our node
         fetcher.start()          // Start fetching posts from other nodes
       }
       else
         console.error("ERROR: hydra_new failed in directory:", root.directory)
     }
     
+    // Destroy the current QmlHydra instance
+    function destroyHydra() {
+      fetcher.stop()
+      QmlHydra.destruct(hydra)
+    }
+    
+    // Restart the QmlHydra instance
+    function restartHydra() { if (hydra) { destroyHydra(); createHydra() } }
+    
+    // Grab existing posts from our node's store
     function fetchInitialFromLedger() {
       var ledger = QmlHydraLedger.construct()
       ledger.load()
@@ -69,7 +88,9 @@ QtObject {
       QmlHydraLedger.destruct(ledger)
     }
     
+    // Store a new post in our node's store
     function store(post) {
+      if (!hydra || hydra.isNULL) return
       post.subject  = post.subject  || ""
       post.parentId = post.parentId || ""
       post.mimeType = post.mimeType || ""
@@ -83,9 +104,10 @@ QtObject {
         hydra.storeString(
           post.subject, post.parentId, post.mimeType, post.content)
       
-      echoStored(post) // Echo back to self to simulate fetch for viewing
+      echoStored(post)
     }
     
+    // Echo posts from 'store' back to self to simulate fetch for local viewing
     function echoStored(post) {
       var echo = QmlHydraPost.construct(post.subject)
       echo.setParentId(post.parentId)
@@ -99,6 +121,7 @@ QtObject {
       handleFetched(echo)
     }
     
+    // Translate a C post object into a JS obect and send in a fetched signal
     function handleFetched(post) {
       root.fetched ({
         parentId:    post.parentId(),
@@ -108,15 +131,8 @@ QtObject {
         mimeType:    post.mimeType(),
         content:     post.content(),
         location:    post.location(),
-        // TODO: copy other properties
       })
       QmlHydraPost.destruct(post)
-    }
-    
-    // Destroy the current QmlHydra instance
-    function destroyHydra() {
-      fetcher.stop()
-      QmlHydra.destruct(hydra)
     }
     
     // The Timer for periodically checking for new messages
@@ -128,7 +144,7 @@ QtObject {
       // On each tick, fetch as many posts as are available from the service,
       // converting them to javascript objects and destroying the originals.
       onTriggered: {
-        if (priv.hydra.isNULL) return
+        if (!priv.hydra || priv.hydra.isNULL) return
         var post
         while (!((post = priv.hydra.fetch()).isNULL))
           priv.handleFetched(post)
