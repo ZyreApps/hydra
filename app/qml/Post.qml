@@ -139,10 +139,5 @@ GroupBox {
       text: "&Delete this post"
       enabled: false // TODO: Implement
     }
-    MenuItem {
-      property bool running: true
-      text: running ? "&Stop sharing" : "&Start sharing"
-      enabled: false // TODO: Implement
-    }
   }
 }
