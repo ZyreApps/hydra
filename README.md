@@ -10,6 +10,8 @@
 
 **<a href="#toc2-12">Building Hydra</a>**
 
+**<a href="#toc2-18">Building Hydra QML app</a>**
+
 **<a href="#toc2-28">Testing</a>**
 
 **<a href="#toc2-41">Overview</a>**
@@ -41,6 +43,11 @@ To build the Hydra C stack do the following:
         sudo make install && ldconfig
         cd ..
     done
+
+<A name="toc2-18" title="Building Hydra QML app" />
+## Building Hydra QML app
+
+For documentation on building the QML app, see the README.md under the app/ subdirectory.
 
 <A name="toc2-28" title="Testing" />
 ## Testing

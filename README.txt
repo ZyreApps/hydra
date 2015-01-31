@@ -23,6 +23,10 @@ To build the Hydra C stack do the following:
         cd ..
     done
 
+## Building Hydra QML app
+
+For documentation on building the QML app, see the README.md under the app/ subdirectory.
+
 ## Testing
 
 To test from the command line, run the hydrad executable like this:
