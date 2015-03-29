@@ -505,8 +505,9 @@ s_self_handle_zyre (self_t *self)
         //  Only connect to Hydra nodes (not other Zyre nodes)
         char *endpoint = zyre_event_header (event, "X-HYDRA");
         if (endpoint) {
-            hydra_client_t *client = hydra_client_new (endpoint, 1000);
-            if (client
+            hydra_client_t *client = hydra_client_new ();
+            assert (client);
+            if (hydra_client_connect (client, endpoint, 1000) == 0
             && !zhashx_insert (self->peers, zyre_event_sender (event), client)) {
                 zpoller_add (self->poller, hydra_client_msgpipe (client));
                 hydra_client_sync (client);

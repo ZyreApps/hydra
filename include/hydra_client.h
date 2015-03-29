@@ -19,8 +19,10 @@
     =========================================================================
 */
 
-#ifndef __HYDRA_CLIENT_H_INCLUDED__
-#define __HYDRA_CLIENT_H_INCLUDED__
+#ifndef HYDRA_CLIENT_H_INCLUDED
+#define HYDRA_CLIENT_H_INCLUDED
+
+#include <czmq.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -33,14 +35,12 @@ typedef struct _hydra_client_t hydra_client_t;
 #endif
 
 //  @interface
-//  Create a new hydra_client
-//  Connect to server endpoint, with specified timeout in msecs (zero means wait    
-//  forever). Constructor succeeds if connection is successful. The sink endpoint is
-//  provided by the node's own server, for storing received posts.                  
+//  Create a new hydra_client, return the reference if successful, or NULL
+//  if construction failed due to lack of available memory.
 hydra_client_t *
-    hydra_client_new (const char *endpoint, uint32_t timeout);
+    hydra_client_new (void);
 
-//  Destroy the hydra_client
+//  Destroy the hydra_client and free all memory used by the object.
 void
     hydra_client_destroy (hydra_client_t **self_p);
 
@@ -56,6 +56,19 @@ zactor_t *
 //  is never ambiguous.
 zsock_t *
     hydra_client_msgpipe (hydra_client_t *self);
+
+//  Return true if client is currently connected, else false. Note that the
+//  client will automatically re-connect if the server dies and restarts after
+//  a successful first connection.
+bool
+    hydra_client_connected (hydra_client_t *self);
+
+//  Connect to server endpoint, with specified timeout in msecs (zero means wait    
+//  forever). Constructor succeeds if connection is successful. The sink endpoint is
+//  provided by the node's own server, for storing received posts.                  
+//  Returns >= 0 if successful, -1 if interrupted.
+int 
+    hydra_client_connect (hydra_client_t *self, const char *endpoint, uint32_t timeout);
 
 //  Start synchronization with server. This method returns immediately, and then    
 //  signals progress via the msgpipe socket, with POST, SUCCESS, and FAILED         
@@ -79,7 +92,7 @@ const char *
 //  Self test of this class
 void
     hydra_client_test (bool verbose);
-    
+
 //  To enable verbose tracing (animation) of hydra_client instances, set
 //  this to true. This lets you trace from and including construction.
 extern volatile int

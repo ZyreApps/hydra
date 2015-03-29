@@ -37,6 +37,7 @@ typedef struct {
     client_args_t *args;        //  Arguments from methods
 
     int heartbeat_timer;        //  Timeout for heartbeats to server
+    int retries;                //  How many heartbeats we've tried
     zconfig_t *config;          //  Own configuration data
     char *identity;             //  Own identity to send to server
     char *nickname;             //  Own nickname to send to server
@@ -129,15 +130,32 @@ set_client_identity (client_t *self)
 
 
 //  ---------------------------------------------------------------------------
-//  use_heartbeat_timer
+//  client_is_connected
 //
 
 static void
-use_heartbeat_timer (client_t *self)
+client_is_connected (client_t *self)
 {
+    self->retries = 0;
+    engine_set_connected (self, true);
     engine_set_timeout (self, self->heartbeat_timer);
 }
 
+
+//  ---------------------------------------------------------------------------
+//  check_if_connection_is_dead
+//
+
+static void
+check_if_connection_is_dead (client_t *self)
+{
+    //  We send at most 3 heartbeats before expiring the server
+    if (++self->retries >= 3) {
+        engine_set_timeout (self, 0);
+        engine_set_connected (self, false);
+        engine_set_exception (self, exception_event);
+    }
+}
 
 
 //  ---------------------------------------------------------------------------
@@ -442,7 +460,10 @@ hydra_client_test (bool verbose)
     zstr_sendx (server, "BIND", "ipc://@/hydra", NULL);
     
     hydra_client_verbose = verbose;
-    hydra_client_t *client = hydra_client_new ("ipc://@/hydra", 500);
+    hydra_client_t *client = hydra_client_new ();
+    assert (client);
+    int rc = hydra_client_connect (client, "ipc://@/hydra", 500);
+    assert (rc = 0);
 //     int rc = hydra_client_fetch (client, HYDRA_PROTO_FETCH_RESET);
 //     assert (rc == -1);
     hydra_client_destroy (&client);

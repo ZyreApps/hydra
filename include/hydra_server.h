@@ -19,8 +19,10 @@
     =========================================================================
 */
 
-#ifndef __HYDRA_SERVER_H_INCLUDED__
-#define __HYDRA_SERVER_H_INCLUDED__
+#ifndef HYDRA_SERVER_H_INCLUDED
+#define HYDRA_SERVER_H_INCLUDED
+
+#include <czmq.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -32,11 +34,11 @@ extern "C" {
 //  Create new hydra_server instance, passing logging prefix:
 //
 //      zactor_t *hydra_server = zactor_new (hydra_server, "myname");
-//  
+//
 //  Destroy hydra_server instance
 //
 //      zactor_destroy (&hydra_server);
-//  
+//
 //  Enable verbose logging of commands and activity:
 //
 //      zstr_send (hydra_server, "VERBOSE");
@@ -62,7 +64,7 @@ extern "C" {
 //  Set configuration path value:
 //
 //      zstr_sendx (hydra_server, "SET", path, value, NULL);
-//    
+//
 //  Save configuration data to config file on disk:
 //
 //      zstr_sendx (hydra_server, "SAVE", filename, NULL);
