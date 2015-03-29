@@ -71,26 +71,12 @@
 ;;
 (def state-events {
   :start {
-    HydraProto/HELLO [ (action set-server-identity) (send HydraProto/HELLO_OK) (next-state :connected) ]
     :* [ (action signal-command-invalid) (send HydraProto/ERROR) ]
-    HydraProto/EXPIRED [ terminate ]
-    HydraProto/EXCEPTION [ (send HydraProto/ERROR) terminate ]
   }
   :connected {
-    HydraProto/NEXT_OLDER [ (action fetch-next-older-post) (send HydraProto/NEXT_OK) ]
-    HydraProto/NEXT_NEWER [ (action fetch-next-newer-post) (send HydraProto/NEXT_OK) ]
-    HydraProto/NO_SUCH_POST [ (send HydraProto/NEXT_EMPTY) ]
-    HydraProto/META [ (action fetch-post-metadata) (send HydraProto/META_OK) ]
-    HydraProto/CHUNK [ (action fetch-post-content-chunk) (send HydraProto/CHUNK_OK) ]
-    HydraProto/PING [ (send HydraProto/PING_OK) ]
-    HydraProto/GOODBYE [ (send HydraProto/GOODBYE_OK) terminate ]
-    HydraProto/EXPIRED [ terminate ]
-    HydraProto/EXCEPTION [ (send HydraProto/ERROR) terminate ]
     :* [ (action signal-command-invalid) (send HydraProto/ERROR) terminate ]
   }
   :defaults {
-    HydraProto/EXPIRED [ terminate ]
-    HydraProto/EXCEPTION [ (send HydraProto/ERROR) terminate ]
     :* [ (action signal-command-invalid) (send HydraProto/ERROR) terminate ]
   }})
 
@@ -106,7 +92,7 @@
     (assoc state routing-id :start)))
 
 (defn match-msg
-  [{:keys [state] :as server} ^HydraMsg msg]
+  [{:keys [state] :as server} ^HydraProto msg]
   (let [id (.id msg)
         routing-id (.getData (.routingId msg))
         initialized-state (-> (swap! state maybe-setup-session routing-id)

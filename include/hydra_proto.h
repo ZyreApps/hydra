@@ -1,6 +1,6 @@
 /*  =========================================================================
     hydra_proto - The Hydra Protocol
-    
+
     Codec header for hydra_proto.
 
     ** WARNING *************************************************************
@@ -21,8 +21,8 @@
     =========================================================================
 */
 
-#ifndef __HYDRA_PROTO_H_INCLUDED__
-#define __HYDRA_PROTO_H_INCLUDED__
+#ifndef HYDRA_PROTO_H_INCLUDED
+#define HYDRA_PROTO_H_INCLUDED
 
 /*  These are the hydra_proto messages:
 
@@ -144,7 +144,7 @@ int
 //  Send the hydra_proto to the output socket, does not destroy it
 int
     hydra_proto_send (hydra_proto_t *self, zsock_t *output);
-    
+
 //  Print contents of message to stdout
 void
     hydra_proto_print (hydra_proto_t *self);

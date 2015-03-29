@@ -37,20 +37,34 @@ struct _hydra_proto_t {
     int id;                             //  hydra_proto message ID
     byte *needle;                       //  Read/write pointer for serialization
     byte *ceiling;                      //  Valid upper limit for read pointer
-    char identity [256];                //  Client identity
-    char nickname [256];                //  Client nickname
-    char ident [256];                   //  Client's oldest post ID
-    char *subject;                      //  Subject line
-    char timestamp [256];               //  Post creation timestamp
-    char parent_id [256];               //  Parent post ID, if any
-    char digest [256];                  //  Content SHA1 digest
-    char mime_type [256];               //  Content MIME type
-    uint64_t content_size;              //  Content size, octets
-    uint64_t offset;                    //  Chunk offset in file
-    uint32_t octets;                    //  Maximum chunk size to fetch
-    zchunk_t *content;                  //  Content data chunk
-    uint16_t status;                    //  3-digit status code
-    char reason [256];                  //  Printable explanation
+    // Client identity
+    char identity [256];
+    // Client nickname
+    char nickname [256];
+    // Client's oldest post ID
+    char ident [256];
+    // Subject line
+    char *subject;
+    // Post creation timestamp
+    char timestamp [256];
+    // Parent post ID, if any
+    char parent_id [256];
+    // Content SHA1 digest
+    char digest [256];
+    // Content MIME type
+    char mime_type [256];
+    // Content size, octets
+    uint64_t content_size;
+    // Chunk offset in file
+    uint64_t offset;
+    // Maximum chunk size to fetch
+    uint32_t octets;
+    // Content data chunk
+    zchunk_t *content;
+    // 3-digit status code
+    uint16_t status;
+    // Printable explanation
+    char reason [256];
 };
 
 //  --------------------------------------------------------------------------
@@ -244,7 +258,7 @@ int
 hydra_proto_recv (hydra_proto_t *self, zsock_t *input)
 {
     assert (input);
-    
+
     if (zsock_type (input) == ZMQ_ROUTER) {
         zframe_destroy (&self->routing_id);
         self->routing_id = zframe_recv (input);
@@ -263,7 +277,7 @@ hydra_proto_recv (hydra_proto_t *self, zsock_t *input)
     //  Get and check protocol signature
     self->needle = (byte *) zmq_msg_data (&frame);
     self->ceiling = self->needle + zmq_msg_size (&frame);
-    
+
     uint16_t signature;
     GET_NUMBER2 (signature);
     if (signature != (0xAAA0 | 0)) {
@@ -430,7 +444,7 @@ hydra_proto_send (hydra_proto_t *self, zsock_t *output)
     PUT_NUMBER2 (0xAAA0 | 0);
     PUT_NUMBER1 (self->id);
     size_t nbr_frames = 1;              //  Total number of frames to send
-    
+
     switch (self->id) {
         case HYDRA_PROTO_HELLO:
             PUT_STRING (self->identity);
@@ -493,7 +507,7 @@ hydra_proto_send (hydra_proto_t *self, zsock_t *output)
     }
     //  Now send the data frame
     zmq_msg_send (&frame, zsock_resolve (output), --nbr_frames? ZMQ_SNDMORE: 0);
-    
+
     return 0;
 }
 
@@ -517,7 +531,7 @@ hydra_proto_print (hydra_proto_t *self)
             else
                 zsys_debug ("    nickname=");
             break;
-            
+
         case HYDRA_PROTO_HELLO_OK:
             zsys_debug ("HYDRA_PROTO_HELLO_OK:");
             if (self->identity)
@@ -529,7 +543,7 @@ hydra_proto_print (hydra_proto_t *self)
             else
                 zsys_debug ("    nickname=");
             break;
-            
+
         case HYDRA_PROTO_NEXT_OLDER:
             zsys_debug ("HYDRA_PROTO_NEXT_OLDER:");
             if (self->ident)
@@ -537,7 +551,7 @@ hydra_proto_print (hydra_proto_t *self)
             else
                 zsys_debug ("    ident=");
             break;
-            
+
         case HYDRA_PROTO_NEXT_NEWER:
             zsys_debug ("HYDRA_PROTO_NEXT_NEWER:");
             if (self->ident)
@@ -545,7 +559,7 @@ hydra_proto_print (hydra_proto_t *self)
             else
                 zsys_debug ("    ident=");
             break;
-            
+
         case HYDRA_PROTO_NEXT_OK:
             zsys_debug ("HYDRA_PROTO_NEXT_OK:");
             if (self->ident)
@@ -553,15 +567,15 @@ hydra_proto_print (hydra_proto_t *self)
             else
                 zsys_debug ("    ident=");
             break;
-            
+
         case HYDRA_PROTO_NEXT_EMPTY:
             zsys_debug ("HYDRA_PROTO_NEXT_EMPTY:");
             break;
-            
+
         case HYDRA_PROTO_META:
             zsys_debug ("HYDRA_PROTO_META:");
             break;
-            
+
         case HYDRA_PROTO_META_OK:
             zsys_debug ("HYDRA_PROTO_META_OK:");
             if (self->subject)
@@ -586,35 +600,35 @@ hydra_proto_print (hydra_proto_t *self)
                 zsys_debug ("    mime_type=");
             zsys_debug ("    content_size=%ld", (long) self->content_size);
             break;
-            
+
         case HYDRA_PROTO_CHUNK:
             zsys_debug ("HYDRA_PROTO_CHUNK:");
             zsys_debug ("    offset=%ld", (long) self->offset);
             zsys_debug ("    octets=%ld", (long) self->octets);
             break;
-            
+
         case HYDRA_PROTO_CHUNK_OK:
             zsys_debug ("HYDRA_PROTO_CHUNK_OK:");
             zsys_debug ("    offset=%ld", (long) self->offset);
             zsys_debug ("    content=[ ... ]");
             break;
-            
+
         case HYDRA_PROTO_PING:
             zsys_debug ("HYDRA_PROTO_PING:");
             break;
-            
+
         case HYDRA_PROTO_PING_OK:
             zsys_debug ("HYDRA_PROTO_PING_OK:");
             break;
-            
+
         case HYDRA_PROTO_GOODBYE:
             zsys_debug ("HYDRA_PROTO_GOODBYE:");
             break;
-            
+
         case HYDRA_PROTO_GOODBYE_OK:
             zsys_debug ("HYDRA_PROTO_GOODBYE_OK:");
             break;
-            
+
         case HYDRA_PROTO_ERROR:
             zsys_debug ("HYDRA_PROTO_ERROR:");
             zsys_debug ("    status=%ld", (long) self->status);
@@ -623,7 +637,7 @@ hydra_proto_print (hydra_proto_t *self)
             else
                 zsys_debug ("    reason=");
             break;
-            
+
     }
 }
 
@@ -1028,7 +1042,10 @@ hydra_proto_set_reason (hydra_proto_t *self, const char *value)
 int
 hydra_proto_test (bool verbose)
 {
-    printf (" * hydra_proto: ");
+    printf (" * hydra_proto:");
+
+    //  Silence an "unused" warning by "using" the verbose variable
+    if (verbose) {;}
 
     //  @selftest
     //  Simple create/destroy test
@@ -1037,13 +1054,16 @@ hydra_proto_test (bool verbose)
     hydra_proto_destroy (&self);
 
     //  Create pair of sockets we can send through
-    zsock_t *input = zsock_new (ZMQ_ROUTER);
-    assert (input);
-    zsock_connect (input, "inproc://selftest-hydra_proto");
-
+    //  We must bind before connect if we wish to remain compatible with ZeroMQ < v4
     zsock_t *output = zsock_new (ZMQ_DEALER);
     assert (output);
-    zsock_bind (output, "inproc://selftest-hydra_proto");
+    int rc = zsock_bind (output, "inproc://selftest-hydra_proto");
+    assert (rc == 0);
+
+    zsock_t *input = zsock_new (ZMQ_ROUTER);
+    assert (input);
+    rc = zsock_connect (input, "inproc://selftest-hydra_proto");
+    assert (rc == 0);
 
     //  Encode/send/decode and verify each message type
     int instance;
@@ -1182,6 +1202,7 @@ hydra_proto_test (bool verbose)
         assert (hydra_proto_routing_id (self));
         assert (hydra_proto_offset (self) == 123);
         assert (memcmp (zchunk_data (hydra_proto_content (self)), "Captcha Diem", 12) == 0);
+        zchunk_destroy (&chunk_ok_content);
     }
     hydra_proto_set_id (self, HYDRA_PROTO_PING);
 

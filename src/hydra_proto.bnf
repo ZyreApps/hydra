@@ -54,10 +54,10 @@ The following ABNF grammar defines the The Hydra Protocol:
     META-OK         = signature %d8 subject timestamp parent_id digest mime_type content_size
     subject         = longstr               ; Subject line
     timestamp       = string                ; Post creation timestamp
-    parent id       = string                ; Parent post ID, if any
+    parent_id       = string                ; Parent post ID, if any
     digest          = string                ; Content SHA1 digest
-    mime type       = string                ; Content MIME type
-    content size    = number-8              ; Content size, octets
+    mime_type       = string                ; Content MIME type
+    content_size    = number-8              ; Content size, octets
 
     ;  Client fetches a chunk of content data from the server, for the       
     ;  current post (as returned by NEXT-OK).                                

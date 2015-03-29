@@ -11,7 +11,7 @@
     <include filename = "../license.xml" />
 
     <state name = "start">
-        <event name = "constructor" next = "expect hello ok">
+        <event name = "connect" next = "expect hello ok">
             <action name = "connect to server endpoint" />
             <action name = "set client identity" />
             <action name = "use connect timeout" />
@@ -21,12 +21,17 @@
             <action name = "signal bad endpoint" />
             <action name = "terminate" />
         </event>
+        <event name = "destructor">
+            <action name = "signal success" />
+        </event>
     </state>
 
     <state name = "expect hello ok" inherit = "defaults">
         <event name = "HELLO OK" next = "connected">
-            <action name = "use heartbeat timer" />
             <action name = "signal connected" />
+            <action name = "client is connected" />
+        </event>
+        <event name = "expired" next = "start">
         </event>
     </state>
 
@@ -110,12 +115,17 @@
             <action name = "send" message = "GOODBYE" />
         </event>
         <event name = "expired">
+            <action name = "check if connection is dead" />
             <action name = "send" message = "PING" />
+        </event>
+        <event name = "PING OK">
+            <action name = "client is connected" />
         </event>
         <event name = "ERROR" next = "have error">
             <action name = "check status code" />
         </event>
-        <event name = "PING OK">
+        <event name = "exception">
+            <!-- Generic exception event to interrupt actions -->
         </event>
         <event name = "*">
             <action name = "signal internal error" />
@@ -136,7 +146,7 @@
 
     <state name = "reconnecting" inherit = "defaults">
         <event name = "HELLO OK" next = "connected">
-            <action name = "use heartbeat timer" />
+            <action name = "client is connected" />
         </event>
     </state>
 
@@ -151,7 +161,7 @@
     </state>
 
     <!-- API methods -->
-    <method name = "constructor" return = "status">
+    <method name = "connect" return = "status">
     Connect to server endpoint, with specified timeout in msecs (zero means
     wait forever). Constructor succeeds if connection is successful. The sink
     endpoint is provided by the node's own server, for storing received posts.
